@@ -104,9 +104,9 @@ class Environment:
         return self.grid[time, pos[0], pos[1]] if len(pos.shape) == 1 else self.grid[time, pos[:,0], pos[:,1]]
 
 
-    def at_source(self,
-                  pos:np.ndarray
-                  ) -> bool:
+    def source_reached(self,
+                       pos:np.ndarray
+                       ) -> bool:
         '''
         Checks whether a given position is within the source radius.
 
