@@ -1,6 +1,6 @@
 import numpy as np
 
-from src import Environment
+from src.environment import Environment
 
 
 class AgentState:

@@ -6,8 +6,21 @@ from src import Agent
 
 
 class SimulationHistory:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, start_state) -> None:
+        self.start_state = start_state
+        self.actions = []
+        self.states = []
+        self.observations = []
+
+    
+    def add_step(self,
+                 action,
+                 state,
+                 observation
+                 ) -> None:
+        self.states.append(state)
+        self.actions.append(action)
+        self.observations.append(observation)
 
 
 class Simulation:
