@@ -235,17 +235,43 @@ class Model(MDP_Model):
 
     @classmethod
     def from_environment(cls, environment:Environment) -> 'Model':
-        state_grid = np.fromfunction(lambda x,y: f's_{x}_{y}', shape=environment.grid.shape)
-        end_states = np.argwhere(np.fromfunction(lambda x,y: ((x-environment.source_position[0])**2 + (y-environment.source_position[1])**2) <= environment.source_radius**2, shape=environment.grid.shape).ravel())[:,0].tolist()
+        state_count = np.prod(environment.shape)
 
+        state_grid = [[f's_{x}_{y}' for x in range(environment.shape[1])] for y in range(environment.shape[0])]
+        end_states = np.argwhere(np.fromfunction(lambda x,y: ((x-environment.source_position[0])**2 + (y-environment.source_position[1])**2) <= environment.source_radius**2, shape=environment.shape).ravel())[:,0].tolist()
+        
+        # Compute observation matrix
+        odor_probability = np.mean(environment.grid, axis=0).ravel()
+        observations = np.empty((state_count, 4, 3), dtype=float) # 4-actions, 3-observations
+
+        observations[:,:,0] = (1 - odor_probability[:,None])
+        observations[:,:,1] = odor_probability[:,None]
+
+        observations[:,:,2] = 0.0
+        observations[end_states,:,:] = 0.0
+        observations[end_states,:,2] = 1.0
+
+        # Compute reachable states
+        row_w = environment.shape[1]
+
+        reachable_states = np.zeros((state_count, 4, 1), dtype=int)
+        for s in range(state_count):
+            reachable_states[s,0,0] = s - row_w if s - row_w >= 0 else (state_count - row_w) + s # North
+            reachable_states[s,1,0] = s + 1 if (s + 1) % row_w > 0 else s # East
+            reachable_states[s,2,0] = s + row_w if s + row_w < state_count else s % row_w # South
+            reachable_states[s,3,0] = s - 1 if (s - 1) % row_w < (row_w - 1) else s # West
+
+        reachable_states = np.array(reachable_states)
+        
+        # Instantiate the model object
         model = Model(
             states=state_grid,
-            actions=['N','E','S','W','O_Ground','O_Air'],
+            actions=['N','E','S','W'],
             observations=['nothing','something','goal'],
             reachable_states=reachable_states,
             observation_table=observations,
             end_states=end_states,
-            start_probabilities=start.ravel()
+            start_probabilities=environment.start_probabilities.ravel()
         )
         return model
 
