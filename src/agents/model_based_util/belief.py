@@ -278,6 +278,52 @@ class BeliefSet:
         return BeliefSet(self.model, all_successors)
 
 
+    def update(self,
+               actions:list|np.ndarray,
+               observations:list|np.ndarray
+               ) -> 'BeliefSet':
+        '''
+        Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).
+
+        Parameters
+        ----------
+        actions : list or np.ndarray
+            The most recent played actions.
+        observations : list or np.ndarray
+            The most recent received observations.
+
+        Returns
+        -------
+        new_belief_set : BeliefSet
+            An set of updated beliefs.
+        '''
+        # GPU support check
+        xp = cp if (gpu_support and self.is_on_gpu) else np
+
+        # Ensuring we are dealing we are dealing with ndarrays
+        observations = xp.array(observations)
+        actions = xp.array(actions)
+
+        # Computing reachable probabilities and states
+        reachable_probabilities = (self.model.reachable_transitional_observation_table[:, actions, observations, :] * self.belief_array.T[:,:,None])
+        reachable_state_per_actions = self.model.reachable_states[:, actions, :]
+
+        # Computing new probabilities
+        flatten_offset = xp.arange(len(observations))[:,None] * self.model.state_count
+        flat_shape = (len(observations), (self.model.state_count * self.model.reachable_state_count))
+        
+        a=reachable_state_per_actions.swapaxes(0,1).reshape(flat_shape)
+        w=reachable_probabilities.swapaxes(0,1).reshape(flat_shape)
+
+        a_offs = a + flatten_offset
+        new_beliefs = xp.bincount(a_offs.ravel(), weights=w.ravel(), minlength=a.shape[0]*self.model.state_count).reshape((-1,self.model.state_count))
+
+        # Normalization
+        new_beliefs /= xp.sum(new_beliefs, axis=1)[:,None]
+
+        return BeliefSet(self.model, new_beliefs)
+
+
     @property
     def unique_belief_dict(self) -> dict:
         if self._uniqueness_dict is None:

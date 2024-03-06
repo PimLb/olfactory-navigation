@@ -7,6 +7,8 @@ import os
 import pandas as pd
 import random
 
+from src.agents.model_based_util.belief import Belief, BeliefSet
+
 from .mdp import Model
 from .mdp import log
 from .mdp import COLOR_LIST, COLOR_ARRAY
@@ -341,7 +343,53 @@ class ValueFunction:
 
         # Update the tracked pruned level so far
         self._pruning_level = level
-    
+
+
+    def evaluate_at(self, belief:Belief|BeliefSet) -> tuple[float|np.ndarray, int|np.ndarray]:
+        '''
+        Function to evaluate the value function at a belief point or at a set of belief points.
+        It returns a value and the associated action.
+
+        Parameters
+        ----------
+        belief : Belief or BeliefSet
+
+        Returns
+        -------
+        value : float or np.ndarray
+            The largest value associated with the belief point(s)
+        action : int or np.ndarray
+            The action(s) associated with the vector having the highest values at the belief point(s).
+        '''
+        # GPU support check
+        xp = cp if (gpu_support and self.is_on_gpu) else np
+
+        best_value = None
+        best_action = None
+
+        if isinstance(belief, Belief):
+            # Computing values
+            belief_values = xp.dot(self.alpha_vector_array, belief.values)
+
+            # Selecting best vectors
+            best_vector = xp.argmax(belief_values)
+
+            # From best vector, compute the best value and action
+            best_value = float(belief_values[best_vector])
+            best_action = int(self.actions[best_vector])
+        else:
+            # Computing values
+            belief_values = xp.matmul(belief.values if isinstance(belief, Belief) else belief.belief_array, self.alpha_vector_array.T)
+
+            # Retrieving the top vectors according to the value function
+            best_vectors = xp.argmax(belief_values, axis=1)
+
+            # Retrieving the values and actions associated with the vectors chosen
+            best_value = belief_values[xp.arange(belief_values.shape[0]), best_vector]
+            best_action = self.actions[best_vectors]
+
+        return (best_value, best_action)
+
 
     def __save_common(self, path) -> pd.DataFrame:
         '''

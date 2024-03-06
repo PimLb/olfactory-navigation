@@ -52,11 +52,11 @@ class Agent:
         # ]
         # movement_vector = random.choice(direction_vectors)
         return np.zeros(2)
-    
+
 
     def update_state(self,
-                     observation:int,
-                     source_reached:bool
+                     observation:int|np.ndarray,
+                     source_reached:bool|np.ndarray
                      ) -> None:
         '''
         Function to update the internal state of the agent based on the previous action taken and the observation received.

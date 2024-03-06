@@ -13,16 +13,15 @@ except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
 
-class FSVI_Agent(PBVI_Agent):
+class Perseus_Agent(PBVI_Agent):
+
     def expand(self,
                model:Model,
-               b0:Belief,
-               mdp_policy:ValueFunction,
+               b:Belief,
                max_generation:int=10
                ) -> BeliefSet:
         '''
-        # TODO: Not anymore a recursive function, to rework
-        Function implementing the exploration process using the MDP policy in order to generate a sequence of Beliefs following the the Forward Search Value Iteration principles.
+        Function implementing the exploration process using the MDP policy in order to generate a sequence of Beliefs.
         It is a recursive function that is started by a initial state 's' and using the MDP policy, chooses the best action to take.
         Following this, a random next state 's_p' is being sampled from the transition probabilities and a random observation 'o' based on the observation probabilities.
         Then the given belief is updated using the chosen action and the observation received and the updated belief is added to the sequence.
@@ -30,11 +29,10 @@ class FSVI_Agent(PBVI_Agent):
 
         Parameters
         ----------
-        b0 : Belief
-            The belief to start the sequence with.
-            A random state will be chosen based on the probability distribution of the belief.
-        mdp_policy : ValueFunction
-            The mdp policy used to choose the action from with the given state 's'.
+        model : pomdp.Model
+            The model in which the exploration process will happen.
+        b : Belief
+            A belief to be added to the returned belief sequence and updated for the next step of the recursion.
         max_generation : int, default=10
             The maximum recursion depth that can be reached before the generated belief sequence is returned.
         
@@ -43,41 +41,27 @@ class FSVI_Agent(PBVI_Agent):
         belief_set : BeliefSet
             A new sequence of beliefs.
         '''
-        xp = np if not gpu_support else cp.get_array_module(b0.values)
-        belief_list = [b0]
+        xp = np if not gpu_support else cp.get_array_module(b.values)
 
-        # Choose a random starting state
-        s = b0.random_state()
+        initial_belief = b
+        belief_sequence = []
 
-        # Setting the working belief
-        b = b0
+        for i in range(max_generation):
+            # Choose random action
+            a = int(xp.random.choice(model.actions, size=1)[0])
 
-        for _ in range(max_generation - 1): #-1 due to a one belief already being present in the set
-            # Choose action based on mdp value function
-            a_star = xp.argmax(mdp_policy.alpha_vector_array[:,s])
+            # Choose random observation based on prob: P(o|b,a)
+            obs_prob = xp.einsum('sor,s->o', model.reachable_transitional_observation_table[:,a,:,:], b.values)
+            o = int(xp.random.choice(model.observations, size=1, p=obs_prob)[0])
 
-            # Pick a random next state (weighted by transition probabilities)
-            s_p = model.transition(s, a_star)
-            
-            # Pick a random observation weighted by observation probabilities in state s_p and after having done action a_star
-            o = model.observe(s_p, a_star)
-            
-            # Generate a new belief based on a_star and o
-            b_p = b.update(a_star, o)
+            # Update belief
+            bao = b.update(a,o)
 
-            # Record new belief
-            belief_list.append(b_p)
+            # Finalization
+            belief_sequence.append(bao)
+            b = bao
 
-            # Updating s and b
-            s = s_p
-            b = b_p
-
-            # Reset and belief if end state is reached
-            if s in model.end_states:
-                s = b0.random_state()
-                b = b0
-
-        return BeliefSet(model, belief_list)
+        return BeliefSet(model, belief_sequence)
 
 
     def train(self,
