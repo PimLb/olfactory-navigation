@@ -110,7 +110,7 @@ class Environment:
         self.start_probabilities[source_mask] = 0
 
         self.start_probabilities /= np.sum(self.start_probabilities)
-    
+
 
     def plot(self, ax=None) -> None:
         '''
@@ -176,7 +176,28 @@ class Environment:
             Whether or not the position is within the radius of the source.
         '''
         return np.sum((pos - self.source_position) ** 2, axis=1) <= (self.source_radius ** 2)
-    
+
+
+    def random_start_points(self, n:int=1) -> np.ndarray:
+        '''
+        Function to generate n starting positions following the starting probabilities.
+
+        Parameters
+        ----------
+        n : int, default=1
+            How many random starting positions to generate
+
+        Returns
+        -------
+        random_states_2d : np.ndarray
+            The n random 2d points in a n x 2 array. 
+        '''
+        assert n>0, "n has to be a positive number"
+        
+        random_states = np.random.choice(np.arange(self.padded_height * self.padded_width), size=n, replace=True, p=self.start_probabilities.ravel())
+        random_states_2d = np.array(np.unravel_index(random_states, shape=(self.padded_height, self.padded_width))).T
+        return random_states_2d
+
 
     def move(self,
              pos:np.ndarray,
@@ -219,3 +240,16 @@ class Environment:
             new_pos[1] = min(max(new_pos[1], 0), (self.padded_width - 1))
 
         return new_pos
+    
+
+    def distance_to_source(self,
+                           point:np.ndarray,
+                           metric:Literal['manhattan']='manhattan'
+                           ) -> np.ndarray:
+        '''
+        Function to compute the distance or distances between
+        '''
+        if metric == 'manhattan':
+            return np.sum(np.abs(self.source_position[None,:] - point), axis=1) - self.source_radius
+        else:
+            raise NotImplementedError('This distance metric has not yet been implemented')

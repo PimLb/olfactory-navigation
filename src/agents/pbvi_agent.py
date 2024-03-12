@@ -586,7 +586,7 @@ class PBVI_Agent(Agent):
 
         Returns
         -------
-        best_action : np.ndarray
+        movement_vector : np.ndarray
             A single or a list of actions chosen by the agent(s) based on their belief.
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
@@ -594,8 +594,13 @@ class PBVI_Agent(Agent):
         # Evaluated value function
         _, action = self.value_function.evaluate_at(self.belief)
 
+        # Recording the action played
         self.action_played = action
-        return action
+
+        # Converting action indexes to movement vectors
+        movemement_vector = self.model.movement_vector[action,:]
+        
+        return movemement_vector
 
 
     def update_state(self,
@@ -612,6 +617,8 @@ class PBVI_Agent(Agent):
         source_reached : np.ndarray
             A boolean array of whether the agent(s) have reached the source or not.
         '''
+        assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
+
         # Update the set of beliefs
         self.belief = self.belief.update(actions=self.action_played, observations=observation)
 

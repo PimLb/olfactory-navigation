@@ -24,13 +24,18 @@ class Agent:
         Function to call the particular flavour of training of the agent.
         '''
         raise NotImplementedError('The train function is not implemented, make an agent subclass to implement the method')
-    
 
-    def initialize_state(self) -> None:
+
+    def initialize_state(self, n:int=1) -> None:
         '''
         Function to initialize the state of the agent. Which is meant to contain concepts such as the "memory" or "belief" of the agent.
+
+        Parameters
+        ----------
+        n : int, default=1
+            How many agents to initialize.
         '''
-        self.state = AgentState()
+        raise NotImplementedError('The initialize_state function is not implemented, make an agent subclass to implement the method')
 
 
     def choose_action(self) -> np.ndarray:
@@ -44,14 +49,6 @@ class Agent:
             A vector in 2D space of the movement the agent will take
         '''
         raise NotImplementedError('The choose_action function is not implemented, make an agent subclass to implement the method')
-        # direction_vectors = [
-        #     np.array([ 0,  1]), # Right
-        #     np.array([-1,  0]), # Down
-        #     np.array([ 0, -1]), # Left
-        #     np.array([ 1,  0])  # Up
-        # ]
-        # movement_vector = random.choice(direction_vectors)
-        return np.zeros(2)
 
 
     def update_state(self,
