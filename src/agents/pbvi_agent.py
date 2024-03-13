@@ -39,8 +39,6 @@ class TrainingHistory:
         The gamma parameter used by the solver (learning rate).
     eps : float
         The epsilon parameter used by the solver (covergence bound).
-    expand_function : str
-        The expand (exploration) function used by the solver.
     expand_append : bool
         Whether the expand function appends new belief points to the belief set of reloads it all.
     initial_value_function : ValueFunction
@@ -54,7 +52,6 @@ class TrainingHistory:
     model : pomdp.Model
     gamma : float
     eps : float
-    expand_function : str
     expand_append : bool
     run_ts : datetime
         The time at which the SolverHistory object was instantiated which is assumed to be the start of the solving run.
@@ -80,7 +77,6 @@ class TrainingHistory:
                  model:Model,
                  gamma:float,
                  eps:float,
-                 expand_function:str,
                  expand_append:bool,
                  initial_value_function:ValueFunction,
                  initial_belief_set:BeliefSet
@@ -92,7 +88,6 @@ class TrainingHistory:
         self.eps = eps
         self.run_ts = datetime.now()
         
-        self.expand_function = expand_function
         self.expand_append = expand_append
 
         # Time tracking
@@ -264,25 +259,19 @@ class PBVI_Agent(Agent):
               prune_level:int=1,
               prune_interval:int=10,
               limit_value_function_size:int=-1,
+              gamma:float=0.99,
+              eps:float=1e-6,
               use_gpu:bool=False,
               history_tracking_level:int=1,
               force:bool=False,
-              print_progress:bool=True
+              print_progress:bool=True,
+              **expand_arguments
               ) -> None:
         '''
         Main loop of the Point-Based Value Iteration algorithm.
         It consists in 2 steps, Backup and Expand.
         1. Expand: Expands the belief set base with a expansion strategy given by the parameter expand_function
         2. Backup: Updates the alpha vectors based on the current belief set
-
-        Depending on the expand strategy chosen, various extra parameters are needed. List of the available expand strategies and their extra required parameters:
-            - ssra: Stochastic Simulation with Random Action. Extra params: /
-            - ssga: Stochastic Simulation with Greedy Action. Extra params: epsilon (float)
-            - ssea: Stochastic Simulation with Exploratory Action. Extra params: /
-            - ger: Greedy Error Reduction. Extra params: /
-            - hsvi: Heuristic Search Value Iteration. Extra param: mdp_policy (ValueFunction)
-            - fsvi: Forward Search Value Iteration: Extra param: mdp_policy (ValueFunction)
-            - perseus: Perseus. Extra params: /
 
         Parameters
         ----------
@@ -319,18 +308,12 @@ class PBVI_Agent(Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        # Fetching the agent's pomdp model
-        model = self.model
-
-        # numpy or cupy module
-        xp = np
-        # If GPU usage
+        # GPU support
         if use_gpu:
             assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
-            model = model.gpu_model
 
-            # Replace numpy module by cupy for computations
-            xp = cp
+        xp = np if not use_gpu else cp
+        model = self.model if not use_gpu else self.model.gpu_model
 
         # Initial belief
         if initial_belief is None:
@@ -354,14 +337,13 @@ class PBVI_Agent(Agent):
             value_function = initial_value_function.to_gpu() if use_gpu else initial_value_function
 
         # Convergence check boundary
-        max_allowed_change = self.eps * (self.gamma / (1-self.gamma))
+        max_allowed_change = eps * (gamma / (1-gamma))
 
         # History tracking
         training_history = TrainingHistory(tracking_level=history_tracking_level,
                                            model=model,
-                                           gamma=self.gamma,
-                                           eps=self.eps,
-                                           expand_function=self.expand_function,
+                                           gamma=gamma,
+                                           eps=eps,
                                            expand_append=full_backup,
                                            initial_value_function=value_function,
                                            initial_belief_set=belief_set)
@@ -379,11 +361,11 @@ class PBVI_Agent(Agent):
                 # 1: Expand belief set
                 start_ts = datetime.now()
 
-                new_belief_set = self.expand(model=model,
-                                             belief_set=belief_set,
+                new_belief_set = self.expand(belief_set=belief_set,
                                              value_function=value_function,
                                              max_generation=max_belief_growth,
-                                             **self.expand_function_params)
+                                             use_gpu=use_gpu,
+                                             **expand_arguments)
 
                 # Add new beliefs points to the total belief_set
                 belief_set = belief_set.union(new_belief_set)
@@ -396,11 +378,12 @@ class PBVI_Agent(Agent):
                     start_ts = datetime.now()
 
                     # Backup step
-                    value_function = self.backup(model,
-                                                 belief_set if full_backup else new_belief_set,
+                    value_function = self.backup(belief_set if full_backup else new_belief_set,
                                                  value_function,
+                                                 gamma=gamma,
                                                  append=(not full_backup),
-                                                 belief_dominance_prune=False)
+                                                 belief_dominance_prune=False,
+                                                 use_gpu=use_gpu)
                     backup_time = (datetime.now() - start_ts).total_seconds()
 
                     # Additional pruning
@@ -486,16 +469,23 @@ class PBVI_Agent(Agent):
         return training_history
     
 
-    def expand(self) -> None:
+    def expand(self,
+               belief_set:BeliefSet,
+               value_function:ValueFunction,
+               max_generation:int,
+               use_gpu:bool=False,
+               **kwargs
+               ) -> BeliefSet:
         raise NotImplementedError('PBVI class is abstract so expand function is not implemented, make an PBVI_agent subclass to implement the method')
 
 
     def backup(self,
-               model:Model,
                belief_set:BeliefSet,
                value_function:ValueFunction,
+               gamma:float=0.99,
                append:bool=False,
-               belief_dominance_prune:bool=True
+               belief_dominance_prune:bool=True,
+               use_gpu:bool=False
                ) -> ValueFunction:
         '''
         This function has purpose to update the set of alpha vectors. It does so in 3 steps:
@@ -524,14 +514,18 @@ class PBVI_Agent(Agent):
         new_alpha_set : ValueFunction
             A list of updated alpha vectors.
         '''
-        # Get numpy corresponding to the arrays
-        xp = np if not gpu_support else cp.get_array_module(value_function.alpha_vector_array)
+        # GPU support
+        if use_gpu:
+            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
+
+        xp = np if not use_gpu else cp
+        model = self.model if not use_gpu else self.model.gpu_model
 
         # Step 1
         vector_array = value_function.alpha_vector_array
         vectors_array_reachable_states = vector_array[xp.arange(vector_array.shape[0])[:,None,None,None], model.reachable_states[None,:,:,:]]
         
-        gamma_a_o_t = self.gamma * xp.einsum('saor,vsar->aovs', model.reachable_transitional_observation_table, vectors_array_reachable_states)
+        gamma_a_o_t = gamma * xp.einsum('saor,vsar->aovs', model.reachable_transitional_observation_table, vectors_array_reachable_states)
 
         # Step 2
         belief_array = belief_set.belief_array # bs

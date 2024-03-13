@@ -16,9 +16,11 @@ except:
 class Perseus_Agent(PBVI_Agent):
 
     def expand(self,
-               model:Model,
-               b:Belief,
-               max_generation:int=10
+               belief_set:BeliefSet,
+               value_function:ValueFunction,
+               max_generation:int,
+               use_gpu:bool=False,
+               **kwargs
                ) -> BeliefSet:
         '''
         Function implementing the exploration process using the MDP policy in order to generate a sequence of Beliefs.
@@ -41,7 +43,12 @@ class Perseus_Agent(PBVI_Agent):
         belief_set : BeliefSet
             A new sequence of beliefs.
         '''
-        xp = np if not gpu_support else cp.get_array_module(b.values)
+        # GPU support
+        if use_gpu:
+            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
+
+        xp = np if not use_gpu else cp
+        model = self.model if not use_gpu else self.model.gpu_model
 
         initial_belief = b
         belief_sequence = []
@@ -66,28 +73,33 @@ class Perseus_Agent(PBVI_Agent):
 
     def train(self,
               expansions:int,
-              full_backup:bool = True,
-              update_passes: int = 1,
-              max_belief_growth: int = 10,
-              initial_belief: BeliefSet | Belief | None = None,
-              initial_value_function: ValueFunction | None = None,
-              prune_level: int = 1, prune_interval: int = 10,
-              limit_value_function_size: int = -1,
-              use_gpu: bool = False,
-              history_tracking_level: int = 1,
-              force: bool = False,
-              print_progress: bool = True) -> None:
+              update_passes:int=1,
+              max_belief_growth:int=10,
+              initial_belief:BeliefSet|Belief|None=None,
+              initial_value_function:ValueFunction|None=None,
+              prune_level:int=1,
+              prune_interval:int=10,
+              limit_value_function_size:int=-1,
+              gamma:float=0.99,
+              eps:float=1e-6,
+              use_gpu:bool=False,
+              history_tracking_level:int=1,
+              force:bool=False,
+              print_progress:bool=True
+              ) -> None:
         
-        return super().train(expansions,
-                             full_backup,
-                             update_passes,
-                             max_belief_growth,
-                             initial_belief,
-                             initial_value_function,
-                             prune_level,
-                             prune_interval,
-                             limit_value_function_size,
-                             use_gpu,
-                             history_tracking_level,
-                             force,
-                             print_progress)
+        return super().train(expansions = expansions,
+                             full_backup = False,
+                             update_passes = update_passes,
+                             max_belief_growth = max_belief_growth,
+                             initial_belief = initial_belief,
+                             initial_value_function = initial_value_function,
+                             prune_level = prune_level,
+                             prune_interval = prune_interval,
+                             limit_value_function_size = limit_value_function_size,
+                             gamma = gamma,
+                             eps = eps,
+                             use_gpu = use_gpu,
+                             history_tracking_level = history_tracking_level,
+                             force = force,
+                             print_progress = print_progress)
