@@ -1,8 +1,10 @@
 from ..environment import Environment
-from ..agents.pbvi_agent import PBVI_Agent
+from .pbvi_agent import PBVI_Agent
 from .model_based_util.pomdp import Model
+from .model_based_util.mdp import log
 from .model_based_util.value_function import ValueFunction
 from .model_based_util.belief import Belief, BeliefSet
+from .model_based_util import vi_solver
 
 import numpy as np
 gpu_support = False
@@ -96,6 +98,7 @@ class FSVI_Agent(PBVI_Agent):
               max_belief_growth:int=10,
               initial_belief:BeliefSet|Belief|None=None,
               initial_value_function:ValueFunction|None=None,
+              mdp_policy:ValueFunction|None=None,
               prune_level:int=1,
               prune_interval:int=10,
               limit_value_function_size:int=-1,
@@ -106,7 +109,20 @@ class FSVI_Agent(PBVI_Agent):
               force:bool=False,
               print_progress:bool=True
               ) -> None:
-        
+
+        if mdp_policy is None:
+            log('MDP_policy, not provided. Solving MDP with Value Iteration...')
+            mdp_policy, hist = vi_solver.solve(model=self.model,
+                                            horizon=1000,
+                                            initial_value_function=initial_value_function,
+                                            gamma=gamma,
+                                            eps=eps,
+                                            use_gpu=use_gpu,
+                                            history_tracking_level=1,
+                                            print_progress=print_progress)
+            
+            print(hist.summary)
+
         return super().train(expansions = expansions,
                              full_backup = False,
                              update_passes = update_passes,
@@ -121,4 +137,5 @@ class FSVI_Agent(PBVI_Agent):
                              use_gpu = use_gpu,
                              history_tracking_level = history_tracking_level,
                              force = force,
-                             print_progress = print_progress)
+                             print_progress = print_progress,
+                             mdp_policy = mdp_policy)

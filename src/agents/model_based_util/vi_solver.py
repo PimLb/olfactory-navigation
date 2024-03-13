@@ -137,8 +137,11 @@ class SolverHistory:
         plt.show()
 
 
-def solve(self,
+def solve(model:Model,
+          horizon:int=100,
           initial_value_function:Union[ValueFunction,None]=None,
+          gamma:float=0.99,
+          eps:float=1e-6,
           use_gpu:bool=False,
           history_tracking_level:int=1,
           print_progress:bool=True
@@ -147,6 +150,7 @@ def solve(self,
     Function to solve an MDP model using Value Iteration.
     If an initial value function is not provided, the value function will be initiated with the expected rewards.
 
+    # TODO: Update this
     Parameters
     ----------
     model : mdp.Model
@@ -167,16 +171,12 @@ def solve(self,
     history : SolverHistory
         The tracking of the solution over time.
     '''
-    # numpy or cupy module
-    xp = np
-
-    # If GPU usage
+    # GPU support
     if use_gpu:
         assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
-        model = model.gpu_model
 
-        # Replace numpy module by cupy for computations
-        xp = cp
+    xp = np if not use_gpu else cp
+    model = model if not use_gpu else model.gpu_model
 
     # Value function initialization
     if initial_value_function is None:
@@ -187,21 +187,22 @@ def solve(self,
 
     # History tracking setup
     solve_history = SolverHistory(tracking_level=history_tracking_level,
-                                    model=model,
-                                    gamma=self.gamma,
-                                    eps=self.eps,
-                                    initial_value_function=V)
+                                  model=model,
+                                  gamma=gamma,
+                                  eps=eps,
+                                  initial_value_function=V)
 
     # Computing max allowed change from epsilon and gamma parameters
-    max_allowed_change = self.eps * (self.gamma / (1-self.gamma))
+    max_allowed_change = eps * (gamma / (1-gamma))
 
-    for _ in trange(self.horizon) if print_progress else range(self.horizon):
+    iterator = trange(horizon) if print_progress else range(horizon)
+    for _ in iterator:
         old_V_opt = V_opt
         
         start = datetime.now()
 
         # Computing the new alpha vectors
-        alpha_vectors = model.expected_rewards_table.T + (self.gamma * xp.einsum('sar,sar->as', model.reachable_probabilities, V_opt[model.reachable_states]))
+        alpha_vectors = model.expected_rewards_table.T + (gamma * xp.einsum('sar,sar->as', model.reachable_probabilities, V_opt[model.reachable_states]))
         V = ValueFunction(model, alpha_vectors, model.actions)
 
         V_opt = xp.max(V.alpha_vector_array, axis=0)
@@ -217,6 +218,7 @@ def solve(self,
 
         # Convergence check
         if max_change < max_allowed_change:
+            iterator.close()
             break
 
     return V, solve_history

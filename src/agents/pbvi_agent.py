@@ -467,7 +467,42 @@ class PBVI_Agent(Agent):
         self.value_function = value_function
 
         return training_history
-    
+
+
+    def compute_change(self,
+                       value_function:ValueFunction,
+                       new_value_function:ValueFunction,
+                       belief_set:BeliefSet
+                       ) -> float:
+        '''
+        Function to compute whether the change between two value functions can be considered as having converged based on the eps parameter of the Solver.
+        It check for each belief, the maximum value and take the max change between believe's value functions.
+        If this max change is lower than eps * (gamma / (1 - gamma)).
+
+        Parameters
+        ----------
+        value_function : ValueFunction
+            The first value function to compare.
+        new_value_function : ValueFunction
+            The second value function to compare.
+        belief_set : BeliefSet
+            The set of believes to check the values on to compute the max change on.
+
+        Returns
+        -------
+        max_change : float
+            The maximum change between value functions at belief points.
+        '''
+        # Get numpy corresponding to the arrays
+        xp = np if not gpu_support else cp.get_array_module(value_function.alpha_vector_array)
+
+        # Computing Delta for each beliefs
+        max_val_per_belief = xp.max(xp.matmul(belief_set.belief_array, value_function.alpha_vector_array.T), axis=1)
+        new_max_val_per_belief = xp.max(xp.matmul(belief_set.belief_array, new_value_function.alpha_vector_array.T), axis=1)
+        max_change = xp.max(xp.abs(new_max_val_per_belief - max_val_per_belief))
+
+        return max_change
+
 
     def expand(self,
                belief_set:BeliefSet,
