@@ -41,7 +41,6 @@ class Environment:
                  discretization:int=1,
                  margins:int|list|np.ndarray=0,
                  boundary_condition:Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip']='stop',
-                 treshold:float|None=3e-6,
                  start_zone:Literal['odor_present','data_zone']|np.ndarray='data_zone'
                  ) -> None:
         
@@ -80,10 +79,6 @@ class Environment:
         # Apply margins to grid
         self.grid = np.hstack([np.zeros((timesteps, self.margins[0,0], self.width)), self.grid, np.zeros((timesteps, self.margins[0,1], self.width))])
         self.grid = np.dstack([np.zeros((timesteps, self.padded_height, self.margins[1,0])), self.grid, np.zeros((timesteps, self.padded_height, self.margins[1,1]))])
-
-        # Binarize data if treshold is provided
-        if treshold is not None:
-            self.grid = self.grid > treshold
 
         # Saving arguments
         self.source_position = np.array(source_position) + self.margins[:,0]
@@ -138,7 +133,7 @@ class Environment:
 
     def get_observation(self,
                         pos:np.ndarray,
-                        time:int|np.ndarray
+                        time:int|np.ndarray=0
                         ) -> float|np.ndarray:
         '''
         Function to get an observation at a given position on the grid at a given time.
@@ -148,7 +143,7 @@ class Environment:
         ----------
         pos : np.ndarray
             The position or list of positions to get observations at.
-        time : int or np.ndarray
+        time : int or np.ndarray, default=0
             A timestamp or list of timestamps to get the observations at.
 
         Returns
@@ -220,24 +215,26 @@ class Environment:
         '''
         new_pos = pos + movement
 
+        if len(pos.shape) == 1:
+            new_pos = new_pos[None,:]
+
         # Wrap condition for horizontal axis
         if self.boundary_condition in ['wrap', 'wrap_horizontal']:
-            if new_pos[1] < 0:
-                new_pos[1] += self.padded_width
-            elif new_pos[1] >= self.padded_width: 
-                new_pos[1] -= self.padded_width
+            new_pos[new_pos[:,0] < 0, 1] += self.padded_width
+            new_pos[new_pos[:,0] >= self.padded_width, 1] -= self.padded_width
 
         # Wrap condition for vertical axis
         if self.boundary_condition in ['wrap', 'wrap_vertical']:
-            if new_pos[0] < 0:
-                new_pos[0] += self.padded_height
-            elif new_pos[0] >= self.padded_height: 
-                new_pos[0] -= self.padded_height
+            new_pos[new_pos[:,1] < 0, 1] += self.padded_height
+            new_pos[new_pos[:,1] >= self.padded_height, 1] -= self.padded_height
 
         # Stop condition
         if self.boundary_condition == 'stop':
-            new_pos[0] = min(max(new_pos[0], 0), (self.padded_height - 1))
-            new_pos[1] = min(max(new_pos[1], 0), (self.padded_width - 1))
+            new_pos[:,0] = np.clip(new_pos[:,0], 0, self.padded_height)
+            new_pos[:,1] = np.clip(new_pos[:,1], 0, self.padded_width)
+
+        if len(pos.shape) == 1:
+            new_pos = new_pos[0]
 
         return new_pos
     

@@ -13,9 +13,11 @@ class Agent:
     Generic agent class
     '''
     def __init__(self,
-                 environment:Environment
+                 environment:Environment,
+                 treshold:float|None=3e-6
                  ) -> None:
         self.environment = environment
+        self.treshold = treshold
         self.state = None
 
 

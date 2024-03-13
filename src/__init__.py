@@ -1,9 +1,9 @@
 from src.agent import Agent
 from src.environment import Environment
-from src.simulation import Simulation
+from src.simulation import run_test
 
 __all__ = (
     'Agent',
     'Environment',
-    'Simulation'
+    'run_test'
 )

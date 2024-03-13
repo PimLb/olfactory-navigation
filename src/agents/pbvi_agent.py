@@ -648,8 +648,12 @@ class PBVI_Agent(Agent):
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 
+        # Binarize observations
+        observation_ids = np.where(observation > self.treshold, 1, 0).astype(int)
+        observation_ids[source_reached] = 2 # Observe source
+
         # Update the set of beliefs
-        self.belief = self.belief.update(actions=self.action_played, observations=observation)
+        self.belief = self.belief.update(actions=self.action_played, observations=observation_ids)
 
         # Remove the beliefs of the agents having reached the source
         self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~source_reached])

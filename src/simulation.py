@@ -4,6 +4,7 @@ from datetime import datetime
 from tqdm.auto import trange
 
 from src import Agent
+from src.environment import Environment
 
 
 class SimulationHistory:
@@ -39,7 +40,7 @@ class SimulationHistory:
         self.states = []
         self.observations = []
 
-        self._running_sims = np.arange(len(start_state.shape))
+        self._running_sims = np.arange(len(start_state))
         self.done_at_step = np.full(len(start_state), fill_value=-1)
 
 
@@ -65,7 +66,7 @@ class SimulationHistory:
             The observation the agent received after having made an action.
         '''
         # Actions tracking
-        action_all_sims = np.full((len(self.start_state),), fill_value=-1)
+        action_all_sims = np.full((len(self.start_state),2), fill_value=-1)
         action_all_sims[self._running_sims] = action
         self.actions.append(action_all_sims)
 
@@ -86,82 +87,87 @@ class SimulationHistory:
         self._running_sims = self._running_sims[~is_done]
 
 
-class Simulation:
-    @classmethod
-    def run_test(n:int,
-                 agent:Agent,
-                 horizon:int=1000,
-                 reward_discount:float=0.99,
-                 print_progress:bool=True,
-                 print_stats:bool=True
-                 ) -> SimulationHistory:
-        
-        # Set position at random
-        agent_position = agent.environment.random_start(n)
+def run_test(agent:Agent,
+             n:int=1,
+             environment:Environment|None=None,
+             horizon:int=1000,
+             reward_discount:float=0.99,
+             print_progress:bool=True,
+             print_stats:bool=True
+             ) -> SimulationHistory:
+    
+    if environment is None and print_progress:
+        print('Environment not provided, using the agent\'s environment')
+        environment = agent.environment
+    else:
+        assert environment.shape == agent.environment.shape
 
-        # Initialize agent's state
-        agent.initialize_state(n)
+    # Set position at random
+    agent_position = environment.random_start_points(n)
 
-        # Create simulation history tracker
-        hist = SimulationHistory(agent_position)
+    # Initialize agent's state
+    agent.initialize_state(n)
 
-        # Track begin of simulation ts
-        sim_start_ts = datetime.now()
+    # Create simulation history tracker
+    hist = SimulationHistory(agent_position)
 
-        # Simulation loop
-        iterator = trange(horizon) if print_progress else range(horizon)
-        for _ in iterator:
-            # Letting agent choose the action to take based on it's curent state
-            action = agent.choose_action()
+    # Track begin of simulation ts
+    sim_start_ts = datetime.now()
 
-            # Updating the agent's actual position (hidden to him)
-            new_agent_position = agent.environment.move(agent_position, action)
+    # Simulation loop
+    iterator = trange(horizon) if print_progress else range(horizon)
+    for _ in iterator:
+        # Letting agent choose the action to take based on it's curent state
+        action = agent.choose_action()
 
-            # Get an observation based on the new position of the agent
-            observation = agent.environment.get_observation(new_agent_position)
+        # Updating the agent's actual position (hidden to him)
+        new_agent_position = environment.move(agent_position, action)
 
-            # Check if the source is reached
-            source_reached = agent.environment.source_reached(new_agent_position)
+        # Get an observation based on the new position of the agent
+        observation = environment.get_observation(new_agent_position)
 
-            # Return the observation to the agent
-            agent.update_state(observation, source_reached)
+        # Check if the source is reached
+        source_reached = environment.source_reached(new_agent_position)
 
-            # Send the values to the tracker
-            hist.add_step(
-                action=action,
-                next_state=new_agent_position,
-                observation=observation,
-                is_done=source_reached
-            )
+        # Return the observation to the agent
+        agent.update_state(observation, source_reached)
 
-            # Updating the list of agent positions and filtering to only the ones still running
-            agent_position = new_agent_position[~source_reached]
+        # Send the values to the tracker
+        hist.add_step(
+            action=action,
+            next_state=new_agent_position,
+            observation=observation,
+            is_done=source_reached
+        )
 
-            # Early stopping if all agents done
-            if len(agent_position) == 0:
-                break
+        # Updating the list of agent positions and filtering to only the ones still running
+        agent_position = new_agent_position[~source_reached]
 
-            # Update progress bar
-            if print_progress:
-                done_count = n-len(agent_position)
-                iterator.set_postfix({'done ': f' {done_count} of {n} ({(done_count*100)/n:.1f}%)'})
+        # Early stopping if all agents done
+        if len(agent_position) == 0:
+            break
 
-        if print_stats:
-            sim_end_ts = datetime.now()
+        # Update progress bar
+        if print_progress:
+            done_count = n-len(agent_position)
+            iterator.set_postfix({'done ': f' {done_count} of {n} ({(done_count*100)/n:.1f}%)'})
 
-            # Computing stats
-            done_sim_count = np.sum(hist.done_at_step >= 0)
-            done_at_step_sum = np.sum(hist.done_at_step[hist.done_at_step >= 0])
-            discounted_rewards = ((hist.done_at_step >= 0).astype(int) * reward_discount) ** hist.done_at_step[hist.done_at_step >= 0]
+    if print_stats:
+        sim_end_ts = datetime.now()
 
-            t_min = agent.environment.distance_to_source(hist.start_state)
-            t_min_over_t = t_min[hist.done_at_step >= 0] / hist.done_at_step[hist.done_at_step > 0]
+        # Computing stats
+        done_sim_count = np.sum(hist.done_at_step >= 0)
+        done_at_step_sum = np.sum(hist.done_at_step[hist.done_at_step >= 0])
+        discounted_rewards = ((hist.done_at_step >= 0).astype(int) * reward_discount) ** hist.done_at_step[hist.done_at_step >= 0]
 
-            # Printing stats
-            print(f'All {n} simulations done in {(sim_end_ts - sim_start_ts).total_seconds():.3f}s:')
-            print(f'\t- Simulations reached goal: {done_sim_count}/{n} ({n-done_sim_count} failures) ({(done_sim_count*100)/n:.2f})')
-            print(f'\t- Average step count: {(done_at_step_sum / n)}')
-            print(f'\t- Average discounted rewards (ADR): {np.average(discounted_rewards):.3f} (discount: {reward_discount})')
-            print(f'\t- Tmin/T: {np.average(t_min_over_t):.3f}')
+        t_min = environment.distance_to_source(hist.start_state)
+        t_min_over_t = t_min[hist.done_at_step >= 0] / hist.done_at_step[hist.done_at_step > 0]
 
-        return hist
+        # Printing stats
+        print(f'All {n} simulations done in {(sim_end_ts - sim_start_ts).total_seconds():.3f}s:')
+        print(f'\t- Simulations reached goal: {done_sim_count}/{n} ({n-done_sim_count} failures) ({(done_sim_count*100)/n:.2f})')
+        print(f'\t- Average step count: {(done_at_step_sum / n)}')
+        print(f'\t- Average discounted rewards (ADR): {np.average(discounted_rewards):.3f} (discount: {reward_discount})')
+        print(f'\t- Tmin/T: {np.average(t_min_over_t):.3f}')
+
+    return hist
