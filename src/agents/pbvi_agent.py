@@ -1,0 +1,620 @@
+from datetime import datetime
+from typing import Union
+from tqdm.auto import trange
+
+from ..environment import Environment
+from ..agent import Agent
+from .model_based_util.mdp import log
+from .model_based_util.pomdp import Model
+from .model_based_util.value_function import ValueFunction
+from .model_based_util.belief import Belief, BeliefSet
+
+import numpy as np
+gpu_support = False
+try:
+    import cupy as cp
+    gpu_support = True
+except:
+    print('[Warning] Cupy could not be loaded: GPU support is not available.')
+
+
+class TrainingHistory:
+    '''
+    Class to represent the history of a solver for a POMDP solver.
+    It has mainly the purpose to have visualizations for the solution, belief set and the whole solving history.
+    The visualizations available are:
+        - Belief set plot
+        - Solution plot
+        - Video of value function and belief set evolution over training.
+
+    ...
+
+    Parameters
+    ----------
+    tracking_level : int
+        The tracking level of the solver.
+    model : pomdp.Model
+        The model the solver has solved.
+    gamma : float
+        The gamma parameter used by the solver (learning rate).
+    eps : float
+        The epsilon parameter used by the solver (covergence bound).
+    expand_append : bool
+        Whether the expand function appends new belief points to the belief set of reloads it all.
+    initial_value_function : ValueFunction
+        The initial value function the solver will use to start the solving process.
+    initial_belief_set : BeliefSet
+        The initial belief set the solver will use to start the solving process.
+
+    Attributes
+    ----------
+    tracking_level : int
+    model : pomdp.Model
+    gamma : float
+    eps : float
+    expand_append : bool
+    run_ts : datetime
+        The time at which the SolverHistory object was instantiated which is assumed to be the start of the solving run.
+    expansion_times : list[float]
+        A list of recorded times of the expand function.
+    backup_times : list[float]
+        A list of recorded times of the backup function.
+    alpha_vector_counts : list[int]
+        A list of recorded alpha vector count making up the value function over the solving process.
+    beliefs_counts : list[int]
+        A list of recorded belief count making up the belief set over the solving process.
+    value_function_changes : list[float]
+        A list of recorded value function changes (the maximum changed value between 2 value functions).
+    value_functions : list[ValueFunction]
+        A list of recorded value functions.
+    belief_sets : list[BeliefSet]
+        A list of recorded belief sets.
+    solution : ValueFunction
+    explored_beliefs : BeliefSet
+    '''
+    def __init__(self,
+                 tracking_level:int,
+                 model:Model,
+                 gamma:float,
+                 eps:float,
+                 expand_append:bool,
+                 initial_value_function:ValueFunction,
+                 initial_belief_set:BeliefSet
+                 ):
+        
+        self.tracking_level = tracking_level
+        self.model = model
+        self.gamma = gamma
+        self.eps = eps
+        self.run_ts = datetime.now()
+        
+        self.expand_append = expand_append
+
+        # Time tracking
+        self.expansion_times = []
+        self.backup_times = []
+        self.pruning_times = []
+
+        # Value function and belief set sizes tracking
+        self.alpha_vector_counts = []
+        self.beliefs_counts = []
+        self.prune_counts = []
+
+        if self.tracking_level >= 1:
+            self.alpha_vector_counts.append(len(initial_value_function))
+            self.beliefs_counts.append(len(initial_belief_set))
+
+        # Value function and belief set tracking
+        self.belief_sets = []
+        self.value_functions = []
+        self.value_function_changes = []
+
+        if self.tracking_level >= 2:
+            self.belief_sets.append(initial_belief_set)
+            self.value_functions.append(initial_value_function)
+
+
+    @property
+    def solution(self) -> ValueFunction:
+        '''
+        The last value function of the solving process.
+        '''
+        assert self.tracking_level >= 2, "Tracking level is set too low, increase it to 2 if you want to have value function tracking as well."
+        return self.value_functions[-1]
+    
+
+    @property
+    def explored_beliefs(self) -> BeliefSet:
+        '''
+        The final set of beliefs explored during the solving.
+        '''
+        assert self.tracking_level >= 2, "Tracking level is set too low, increase it to 2 if you want to have belief sets tracking as well."
+        return self.belief_sets[-1]
+    
+
+    def add_expand_step(self,
+                        expansion_time:float,
+                        belief_set:BeliefSet
+                        ) -> None:
+        '''
+        Function to add an expansion step in the simulation history by the explored belief set the expand function generated.
+
+        Parameters
+        ----------
+        expansion_time : float
+            The time it took to run a step of expansion of the belief set. (Also known as the exploration step.)
+        belief_set : BeliefSet
+            The belief set used for the Update step of the solving process.
+        '''
+        if self.tracking_level >= 1:
+            self.expansion_times.append(float(expansion_time))
+            self.beliefs_counts.append(len(belief_set))
+
+        if self.tracking_level >= 2:
+            self.belief_sets.append(belief_set if not belief_set.is_on_gpu else belief_set.to_cpu())
+
+
+    def add_backup_step(self,
+                        backup_time:float,
+                        value_function_change:float,
+                        value_function:ValueFunction
+                        ) -> None:
+        '''
+        Function to add a backup step in the simulation history by recording the value function the backup function generated.
+
+        Parameters
+        ----------
+        backup_time : float
+            The time it took to run a step of backup of the value function. (Also known as the value function update.)
+        value_function_change : float
+            The change between the value function of this iteration and of the previous iteration.
+        value_function : ValueFunction
+            The value function resulting after a step of the solving process.
+        '''
+        if self.tracking_level >= 1:
+            self.backup_times.append(float(backup_time))
+            self.alpha_vector_counts.append(len(value_function))
+            self.value_function_changes.append(float(value_function_change))
+
+        if self.tracking_level >= 2:
+            self.value_functions.append(value_function if not value_function.is_on_gpu else value_function.to_cpu())
+
+
+    def add_prune_step(self,
+                       prune_time:float,
+                       alpha_vectors_pruned:int
+                       ) -> None:
+        '''
+        Function to add a prune step in the simulation history by recording the amount of alpha vectors that were pruned by the pruning function and how long it took.
+
+        Parameters
+        ----------
+        prune_time : float
+            The time it took to run the pruning step.
+        alpha_vectors_pruned : int
+            How many alpha vectors were pruned.
+        '''
+        if self.tracking_level >= 1:
+            self.pruning_times.append(prune_time)
+            self.prune_counts.append(alpha_vectors_pruned)
+
+
+    @property
+    def summary(self) -> str:
+        '''
+        A summary as a string of the information recorded.
+
+        Returns
+        -------
+        summary_str : str
+            The summary of the information.
+        '''
+        summary_str =  f'Summary of Value Iteration run'
+        summary_str += f'\n  - Model: {self.model.state_count} state, {self.model.action_count} action, {self.model.observation_count} observations'
+        summary_str += f'\n  - Converged or stopped after {len(self.expansion_times)} expansion steps and {len(self.backup_times)} backup steps.'
+
+        if self.tracking_level >= 1:
+            summary_str += f'\n  - Resulting value function has {self.alpha_vector_counts[-1]} alpha vectors.'
+            summary_str += f'\n  - Converged in {(sum(self.expansion_times) + sum(self.backup_times)):.4f}s'
+            summary_str += f'\n'
+
+            summary_str += f'\n  - Expand function took on average {sum(self.expansion_times) / len(self.expansion_times):.4f}s '
+            if self.expand_append:
+                summary_str += f'and yielded on average {sum(np.diff(self.beliefs_counts)) / len(self.beliefs_counts[1:]):.2f} beliefs per iteration.'
+            else:
+                summary_str += f'and yielded on average {sum(self.beliefs_counts[1:]) / len(self.beliefs_counts[1:]):.2f} beliefs per iteration.'
+            summary_str += f' ({np.sum(np.divide(self.expansion_times, self.beliefs_counts[1:])) / len(self.expansion_times):.4f}s/it/belief)'
+            
+            summary_str += f'\n  - Backup function took on average {sum(self.backup_times) /len(self.backup_times):.4f}s '
+            summary_str += f'and yielded on average {np.average(np.diff(self.alpha_vector_counts)):.2f} alpha vectors per iteration.'
+            summary_str += f' ({np.sum(np.divide(self.backup_times, self.alpha_vector_counts[1:])) / len(self.backup_times):.4f}s/it/alpha)'
+
+            summary_str += f'\n  - Pruning function took on average {sum(self.pruning_times) /len(self.pruning_times):.4f}s '
+            summary_str += f'and yielded on average prunings of {sum(self.prune_counts) / len(self.prune_counts):.2f} alpha vectors per iteration.'
+        
+        return summary_str
+
+
+class PBVI_Agent(Agent):
+    def __init__(self,
+                 environment:Environment
+                 ) -> None:
+        super().__init__(environment)
+
+        self.model = Model.from_environment(environment)
+        self.value_function = None
+
+        # Status variables
+        self.belief = None
+        self.action_played = None
+
+
+    def train(self,
+              expansions:int,
+              full_backup:bool=True,
+              update_passes:int=1,
+              max_belief_growth:int=10,
+              initial_belief:Union[BeliefSet, Belief, None]=None,
+              initial_value_function:Union[ValueFunction,None]=None,
+              prune_level:int=1,
+              prune_interval:int=10,
+              limit_value_function_size:int=-1,
+              gamma:float=0.99,
+              eps:float=1e-6,
+              use_gpu:bool=False,
+              history_tracking_level:int=1,
+              force:bool=False,
+              print_progress:bool=True,
+              **expand_arguments
+              ) -> None:
+        '''
+        Main loop of the Point-Based Value Iteration algorithm.
+        It consists in 2 steps, Backup and Expand.
+        1. Expand: Expands the belief set base with a expansion strategy given by the parameter expand_function
+        2. Backup: Updates the alpha vectors based on the current belief set
+
+        Parameters
+        ----------
+        expansions : int
+            How many times the algorithm has to expand the belief set. (the size will be doubled every time, eg: for 5, the belief set will be of size 32)
+        full_backup : bool, default=True
+            Whether to force the backup function has to be run on the full set beliefs uncovered since the beginning or only on the new points.
+        update_passes : int, default=1
+            How many times the backup function has to be run every time the belief set is expanded.
+        max_belief_growth : int, default=10
+            How many beliefs can be added at every expansion step to the belief set.
+        initial_belief : BeliefSet or Belief, optional
+            An initial list of beliefs to start with.
+        initial_value_function : ValueFunction, optional
+            An initial value function to start the solving process with.
+        prune_level : int, default=1
+            Parameter to prune the value function further before the expand function.
+        prune_interval : int, default=10
+            How often to prune the value function. It is counted in number of backup iterations.
+        limit_value_function_size : int, default=-1
+            When the value function size crosses this treshold, a random selection of 'max_belief_growth' alpha vectors will be removed from the value function
+            If set to -1, the value function can grow without bounds.
+        use_gpu : bool, default=False
+            Whether to use the GPU with cupy array to accelerate solving.
+        history_tracking_level : int, default=1
+            How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
+        force : bool, default=False
+            Whether to force retraining if a value function already exists for this agent.
+        print_progress : bool, default=True
+            Whether or not to print out the progress of the value iteration process.
+
+        Returns
+        -------
+        solver_history : SolverHistory
+            The history of the solving process with some plotting options.
+        '''
+        # GPU support
+        if use_gpu:
+            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
+
+        xp = np if not use_gpu else cp
+        model = self.model if not use_gpu else self.model.gpu_model
+
+        # Initial belief
+        if initial_belief is None:
+            belief_set = BeliefSet(model, [Belief(model)])
+        elif isinstance(initial_belief, BeliefSet):
+            belief_set = initial_belief.to_gpu() if use_gpu else initial_belief 
+        else:
+            initial_belief = Belief(model, xp.array(initial_belief.values))
+            belief_set = BeliefSet(model, [initial_belief])
+        
+        # Handeling the case where the agent is already trained
+        if (self.value_function is not None) and (not force):
+            raise Exception('Agent has already been trained. The force parameter needs to be set to "True" if training should still happen')
+        else:
+            self.value_function = None
+
+        # Initial value function
+        if initial_value_function is None:
+            value_function = ValueFunction(model, model.expected_rewards_table.T, model.actions)
+        else:
+            value_function = initial_value_function.to_gpu() if use_gpu else initial_value_function
+
+        # Convergence check boundary
+        max_allowed_change = eps * (gamma / (1-gamma))
+
+        # History tracking
+        training_history = TrainingHistory(tracking_level=history_tracking_level,
+                                           model=model,
+                                           gamma=gamma,
+                                           eps=eps,
+                                           expand_append=full_backup,
+                                           initial_value_function=value_function,
+                                           initial_belief_set=belief_set)
+        
+        # Loop
+        iteration = 0
+        expand_value_function = value_function
+        old_value_function = value_function
+
+        try:
+            iterator = trange(expansions, desc='Expansions') if print_progress else range(expansions)
+            iterator_postfix = {}
+            for expansion_i in iterator:
+
+                # 1: Expand belief set
+                start_ts = datetime.now()
+
+                new_belief_set = self.expand(belief_set=belief_set,
+                                             value_function=value_function,
+                                             max_generation=max_belief_growth,
+                                             use_gpu=use_gpu,
+                                             **expand_arguments)
+
+                # Add new beliefs points to the total belief_set
+                belief_set = belief_set.union(new_belief_set)
+
+                expand_time = (datetime.now() - start_ts).total_seconds()
+                training_history.add_expand_step(expansion_time=expand_time, belief_set=belief_set)
+
+                # 2: Backup, update value function (alpha vector set)
+                for _ in range(update_passes) if (not print_progress or update_passes <= 1) else trange(update_passes, desc=f'Backups {expansion_i}'):
+                    start_ts = datetime.now()
+
+                    # Backup step
+                    value_function = self.backup(belief_set if full_backup else new_belief_set,
+                                                 value_function,
+                                                 gamma=gamma,
+                                                 append=(not full_backup),
+                                                 belief_dominance_prune=False,
+                                                 use_gpu=use_gpu)
+                    backup_time = (datetime.now() - start_ts).total_seconds()
+
+                    # Additional pruning
+                    if (iteration % prune_interval) == 0 and iteration > 0:
+                        start_ts = datetime.now()
+                        vf_len = len(value_function)
+
+                        value_function.prune(prune_level)
+
+                        prune_time = (datetime.now() - start_ts).total_seconds()
+                        alpha_vectors_pruned = len(value_function) - vf_len
+                        training_history.add_prune_step(prune_time, alpha_vectors_pruned)
+
+                    # Check if value function size is above treshold
+                    if limit_value_function_size >= 0 and len(value_function) > limit_value_function_size:
+                        # Compute matrix multiplications between avs and beliefs
+                        alpha_value_per_belief = xp.matmul(value_function.alpha_vector_array, belief_set.belief_array.T)
+
+                        # Select the useful alpha vectors
+                        best_alpha_vector_per_belief = xp.argmax(alpha_value_per_belief, axis=0)
+                        useful_alpha_vectors = xp.unique(best_alpha_vector_per_belief)
+
+                        # Select a random selection of vectors to delete
+                        unuseful_alpha_vectors = xp.delete(xp.arange(len(value_function)), useful_alpha_vectors)
+                        random_vectors_to_delete = xp.random.choice(unuseful_alpha_vectors,
+                                                                    size=max_belief_growth,
+                                                                    p=(xp.arange(len(unuseful_alpha_vectors))[::-1] / xp.sum(xp.arange(len(unuseful_alpha_vectors)))))
+                                                                    # replace=False,
+                                                                    # p=1/len(unuseful_alpha_vectors))
+
+                        value_function = ValueFunction(model=model,
+                                                       alpha_vectors=xp.delete(value_function.alpha_vector_array, random_vectors_to_delete, axis=0),
+                                                       action_list=xp.delete(value_function.actions, random_vectors_to_delete))
+                        
+                        iterator_postfix['|useful|'] = useful_alpha_vectors.shape[0]
+                    
+                    # Compute the change between value functions
+                    max_change = self.compute_change(value_function, old_value_function, belief_set)
+
+                    # History tracking
+                    training_history.add_backup_step(backup_time, max_change, value_function)
+
+                    # Convergence check
+                    if max_change < max_allowed_change:
+                        break
+
+                    old_value_function = value_function
+
+                    # Update iteration counter
+                    iteration += 1
+
+                # Compute change with old expansion value function
+                expand_max_change = self.compute_change(expand_value_function, value_function, belief_set)
+
+                if expand_max_change < max_allowed_change:
+                    print('Converged!')
+                    break
+
+                expand_value_function = value_function
+
+                iterator_postfix['|V|'] = len(value_function)
+                iterator_postfix['|B|'] = len(belief_set)
+
+                if print_progress:
+                    iterator.set_postfix(iterator_postfix)
+
+        except MemoryError as e:
+            print(f'Memory full: {e}')
+            print('Returning value function and history as is...\n')
+
+        # Final pruning
+        start_ts = datetime.now()
+        vf_len = len(value_function)
+
+        value_function.prune(prune_level)
+
+        prune_time = (datetime.now() - start_ts).total_seconds()
+        alpha_vectors_pruned = len(value_function) - vf_len
+        training_history.add_prune_step(prune_time, alpha_vectors_pruned)
+
+        self.value_function = value_function
+
+        return training_history
+    
+
+    def expand(self,
+               belief_set:BeliefSet,
+               value_function:ValueFunction,
+               max_generation:int,
+               use_gpu:bool=False,
+               **kwargs
+               ) -> BeliefSet:
+        raise NotImplementedError('PBVI class is abstract so expand function is not implemented, make an PBVI_agent subclass to implement the method')
+
+
+    def backup(self,
+               belief_set:BeliefSet,
+               value_function:ValueFunction,
+               gamma:float=0.99,
+               append:bool=False,
+               belief_dominance_prune:bool=True,
+               use_gpu:bool=False
+               ) -> ValueFunction:
+        '''
+        This function has purpose to update the set of alpha vectors. It does so in 3 steps:
+        1. It creates projections from each alpha vector for each possible action and each possible observation
+        2. It collapses this set of generated alpha vectors by taking the weighted sum of the alpha vectors weighted by the observation probability and this for each action and for each belief.
+        3. Then it further collapses the set to take the best alpha vector and action per belief
+        In the end we have a set of alpha vectors as large as the amount of beliefs.
+
+        The alpha vectors are also pruned to avoid duplicates and remove dominated ones.
+
+        Parameters
+        ----------
+        model : pomdp.Model
+            The model on which to run the backup method on.
+        belief_set : BeliefSet
+            The belief set to use to generate the new alpha vectors with.
+        value_function : ValueFunction
+            The alpha vectors to generate the new set from.
+        append : bool, default=False
+            Whether to append the new alpha vectors generated to the old alpha vectors before pruning.
+        belief_dominance_prune : bool, default=True
+            Whether, before returning the new value function, checks what alpha vectors have a supperior value, if so it adds it.
+            
+        Returns
+        -------
+        new_alpha_set : ValueFunction
+            A list of updated alpha vectors.
+        '''
+        # GPU support
+        if use_gpu:
+            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
+
+        xp = np if not use_gpu else cp
+        model = self.model if not use_gpu else self.model.gpu_model
+
+        # Step 1
+        vector_array = value_function.alpha_vector_array
+        vectors_array_reachable_states = vector_array[xp.arange(vector_array.shape[0])[:,None,None,None], model.reachable_states[None,:,:,:]]
+        
+        gamma_a_o_t = gamma * xp.einsum('saor,vsar->aovs', model.reachable_transitional_observation_table, vectors_array_reachable_states)
+
+        # Step 2
+        belief_array = belief_set.belief_array # bs
+        best_alpha_ind = xp.argmax(xp.tensordot(belief_array, gamma_a_o_t, (1,3)), axis=3) # argmax(bs,aovs->baov) -> bao
+
+        best_alphas_per_o = gamma_a_o_t[model.actions[None,:,None,None], model.observations[None,None,:,None], best_alpha_ind[:,:,:,None], model.states[None,None,None,:]] # baos
+
+        alpha_a = model.expected_rewards_table.T + xp.sum(best_alphas_per_o, axis=2) # as + bas
+
+        # Step 3
+        best_actions = xp.argmax(xp.einsum('bas,bs->ba', alpha_a, belief_array), axis=1)
+        alpha_vectors = xp.take_along_axis(alpha_a, best_actions[:,None,None],axis=1)[:,0,:]
+
+        # Belief domination
+        if belief_dominance_prune:
+            best_value_per_belief = xp.sum((belief_array * alpha_vectors), axis=1)
+            old_best_value_per_belief = xp.max(xp.matmul(belief_array, vector_array.T), axis=1)
+            dominating_vectors = best_value_per_belief > old_best_value_per_belief
+
+            best_actions = best_actions[dominating_vectors]
+            alpha_vectors = alpha_vectors[dominating_vectors]
+
+        # Creation of value function
+        new_value_function = ValueFunction(model, alpha_vectors, best_actions)
+
+        # Union with previous value function
+        if append:
+            new_value_function.extend(value_function)
+        
+        return new_value_function
+
+
+    def initialize_state(self, n:int=1) -> None:
+        '''
+        To use an agent within a simulation, the agent's state needs to be initialized.
+        The initialization consists of setting the agent's initial belief.
+        Multiple agents can be used at once for simulations, for this reason, the belief parameter is a BeliefSet by default.
+        
+        Parameters
+        ----------
+        n : int, default=1
+            How many agents are to be used during the simulation.
+        '''
+        assert self.value_function is not None, "Agent was not trained, run the training function first..."
+
+        self.belief = BeliefSet(self.model, [Belief(self.model) for _ in range(n)])
+
+
+    def choose_action(self) -> np.ndarray:
+        '''
+        Function to let the agent or set of agents choose an action based on their current belief.
+
+        Returns
+        -------
+        movement_vector : np.ndarray
+            A single or a list of actions chosen by the agent(s) based on their belief.
+        '''
+        assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
+
+        # Evaluated value function
+        _, action = self.value_function.evaluate_at(self.belief)
+
+        # Recording the action played
+        self.action_played = action
+
+        # Converting action indexes to movement vectors
+        movemement_vector = self.model.movement_vector[action,:]
+        
+        return movemement_vector
+
+
+    def update_state(self,
+                     observation:np.ndarray,
+                     source_reached:np.ndarray
+                     ) -> None:
+        '''
+        Function to update the internal state(s) of the agent(s) based on the previous action(s) taken and the observation(s) received.
+
+        Parameters
+        ----------
+        observation : np.ndarray
+            The observation(s) the agent(s) made.
+        source_reached : np.ndarray
+            A boolean array of whether the agent(s) have reached the source or not.
+        '''
+        assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
+
+        # Update the set of beliefs
+        self.belief = self.belief.update(actions=self.action_played, observations=observation)
+
+        # Remove the beliefs of the agents having reached the source
+        self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~source_reached])
