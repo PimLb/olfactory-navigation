@@ -1,6 +1,8 @@
+import os
 import numpy as np
 
 from datetime import datetime
+import pandas as pd
 from tqdm.auto import trange
 
 from src import Agent
@@ -50,6 +52,8 @@ class SimulationHistory:
         self._running_sims = np.arange(len(start_state))
         self.done_at_step = np.full(len(start_state), fill_value=-1)
 
+        self._simulation_dfs = None
+
 
     def add_step(self,
                  action:np.ndarray,
@@ -72,6 +76,8 @@ class SimulationHistory:
         observation : int
             The observation the agent received after having made an action.
         '''
+        self._simulation_dfs = None
+
         # Actions tracking
         action_all_sims = np.full((len(self.start_state),2), fill_value=-1)
         action_all_sims[self._running_sims] = action
@@ -83,9 +89,9 @@ class SimulationHistory:
         self.states.append(next_state_all_sims)
 
         # Observation tracking
-        observation_all_sims = np.full((len(self.start_state),), fill_value=-1)
+        observation_all_sims = np.full((len(self.start_state),), fill_value=-1, dtype=float)
         observation_all_sims[self._running_sims] = observation
-        self.observations.append(action_all_sims)
+        self.observations.append(observation_all_sims)
 
         # Recording at which step the simulation is done if it is done
         self.done_at_step[self._running_sims[is_done]] = len(self.states)
@@ -118,6 +124,77 @@ class SimulationHistory:
         summary_str += f'\n\t- Tmin/T: {np.average(t_min_over_t):.3f} (Successful only: {np.average(t_min_over_t[sim_is_done]):.3f})'
 
         return summary_str
+
+
+    @property
+    def simulation_dfs(self) -> list[pd.DataFrame]:
+        if self._simulation_dfs is None:
+            self._simulation_dfs = []
+
+            # Converting state, actions and observation to numpy arrays
+            states_array = np.array(self.states)
+            action_array = np.array(self.actions)
+            observation_array = np.array(self.observations)
+
+            for i in range(len(self.start_state)):
+                length = self.done_at_step[i] if self.done_at_step[i] >= 0 else len(states_array)
+
+                df = {
+                    'steps': np.arange(length+1),
+                    'y':     np.hstack([self.start_state[i,0], states_array[:length, i, 0]]),
+                    'x':     np.hstack([self.start_state[i,1], states_array[:length, i, 1]]),
+                    'dy':    np.hstack([[0], action_array[:length, i, 0]]),
+                    'dx':    np.hstack([[0], action_array[:length, i, 1]]),
+                    'o':     np.hstack([[0], observation_array[:length, i]]),
+                    'done':  np.where(np.arange(length+1) == self.done_at_step[i], 1, 0)
+                }
+
+                # Append
+                self._simulation_dfs.append(pd.DataFrame(df))
+
+        return self._simulation_dfs
+
+
+    def save(self,
+             file:str|None=None,
+             folder:str|None=None
+             ) -> None:
+        '''
+        Function to save the simulation history to a given folder.
+
+        Parameters
+        ----------
+        folder : str (optional)
+            Folder to save the simulation histories to.
+            The folder has to be empty, or, if it doesnt exist yet, it will be created.
+            If the folder name is not provided a combination of the environment name, the current timestamp and the amount of simulations run.
+        '''
+        if file is None:
+            env_name = f's_{self.environment.shape[0]}_{self.environment.shape[1]}'
+            file = f'Simulations-{env_name}-n_{len(self.start_state)}-horizon_{len(self.states)}.csv'
+
+        if folder is None:
+            folder = './'
+
+        if '/' not in folder:
+            folder = './' + folder
+
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+
+        if not folder.endswith('/'):
+            folder += '/'
+
+        combined_df = pd.concat(self.simulation_dfs)
+        combined_df.to_csv(folder + file, index=False)
+
+        print(f'Simulations saved to: {folder + file}')
+
+
+    @classmethod
+    def load_from_file(cls, file:str) -> 'SimulationHistory':
+        # TODO
+        pd.read_csv(file)
 
 
 def run_test(agent:Agent,
