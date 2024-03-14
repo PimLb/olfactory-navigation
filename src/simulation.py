@@ -116,7 +116,7 @@ def run_test(agent:Agent,
 
     # Simulation loop
     iterator = trange(horizon) if print_progress else range(horizon)
-    for _ in iterator:
+    for i in iterator:
         # Letting agent choose the action to take based on it's curent state
         action = agent.choose_action()
 
@@ -124,7 +124,7 @@ def run_test(agent:Agent,
         new_agent_position = environment.move(agent_position, action)
 
         # Get an observation based on the new position of the agent
-        observation = environment.get_observation(new_agent_position)
+        observation = environment.get_observation(new_agent_position, time=i)
 
         # Check if the source is reached
         source_reached = environment.source_reached(new_agent_position)
@@ -157,17 +157,25 @@ def run_test(agent:Agent,
 
         # Computing stats
         done_sim_count = np.sum(hist.done_at_step >= 0)
-        done_at_step_sum = np.sum(hist.done_at_step[hist.done_at_step >= 0])
-        discounted_rewards = ((hist.done_at_step >= 0).astype(int) * reward_discount) ** hist.done_at_step[hist.done_at_step >= 0]
+
+        if done_sim_count == 0:
+            print('All simulations failed...')
+            return hist
+        
+        sim_is_done = hist.done_at_step >= 0
+        done_at_step_with_max = np.where(hist.done_at_step < 0, horizon, hist.done_at_step)
+        discounted_rewards = (reward_discount) ** done_at_step_with_max
 
         t_min = environment.distance_to_source(hist.start_state)
-        t_min_over_t = t_min[hist.done_at_step >= 0] / hist.done_at_step[hist.done_at_step > 0]
+        extra_steps = done_at_step_with_max - t_min
+        t_min_over_t = t_min / done_at_step_with_max
 
         # Printing stats
         print(f'All {n} simulations done in {(sim_end_ts - sim_start_ts).total_seconds():.3f}s:')
         print(f'\t- Simulations reached goal: {done_sim_count}/{n} ({n-done_sim_count} failures) ({(done_sim_count*100)/n:.2f})')
-        print(f'\t- Average step count: {(done_at_step_sum / n)}')
-        print(f'\t- Average discounted rewards (ADR): {np.average(discounted_rewards):.3f} (discount: {reward_discount})')
-        print(f'\t- Tmin/T: {np.average(t_min_over_t):.3f}')
+        print(f'\t- Average step count: {np.average(done_at_step_with_max)} (Successfull only: {np.average(hist.done_at_step[sim_is_done])})')
+        print(f'\t- Extra steps: {np.average(extra_steps)} (Successful only: {np.average(extra_steps[sim_is_done])})')
+        print(f'\t- Average discounted rewards (ADR): {np.average(discounted_rewards):.3f} (Successfull only: {np.average(discounted_rewards[sim_is_done]):.3f}) (discount: {reward_discount})')
+        print(f'\t- Tmin/T: {np.average(t_min_over_t):.3f} (Successful only: {np.average(t_min_over_t[sim_is_done]):.3f})')
 
     return hist

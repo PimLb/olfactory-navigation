@@ -237,11 +237,13 @@ class TrainingHistory:
 
 class PBVI_Agent(Agent):
     def __init__(self,
-                 environment:Environment
+                 environment:Environment,
+                 treshold:float|None=3e-6
                  ) -> None:
         super().__init__(environment)
 
-        self.model = Model.from_environment(environment)
+        self.model = Model.from_environment(environment, treshold)
+        self.treshold = treshold
         self.value_function = None
 
         # Status variables

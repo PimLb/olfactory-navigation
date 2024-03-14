@@ -41,7 +41,8 @@ class Environment:
                  discretization:int=1,
                  margins:int|list|np.ndarray=0,
                  boundary_condition:Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip']='stop',
-                 start_zone:Literal['odor_present','data_zone']|np.ndarray='data_zone'
+                 start_zone:Literal['odor_present','data_zone']|np.ndarray='data_zone',
+                 odor_present_treshold:float|None=None
                  ) -> None:
         
         # Load from file if string provided
@@ -90,7 +91,7 @@ class Environment:
         if start_zone == 'data_zone':
             self.start_probabilities[self.margins[0,0]:self.margins[0,0]+self.height, self.margins[1,0]:self.margins[1,0]+self.width] = 1.0
         elif start_zone == 'odor_present':
-            self.start_probabilities = (np.mean(self.grid, axis=0) > 0).astype(float)
+            self.start_probabilities = (np.mean((self.grid > (odor_present_treshold if odor_present_treshold is not None else 0)).astype(int), axis=0) > 0).astype(float)
         elif isinstance(start_zone, np.ndarray):
             if start_zone.shape == (2,2):
                 self.start_probabilities[start_zone[0,0]:start_zone[0,1], start_zone[1,0]:start_zone[1,1]] = 1.0
@@ -100,14 +101,15 @@ class Environment:
                 raise ValueError('If an np.ndarray is provided for the start_zone it has to be 2x2...')
         else:
             raise ValueError('start_zone value is wrong')
-        
+
+        # Removing the source area from the starting zone
         source_mask = np.fromfunction(lambda x,y: ((x - self.source_position[0])**2 + (y - self.source_position[1])**2) <= self.source_radius**2, shape=self.shape)
         self.start_probabilities[source_mask] = 0
 
         self.start_probabilities /= np.sum(self.start_probabilities)
 
 
-    def plot(self, ax=None) -> None:
+    def plot(self, frame:int=0, ax=None) -> None:
         '''
         Simple function to plot the environment
 
@@ -120,7 +122,7 @@ class Environment:
             _, ax = plt.subplots(1, figsize=(15,5))
             
         odor = plt.Rectangle([0,0], 1, 1, color='black', fill=True)
-        ax.imshow(self.grid[0], cmap='Greys')
+        ax.imshow(self.grid[frame], cmap='Greys')
 
         start_zone = plt.Rectangle([0,0], 1, 1, color='blue', fill=False)
         ax.contour(self.start_probabilities, levels=[0.0], colors='blue')
@@ -128,7 +130,7 @@ class Environment:
         goal_circle = plt.Circle(self.source_position[::-1], self.source_radius, color='r', fill=False)
         ax.add_patch(goal_circle)
 
-        ax.legend([odor, start_zone, goal_circle], ['Frame 0 odor cues', 'Start zone', 'Source'])
+        ax.legend([odor, start_zone, goal_circle], [f'Frame {frame} odor cues', 'Start zone', 'Source'])
 
 
     def get_observation(self,
@@ -218,19 +220,21 @@ class Environment:
         if len(pos.shape) == 1:
             new_pos = new_pos[None,:]
 
-        # Wrap condition for horizontal axis
-        if self.boundary_condition in ['wrap', 'wrap_horizontal']:
-            new_pos[new_pos[:,0] < 0, 1] += self.padded_width
-            new_pos[new_pos[:,0] >= self.padded_width, 1] -= self.padded_width
-
         # Wrap condition for vertical axis
         if self.boundary_condition in ['wrap', 'wrap_vertical']:
-            new_pos[new_pos[:,1] < 0, 1] += self.padded_height
-            new_pos[new_pos[:,1] >= self.padded_height, 1] -= self.padded_height
+            new_pos[new_pos[:,0] < 0, 1] += self.padded_height
+            new_pos[new_pos[:,0] >= self.padded_height, 1] -= self.padded_height
+
+        # Wrap condition for horizontal axis
+        if self.boundary_condition in ['wrap', 'wrap_horizontal']:
+            new_pos[new_pos[:,1] < 0, 1] += self.padded_width
+            new_pos[new_pos[:,1] >= self.padded_width, 1] -= self.padded_width
 
         # Stop condition
-        if self.boundary_condition == 'stop':
+        if (self.boundary_condition == 'stop') or (self.boundary_condition == 'wrap_horizontal'):
             new_pos[:,0] = np.clip(new_pos[:,0], 0, self.padded_height)
+
+        if (self.boundary_condition == 'stop') or (self.boundary_condition == 'wrap_vertical'):
             new_pos[:,1] = np.clip(new_pos[:,1], 0, self.padded_width)
 
         if len(pos.shape) == 1:
