@@ -232,10 +232,10 @@ class Environment:
 
         # Stop condition
         if (self.boundary_condition == 'stop') or (self.boundary_condition == 'wrap_horizontal'):
-            new_pos[:,0] = np.clip(new_pos[:,0], 0, self.padded_height)
+            new_pos[:,0] = np.clip(new_pos[:,0], 0, (self.padded_height-1))
 
         if (self.boundary_condition == 'stop') or (self.boundary_condition == 'wrap_vertical'):
-            new_pos[:,1] = np.clip(new_pos[:,1], 0, self.padded_width)
+            new_pos[:,1] = np.clip(new_pos[:,1], 0, (self.padded_width-1))
 
         if len(pos.shape) == 1:
             new_pos = new_pos[0]

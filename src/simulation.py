@@ -30,11 +30,18 @@ class SimulationHistory:
     observations : list[int]
         A list of recorded observations gotten by the agent during the simulation process.
     '''
-    def __init__(self, start_state:np.ndarray) -> None:
+    def __init__(self,
+                 start_state:np.ndarray,
+                 environment:Environment,
+                 reward_discount:float=0.99
+                 ) -> None:
         # If only on state is provided, we make it a 1x2 vector
         if len(start_state.shape) == 1:
             start_state = start_state[None,:]
-        
+
+        self.environment = environment
+        self.reward_discount = reward_discount
+
         self.start_state = start_state
         self.actions = []
         self.states = []
@@ -87,6 +94,32 @@ class SimulationHistory:
         self._running_sims = self._running_sims[~is_done]
 
 
+    @property
+    def summary(self) -> str:
+        n = len(self.start_state)
+        done_sim_count = np.sum(self.done_at_step >= 0)
+        summary_str = f'Simulations reached goal: {done_sim_count}/{n} ({n-done_sim_count} failures) ({(done_sim_count*100)/n:.2f})'
+
+        if done_sim_count == 0:
+            return summary_str
+        
+        # Metrics
+        sim_is_done = self.done_at_step >= 0
+        done_at_step_with_max = np.where(self.done_at_step < 0, len(self.states), self.done_at_step)
+        discounted_rewards = (self.reward_discount) ** done_at_step_with_max
+
+        t_min = self.environment.distance_to_source(self.start_state)
+        extra_steps = done_at_step_with_max - t_min
+        t_min_over_t = t_min / done_at_step_with_max
+
+        summary_str += f'\n\t- Average step count: {np.average(done_at_step_with_max)} (Successfull only: {np.average(self.done_at_step[sim_is_done])})'
+        summary_str += f'\n\t- Extra steps: {np.average(extra_steps)} (Successful only: {np.average(extra_steps[sim_is_done])})'
+        summary_str += f'\n\t- Average discounted rewards (ADR): {np.average(discounted_rewards):.3f} (Successfull only: {np.average(discounted_rewards[sim_is_done]):.3f}) (discount: {self.reward_discount})'
+        summary_str += f'\n\t- Tmin/T: {np.average(t_min_over_t):.3f} (Successful only: {np.average(t_min_over_t[sim_is_done]):.3f})'
+
+        return summary_str
+
+
 def run_test(agent:Agent,
              n:int=1,
              environment:Environment|None=None,
@@ -109,7 +142,11 @@ def run_test(agent:Agent,
     agent.initialize_state(n)
 
     # Create simulation history tracker
-    hist = SimulationHistory(agent_position)
+    hist = SimulationHistory(
+        start_state=agent_position,
+        environment=environment,
+        reward_discount=reward_discount
+    )
 
     # Track begin of simulation ts
     sim_start_ts = datetime.now()
@@ -152,30 +189,10 @@ def run_test(agent:Agent,
             done_count = n-len(agent_position)
             iterator.set_postfix({'done ': f' {done_count} of {n} ({(done_count*100)/n:.1f}%)'})
 
+    # If requested print the simulation start
     if print_stats:
         sim_end_ts = datetime.now()
-
-        # Computing stats
-        done_sim_count = np.sum(hist.done_at_step >= 0)
-
-        if done_sim_count == 0:
-            print('All simulations failed...')
-            return hist
-        
-        sim_is_done = hist.done_at_step >= 0
-        done_at_step_with_max = np.where(hist.done_at_step < 0, horizon, hist.done_at_step)
-        discounted_rewards = (reward_discount) ** done_at_step_with_max
-
-        t_min = environment.distance_to_source(hist.start_state)
-        extra_steps = done_at_step_with_max - t_min
-        t_min_over_t = t_min / done_at_step_with_max
-
-        # Printing stats
-        print(f'All {n} simulations done in {(sim_end_ts - sim_start_ts).total_seconds():.3f}s:')
-        print(f'\t- Simulations reached goal: {done_sim_count}/{n} ({n-done_sim_count} failures) ({(done_sim_count*100)/n:.2f})')
-        print(f'\t- Average step count: {np.average(done_at_step_with_max)} (Successfull only: {np.average(hist.done_at_step[sim_is_done])})')
-        print(f'\t- Extra steps: {np.average(extra_steps)} (Successful only: {np.average(extra_steps[sim_is_done])})')
-        print(f'\t- Average discounted rewards (ADR): {np.average(discounted_rewards):.3f} (Successfull only: {np.average(discounted_rewards[sim_is_done]):.3f}) (discount: {reward_discount})')
-        print(f'\t- Tmin/T: {np.average(t_min_over_t):.3f} (Successful only: {np.average(t_min_over_t[sim_is_done]):.3f})')
+        print(f'Simulations done in {(sim_end_ts - sim_start_ts).total_seconds():.3f}s:')
+        print(hist.summary)
 
     return hist
