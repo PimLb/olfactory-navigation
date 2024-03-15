@@ -193,8 +193,20 @@ class SimulationHistory:
 
     @classmethod
     def load_from_file(cls, file:str) -> 'SimulationHistory':
-        # TODO
-        pd.read_csv(file)
+        # TODO: Add name to environment and saved_at to env
+        combined_df = pd.read_csv(file)
+        sim_start_rows = np.argwhere(combined_df['steps'] == 0)[:,0].tolist()
+
+        simulation_dfs = []
+        sim_start_rows.append(None)
+        for i in range(len(sim_start_rows)-1):
+            simulation_dfs.append(combined_df.iloc[sim_start_rows[i]:sim_start_rows[i+1]])
+
+        hist = SimulationHistory(
+            start_state=np.array([sim.iloc[0]['x','y'] for sim in simulation_dfs]), # FIX THIS
+            environment=None, # TODO
+            reward_discount=None # TODO
+        )
 
 
 def run_test(agent:Agent,

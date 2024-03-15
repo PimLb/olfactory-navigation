@@ -1,4 +1,6 @@
-import cv2
+import json
+import os
+import shutil
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -42,17 +44,20 @@ class Environment:
                  margins:int|list|np.ndarray=0,
                  boundary_condition:Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip']='stop',
                  start_zone:Literal['odor_present','data_zone']|np.ndarray='data_zone',
-                 odor_present_treshold:float|None=None
+                 odor_present_treshold:float|None=None,
+                 name:str|None=None
                  ) -> None:
-        
+        self.saved_at = None
+
         # Load from file if string provided
+        self.source_data_file = data if isinstance(data, str) else None
         if isinstance(data, str):
             data_file = data
             if data_file.endswith('.npy'):
                 data = np.load(data_file)
             else:
                 raise NotImplementedError('File format loading not implemented')
-        
+
         # Making margins a 2x2 array 
         if isinstance(margins, int):
             self.margins = np.ones((2,2)) * margins
@@ -101,12 +106,19 @@ class Environment:
                 raise ValueError('If an np.ndarray is provided for the start_zone it has to be 2x2...')
         else:
             raise ValueError('start_zone value is wrong')
+        
+        self.start_type = start_zone if isinstance(start_zone, str) else 'custom'
 
         # Removing the source area from the starting zone
         source_mask = np.fromfunction(lambda x,y: ((x - self.source_position[0])**2 + (y - self.source_position[1])**2) <= self.source_radius**2, shape=self.shape)
         self.start_probabilities[source_mask] = 0
 
         self.start_probabilities /= np.sum(self.start_probabilities)
+
+        # Name
+        self.name = name
+        if self.name is None:
+            self.name = f'{self.padded_height}_{self.padded_width}-edge_{self.boundary_condition}-start_{self.start_type}-source_{self.source_position[0]}_{self.source_position[1]}_radius{self.source_radius}'
 
 
     def plot(self, frame:int=0, ax=None) -> None:
@@ -241,7 +253,7 @@ class Environment:
             new_pos = new_pos[0]
 
         return new_pos
-    
+
 
     def distance_to_source(self,
                            point:np.ndarray,
@@ -254,3 +266,57 @@ class Environment:
             return np.sum(np.abs(self.source_position[None,:] - point), axis=1) - self.source_radius
         else:
             raise NotImplementedError('This distance metric has not yet been implemented')
+
+
+    def save(self,
+             folder:str|None=None,
+             force:bool=False
+             ) -> None:
+        '''
+        # TODO
+        '''
+        # Adding env name to folder path
+        if folder is None:
+            folder = f'./{self.name}'
+        else:
+            folder += '/' + self.name
+
+        # Checking the folder exists or creates it
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        elif len(os.listdir(folder)) > 0:
+            if force:
+                shutil.rmtree(folder)
+                os.mkdir(folder)
+            else:
+                raise Exception(f'{folder} is not empty. If you want to overwrite the saved model, enable "force".')
+
+        # Generating the metadata arguments dictionary
+        arguments = {}
+        arguments['name'] = self.name
+
+        if self.source_data_file is not None:
+            arguments['source_data_file'] = self.source_data_file
+
+        arguments['width'] = self.width
+        arguments['height'] = self.height
+        arguments['margins'] = self.margins.tolist()
+        arguments['padded_width'] = int(self.padded_width)
+        arguments['padded_height'] = int(self.padded_height)
+        arguments['shape'] = [int(s) for s in self.shape]
+        arguments['source_position'] = self.source_position.tolist()
+        arguments['source_radius'] = self.source_radius
+        arguments['boundary_condition'] = self.boundary_condition
+        arguments['start_type'] = self.start_type
+
+        # Output the arguments to a METADATA file
+        with open(folder + '/METADATA.json', 'w') as json_file:
+            json.dump(arguments, json_file, indent=4)
+
+        # Output the numpy arrays
+        self.grid.tofile(folder + '/grid.npy')
+        self.start_probabilities.tofile(folder + '/start_probabilities.npy')
+
+        # Success print
+        self.saved_at = folder
+        print(f'Environment saved to: {folder}')
