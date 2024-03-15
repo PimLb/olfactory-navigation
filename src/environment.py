@@ -28,7 +28,7 @@ class Environment:
     - A 2D array for each element being [axis, side] where axis is [vertical, horizontal] and side is [L,R]
 
     ...
-
+    # TODO Write these
     Parameters
     ----------
 
@@ -199,7 +199,9 @@ class Environment:
         return np.sum((pos - self.source_position) ** 2, axis=1) <= (self.source_radius ** 2)
 
 
-    def random_start_points(self, n:int=1) -> np.ndarray:
+    def random_start_points(self,
+                            n:int=1
+                            ) -> np.ndarray:
         '''
         Function to generate n starting positions following the starting probabilities.
 
@@ -213,7 +215,7 @@ class Environment:
         random_states_2d : np.ndarray
             The n random 2d points in a n x 2 array. 
         '''
-        assert n>0, "n has to be a positive number"
+        assert n>0, "n has to be a strictly positive number (>0)"
         
         random_states = np.random.choice(np.arange(self.padded_height * self.padded_width), size=n, replace=True, p=self.start_probabilities.ravel())
         random_states_2d = np.array(np.unravel_index(random_states, shape=(self.padded_height, self.padded_width))).T
@@ -239,8 +241,10 @@ class Environment:
         new_pos : np.ndarray
             The new position after applying the movement.
         '''
+        # Applying the movement vector
         new_pos = pos + movement
 
+        # Handling the case we are dealing with a single point.
         if len(pos.shape) == 1:
             new_pos = new_pos[None,:]
 
@@ -270,14 +274,35 @@ class Environment:
     def distance_to_source(self,
                            point:np.ndarray,
                            metric:Literal['manhattan']='manhattan'
-                           ) -> np.ndarray:
+                           ) -> float | np.ndarray:
         '''
-        Function to compute the distance or distances between
+        Function to compute the distance(s) between given points and the source point.
+
+        Parameters
+        ----------
+        point : np.ndarray
+            A single or an Nx2 array containing N points.
+        metric : 'manhattan'
+            The metric to use to compute the distance.
+
+        Returns
+        -------
+        dist : float or np.ndarray
+            A single distance or a list of distance in a 1D distance array.
         '''
+        # Handling the case we have a single point
+        is_single_point = len(point.shape) == 1
+        if is_single_point:
+            point = point[None,:]
+        
+        # Computing dist
+        dist = None
         if metric == 'manhattan':
-            return np.sum(np.abs(self.source_position[None,:] - point), axis=1) - self.source_radius
+            dist = np.sum(np.abs(self.source_position[None,:] - point), axis=1) - self.source_radius
         else:
             raise NotImplementedError('This distance metric has not yet been implemented')
+
+        return dist[0] if is_single_point else dist
 
 
     def save(self,
@@ -286,16 +311,33 @@ class Environment:
              force:bool=False
              ) -> None:
         '''
-        # TODO
+        Function to save the environment to the memory.
+
+        By default it saved in a new folder at the current path in a new folder with the name 'Env-<name>' where <name> is the name set when initializing an environment.
+        In this folder a file "METADATA.json" is created containing all the properties of the environment.
+
+        The numpy arrays of the environment (grid and start_probabilities) can be saved or not. If not, when the environment is loaded it needs to be reconstructed from the original data file.
+        The arrays are saved to .npy files along with the METADATA file.
+
+        If an environment of the same name is already saved, the saving will be interupted. It can however be forced with the force parameter.
+
+        Parameters
+        ----------
+        folder : str (optional)
+            The folder to which to save the environment data. If it is not provided, it will be created in the current folder.
+        save_arrays : bool (default = False)
+            Whether or not to save the numpy arrays to memory. (The arrays can be heavy)
+        force : bool (default = False)
+            In case an environment of the same name is already saved, it will be overwritten.
         '''
         # Assert either data_file is provided or save_arrays is enabled
         assert save_arrays or ((self.source_data_file is not None) and (self.start_type is not None)), "The environment was not created from a data file so 'save_arrays' has to be set to True."
 
         # Adding env name to folder path
         if folder is None:
-            folder = f'./{self.name}'
+            folder = f'./Env-{self.name}'
         else:
-            folder += '/' + self.name
+            folder += '/Env-' + self.name
 
         # Checking the folder exists or creates it
         if not os.path.exists(folder):
@@ -350,9 +392,20 @@ class Environment:
              folder:str
              ) -> 'Environment':
         '''
-        # TODO
+        Function to load an environment from a given folder.
+
+        Parameters
+        ----------
+        folder : str
+            The folder of the Environment.
+
+        Returns
+        -------
+        loaded_env : Environment
+            The loaded environment.
         '''
         assert os.path.exists(folder), "Folder doesn't exist..."
+        assert folder.split('/')[-1].startswith('Env-'), "The folder provided is not the data of en Environment object."
 
         # Load arguments
         arguments = None
@@ -364,32 +417,32 @@ class Environment:
             grid = np.load(folder + '/grid.npy')
             start_probabilities = np.load(folder + '/start_probabilities.npy')
 
-            instance = cls.__new__(cls)
+            loaded_env = cls.__new__(cls)
 
             # Set the arguments
-            instance.width                 = arguments['width']
-            instance.height                = arguments['height']
-            instance.margins               = np.array(arguments['margins'])
-            instance.padded_width          = arguments['padded_width']
-            instance.padded_height         = arguments['padded_height']
-            instance.shape                 = set(arguments['shape'])
-            instance.discretization        = arguments['discretization']
-            instance.data_source_position  = np.array(arguments['data_source_position'])
-            instance.source_position       = np.array(arguments['source_position'])
-            instance.source_radius         = arguments['source_radius']
-            instance.boundary_condition    = arguments['boundary_condition']
+            loaded_env.width                 = arguments['width']
+            loaded_env.height                = arguments['height']
+            loaded_env.margins               = np.array(arguments['margins'])
+            loaded_env.padded_width          = arguments['padded_width']
+            loaded_env.padded_height         = arguments['padded_height']
+            loaded_env.shape                 = set(arguments['shape'])
+            loaded_env.discretization        = arguments['discretization']
+            loaded_env.data_source_position  = np.array(arguments['data_source_position'])
+            loaded_env.source_position       = np.array(arguments['source_position'])
+            loaded_env.source_radius         = arguments['source_radius']
+            loaded_env.boundary_condition    = arguments['boundary_condition']
 
             # Optional arguments
-            instance.source_data_file      = arguments.get('source_data_file')
-            instance.odor_present_treshold = arguments.get('odor_present_treshold')
-            instance.start_type            = arguments.get('start_type')
+            loaded_env.source_data_file      = arguments.get('source_data_file')
+            loaded_env.odor_present_treshold = arguments.get('odor_present_treshold')
+            loaded_env.start_type            = arguments.get('start_type')
 
             # Arrays
-            instance.grid = grid
-            instance.start_probabilities = start_probabilities
+            loaded_env.grid = grid
+            loaded_env.start_probabilities = start_probabilities
 
         else:
-            instance = Environment(
+            loaded_env = Environment(
                 data                  = arguments['source_data_file'],
                 source_position       = np.array(arguments['data_source_position']),
                 source_radius         = arguments['source_radius'],
@@ -402,6 +455,6 @@ class Environment:
             )
 
         # Folder where the environment was pulled from
-        instance.saved_at = os.path.abspath(folder)
+        loaded_env.saved_at = os.path.abspath(folder)
 
-        return instance
+        return loaded_env

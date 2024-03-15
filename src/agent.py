@@ -14,11 +14,12 @@ class Agent:
     '''
     def __init__(self,
                  environment:Environment,
-                 treshold:float|None=3e-6
+                 treshold:float|None=3e-6,
+                 name:str|None=None
                  ) -> None:
         self.environment = environment
         self.treshold = treshold
-        self.state = None
+        self.name = name
 
 
     def train(self) -> None:
@@ -26,6 +27,24 @@ class Agent:
         Function to call the particular flavour of training of the agent.
         '''
         raise NotImplementedError('The train function is not implemented, make an agent subclass to implement the method')
+
+
+    def save(self,
+             folder:str|None=None,
+             force:bool=False
+             ) -> None:
+        '''
+        Function to save a trained agent to memory.
+        '''
+        raise NotImplementedError('The save function is not implemented, make an agent subclass to implement the method')
+
+
+    @classmethod
+    def load(cls, folder:str):
+        '''
+        Function to save a trained agent to memory.
+        '''
+        raise NotImplementedError('The load function is not implemented, make an agent subclass to implement the method')
 
 
     def initialize_state(self, n:int=1) -> None:
