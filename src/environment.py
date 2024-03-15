@@ -66,7 +66,7 @@ class Environment:
             margins = np.array(margins)
             self.margins = np.hstack((margins[:,None], margins[:,None]))
         elif margins.shape == (2,2):
-            self.margins == margins
+            self.margins = margins
         else:
             raise ValueError('margins argument should be either an integer or a 1D or 2D array with either shape (2) or (2,2)')
         assert self.margins.dtype == int, 'margins should be integers'
@@ -78,8 +78,9 @@ class Environment:
         self.shape = (self.padded_height, self.padded_width)
 
         # Preprocess data with discretization
+        self.discretization = discretization
         if discretization != 1:
-            raise NotImplementedError('Different discretizations have not been implemented yet')
+            raise NotImplementedError('Different discretizations have not been implemented yet') # TODO
         self.grid = data
 
         # Apply margins to grid
@@ -87,7 +88,8 @@ class Environment:
         self.grid = np.dstack([np.zeros((timesteps, self.padded_height, self.margins[1,0])), self.grid, np.zeros((timesteps, self.padded_height, self.margins[1,1]))])
 
         # Saving arguments
-        self.source_position = np.array(source_position) + self.margins[:,0]
+        self.data_source_position = np.array(source_position)
+        self.source_position = self.data_source_position + self.margins[:,0]
         self.source_radius = source_radius
         self.boundary_condition = boundary_condition
 
@@ -107,7 +109,10 @@ class Environment:
         else:
             raise ValueError('start_zone value is wrong')
         
-        self.start_type = start_zone if isinstance(start_zone, str) else 'custom'
+        self.start_type = start_zone
+
+        # Odor present tresh
+        self.odor_present_treshold = odor_present_treshold
 
         # Removing the source area from the starting zone
         source_mask = np.fromfunction(lambda x,y: ((x - self.source_position[0])**2 + (y - self.source_position[1])**2) <= self.source_radius**2, shape=self.shape)
@@ -118,7 +123,10 @@ class Environment:
         # Name
         self.name = name
         if self.name is None:
-            self.name = f'{self.padded_height}_{self.padded_width}-edge_{self.boundary_condition}-start_{self.start_type}-source_{self.source_position[0]}_{self.source_position[1]}_radius{self.source_radius}'
+            self.name =  f'{self.padded_height}_{self.padded_width}' # Size of env
+            self.name += f'-edge_{self.boundary_condition}' # Boundary condition
+            self.name += f'-start_{self.start_type if self.start_type is not None else "custom"}' # Start zone
+            self.name += f'-source_{self.source_position[0]}_{self.source_position[1]}_radius{self.source_radius}' # Source
 
 
     def plot(self, frame:int=0, ax=None) -> None:
@@ -132,16 +140,20 @@ class Environment:
         '''
         if ax is None:
             _, ax = plt.subplots(1, figsize=(15,5))
-            
-        odor = plt.Rectangle([0,0], 1, 1, color='black', fill=True)
-        ax.imshow(self.grid[frame], cmap='Greys')
 
+        # Odor grid
+        odor = plt.Rectangle([0,0], 1, 1, color='black', fill=True)
+        ax.imshow((self.grid[frame] > (self.odor_present_treshold if self.odor_present_treshold is not None else 0)).astype(float), cmap='Greys')
+
+        # Start zone contour
         start_zone = plt.Rectangle([0,0], 1, 1, color='blue', fill=False)
         ax.contour(self.start_probabilities, levels=[0.0], colors='blue')
 
+        # Source circle
         goal_circle = plt.Circle(self.source_position[::-1], self.source_radius, color='r', fill=False)
         ax.add_patch(goal_circle)
 
+        # Legend
         ax.legend([odor, start_zone, goal_circle], [f'Frame {frame} odor cues', 'Start zone', 'Source'])
 
 
@@ -270,11 +282,15 @@ class Environment:
 
     def save(self,
              folder:str|None=None,
+             save_arrays:bool=False,
              force:bool=False
              ) -> None:
         '''
         # TODO
         '''
+        # Assert either data_file is provided or save_arrays is enabled
+        assert save_arrays or ((self.source_data_file is not None) and (self.start_type is not None)), "The environment was not created from a data file so 'save_arrays' has to be set to True."
+
         # Adding env name to folder path
         if folder is None:
             folder = f'./{self.name}'
@@ -298,25 +314,91 @@ class Environment:
         if self.source_data_file is not None:
             arguments['source_data_file'] = self.source_data_file
 
-        arguments['width'] = self.width
-        arguments['height'] = self.height
-        arguments['margins'] = self.margins.tolist()
-        arguments['padded_width'] = int(self.padded_width)
-        arguments['padded_height'] = int(self.padded_height)
-        arguments['shape'] = [int(s) for s in self.shape]
-        arguments['source_position'] = self.source_position.tolist()
-        arguments['source_radius'] = self.source_radius
-        arguments['boundary_condition'] = self.boundary_condition
-        arguments['start_type'] = self.start_type
+        arguments['width']                 = self.width
+        arguments['height']                = self.height
+        arguments['margins']               = self.margins.tolist()
+        arguments['padded_width']          = int(self.padded_width)
+        arguments['padded_height']         = int(self.padded_height)
+        arguments['shape']                 = [int(s) for s in self.shape]
+        arguments['discretization']        = self.discretization
+        arguments['data_source_position']  = self.data_source_position.tolist()
+        arguments['source_position']       = self.source_position.tolist()
+        arguments['source_radius']         = self.source_radius
+        arguments['boundary_condition']    = self.boundary_condition
+
+        if self.odor_present_treshold is not None:
+            arguments['odor_present_treshold'] = self.odor_present_treshold
+        if self.start_type is not None:
+            arguments['start_type'] = self.start_type
 
         # Output the arguments to a METADATA file
         with open(folder + '/METADATA.json', 'w') as json_file:
             json.dump(arguments, json_file, indent=4)
 
         # Output the numpy arrays
-        self.grid.tofile(folder + '/grid.npy')
-        self.start_probabilities.tofile(folder + '/start_probabilities.npy')
+        if save_arrays:
+            np.save(folder + '/grid.npy', self.grid)
+            np.save(folder + '/start_probabilities.npy', self.start_probabilities)
 
         # Success print
         self.saved_at = folder
         print(f'Environment saved to: {folder}')
+
+
+    @classmethod
+    def load(cls,
+             folder:str
+             ) -> 'Environment':
+        '''
+        # TODO
+        '''
+        assert os.path.exists(folder), "Folder doesn't exist..."
+
+        # Load arguments
+        arguments = None
+        with open(folder + '/METADATA.json', 'r') as json_file:
+            arguments = json.load(json_file)
+
+        # Check if numpy arrays are provided, if not, recreate a new environment model
+        if os.path.exists(folder + '/grid.npy') and os.path.exists(folder + '/start_probabilities.npy'):
+            grid = np.load(folder + '/grid.npy')
+            start_probabilities = np.load(folder + '/start_probabilities.npy')
+
+            instance = cls.__new__(cls)
+
+            # Set the arguments
+            instance.width                 = arguments['width']
+            instance.height                = arguments['height']
+            instance.margins               = np.array(arguments['margins'])
+            instance.padded_width          = arguments['padded_width']
+            instance.padded_height         = arguments['padded_height']
+            instance.shape                 = set(arguments['shape'])
+            instance.discretization        = arguments['discretization']
+            instance.data_source_position  = np.array(arguments['data_source_position'])
+            instance.source_position       = np.array(arguments['source_position'])
+            instance.source_radius         = arguments['source_radius']
+            instance.boundary_condition    = arguments['boundary_condition']
+
+            # Optional arguments
+            instance.source_data_file      = arguments.get('source_data_file')
+            instance.odor_present_treshold = arguments.get('odor_present_treshold')
+            instance.start_type            = arguments.get('start_type')
+
+            # Arrays
+            instance.grid = grid
+            instance.start_probabilities = start_probabilities
+
+        else:
+            instance = Environment(
+                data                  = arguments['source_data_file'],
+                source_position       = np.array(arguments['data_source_position']),
+                source_radius         = arguments['source_radius'],
+                discretization        = arguments['discretization'],
+                margins               = np.array(arguments['margins']),
+                boundary_condition    = arguments['boundary_condition'],
+                start_zone            = arguments.get('start_type'),
+                odor_present_treshold = arguments.get('odor_present_treshold'),
+                name                  = arguments['name']
+            )
+
+        return instance
