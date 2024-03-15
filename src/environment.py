@@ -341,7 +341,7 @@ class Environment:
             np.save(folder + '/start_probabilities.npy', self.start_probabilities)
 
         # Success print
-        self.saved_at = folder
+        self.saved_at = os.path.abspath(folder)
         print(f'Environment saved to: {folder}')
 
 
@@ -400,5 +400,8 @@ class Environment:
                 odor_present_treshold = arguments.get('odor_present_treshold'),
                 name                  = arguments['name']
             )
+
+        # Folder where the environment was pulled from
+        instance.saved_at = os.path.abspath(folder)
 
         return instance
