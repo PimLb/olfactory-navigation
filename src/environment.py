@@ -250,8 +250,8 @@ class Environment:
 
         # Wrap condition for vertical axis
         if self.boundary_condition in ['wrap', 'wrap_vertical']:
-            new_pos[new_pos[:,0] < 0, 1] += self.padded_height
-            new_pos[new_pos[:,0] >= self.padded_height, 1] -= self.padded_height
+            new_pos[new_pos[:,0] < 0, 0] += self.padded_height
+            new_pos[new_pos[:,0] >= self.padded_height, 0] -= self.padded_height
 
         # Wrap condition for horizontal axis
         if self.boundary_condition in ['wrap', 'wrap_horizontal']:
