@@ -35,15 +35,20 @@ class SimulationHistory:
     def __init__(self,
                  start_state:np.ndarray,
                  environment:Environment,
+                 agent:Agent,
                  reward_discount:float=0.99
                  ) -> None:
         # If only on state is provided, we make it a 1x2 vector
         if len(start_state.shape) == 1:
             start_state = start_state[None,:]
 
+        # Fixed parameters
         self.environment = environment
+        self.agent = agent
         self.reward_discount = reward_discount
+        self.start_time = datetime.now()
 
+        # Simulation Tracking
         self.start_state = start_state
         self.actions = []
         self.states = []
@@ -52,6 +57,7 @@ class SimulationHistory:
         self._running_sims = np.arange(len(start_state))
         self.done_at_step = np.full(len(start_state), fill_value=-1)
 
+        # Other parameters
         self._simulation_dfs = None
 
 
@@ -171,7 +177,7 @@ class SimulationHistory:
         '''
         if file is None:
             env_name = f's_{self.environment.shape[0]}_{self.environment.shape[1]}'
-            file = f'Simulations-{env_name}-n_{len(self.start_state)}-horizon_{len(self.states)}.csv'
+            file = f'Simulations-{env_name}-n_{len(self.start_state)}-horizon_{len(self.states)}-{self.start_time.strftime("%m%d%Y_%H%M%S")}.csv'
 
         if folder is None:
             folder = './'
@@ -185,28 +191,96 @@ class SimulationHistory:
         if not folder.endswith('/'):
             folder += '/'
 
+        # Create csv file
         combined_df = pd.concat(self.simulation_dfs)
+
+        # Adding Environment and Agent info
+        padding = [None] * len(combined_df)
+        combined_df['Reward_Discount'] = [self.reward_discount] + padding[:-1]
+        combined_df['Environment'] = [self.environment.name, self.environment.saved_at] + padding[:-2]
+        combined_df['Agent'] = [] + padding[:] # TODO
+
+        # Saving csv
         combined_df.to_csv(folder + file, index=False)
 
         print(f'Simulations saved to: {folder + file}')
 
 
     @classmethod
-    def load_from_file(cls, file:str) -> 'SimulationHistory':
-        # TODO: Add name to environment and saved_at to env
+    def load_from_file(cls,
+                       file:str,
+                       environment:Environment|None=None
+                       ) -> 'SimulationHistory':
         combined_df = pd.read_csv(file)
-        sim_start_rows = np.argwhere(combined_df['steps'] == 0)[:,0].tolist()
 
+        # Retrieving reward discount
+        reward_discount = combined_df['Reward_Discount'][0]
+
+        # Retrieving environment
+        loaded_environment = None
+        environment_name = combined_df['Environment'][0]
+        if combined_df['Environment'][1] is not None:
+            try:
+                loaded_environment = Environment.load(combined_df['Environment'][1])
+            except:
+                print(f'Failed to retrieve "{environment_name}" environment from memory')
+
+        if loaded_environment is not None:
+            print(f'Environment "{environment_name}" loaded from memory' + (' (Ignoring environment provided as a parameter)' if environment is not None else ''))
+            environment = loaded_environment
+
+        # Columns to retrieve
+        columns = [
+            'steps',
+            'y',
+            'x',
+            'dy',
+            'dx',
+            'o',
+            'done'
+        ]
+
+        # Recreation of list of simulations
         simulation_dfs = []
+        sim_start_rows = np.argwhere(combined_df['steps'] == 0)[:,0].tolist()
         sim_start_rows.append(None)
         for i in range(len(sim_start_rows)-1):
-            simulation_dfs.append(combined_df.iloc[sim_start_rows[i]:sim_start_rows[i+1]])
+            simulation_dfs.append(combined_df[columns].iloc[sim_start_rows[i]:sim_start_rows[i+1]])
 
+        # Gathering start states
+        start_states = np.array([sim[['y', 'x']].iloc[0] for sim in simulation_dfs])
+
+        # Generation of SimHist instance
         hist = SimulationHistory(
-            start_state=np.array([sim.iloc[0]['x','y'] for sim in simulation_dfs]), # FIX THIS
-            environment=None, # TODO
-            reward_discount=None # TODO
+            start_state=start_states,
+            environment=environment,
+            agent=None, # TODO
+            reward_discount=reward_discount
         )
+
+        max_length = max(len(sim) for sim in simulation_dfs)
+
+        # Recreating action, state and 
+        actions = np.full((max_length-1, len(simulation_dfs), 2), -1)
+        states = np.full((max_length-1, len(simulation_dfs), 2), -1)
+        observations = np.full((max_length-1, len(simulation_dfs)), -1)
+        done_at_step = np.full((len(simulation_dfs),), -1)
+
+        for i, sim in enumerate(simulation_dfs):
+            states[:len(sim)-1, i, :] = sim[['y','x']].to_numpy()[1:]
+            actions[:len(sim)-1, i, :] = sim[['dy','dx']].to_numpy()[1:]
+            observations[:len(sim)-1, i] = sim[['o']].to_numpy()[1:,0]
+            done_at_step[i] = len(sim)-1 if sim['done'].iloc[-1] == 1 else -1
+
+        hist.states = [arr for arr in states]
+        hist.actions = [arr for arr in actions]
+        hist.observations = [arr for arr in observations]
+        hist.done_at_step = done_at_step
+
+        # Saving simulation dfs back
+        hist._simulation_dfs = simulation_dfs
+        
+        return hist
 
 
 def run_test(agent:Agent,
@@ -234,6 +308,7 @@ def run_test(agent:Agent,
     hist = SimulationHistory(
         start_state=agent_position,
         environment=environment,
+        agent=agent,
         reward_discount=reward_discount
     )
 

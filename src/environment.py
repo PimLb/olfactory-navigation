@@ -383,7 +383,7 @@ class Environment:
             np.save(folder + '/start_probabilities.npy', self.start_probabilities)
 
         # Success print
-        self.saved_at = os.path.abspath(folder)
+        self.saved_at = os.path.abspath(folder).replace('\\', '/')
         print(f'Environment saved to: {folder}')
 
 
