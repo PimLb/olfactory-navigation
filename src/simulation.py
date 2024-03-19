@@ -114,7 +114,7 @@ class SimulationHistory:
     def summary(self) -> str:
         n = len(self.start_state)
         done_sim_count = np.sum(self.done_at_step >= 0)
-        summary_str = f'Simulations reached goal: {done_sim_count}/{n} ({n-done_sim_count} failures) ({(done_sim_count*100)/n:.2f})'
+        summary_str = f'Simulations reached goal: {done_sim_count}/{n} ({n-done_sim_count} failures) ({(done_sim_count*100)/n:.2f}%)'
 
         if done_sim_count == 0:
             return summary_str
@@ -448,6 +448,14 @@ def run_test(agent:Agent,
 
         # Filtering time_shift list
         time_shift = time_shift[~source_reached]
+
+        # Handling the case where simulations have reached the end
+        sims_at_end = (time_shift + i + 1) >= len(environment.grid)
+
+        agent_position = agent_position[~sims_at_end]
+        time_shift = time_shift[~sims_at_end]
+        hist._running_sims = hist._running_sims[~sims_at_end]
+        agent.kill(simulations_to_kill=sims_at_end)
 
         # Early stopping if all agents done
         if len(agent_position) == 0:

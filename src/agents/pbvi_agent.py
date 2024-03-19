@@ -659,3 +659,20 @@ class PBVI_Agent(Agent):
 
         # Remove the beliefs of the agents having reached the source
         self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~source_reached])
+
+
+    def kill(self,
+             simulations_to_kill:np.ndarray
+             ) -> None:
+        '''
+        Function to kill any simulations that have not reached the source but can't continue further
+
+        Parameters
+        ----------
+        simulations_to_kill : np.ndarray
+            A boolean array of the simulations to kill.
+        '''
+        if all(simulations_to_kill):
+            self.belief = None
+        else:
+            self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~simulations_to_kill])

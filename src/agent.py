@@ -80,3 +80,12 @@ class Agent:
         Function to update the internal state of the agent based on the previous action taken and the observation received.
         '''
         raise NotImplementedError('The update_state function is not implemented, make an agent subclass to implement the method')
+
+
+    def kill(self,
+             simulations_to_kill:np.ndarray
+             ) -> None:
+        '''
+        Function to kill any simulations that still haven't reached the source
+        '''
+        raise NotImplementedError('The kill function is not implemented, make an agent subclass to implement the method')
