@@ -268,7 +268,7 @@ class PBVI_Agent(Agent):
               force:bool=False,
               print_progress:bool=True,
               **expand_arguments
-              ) -> None:
+              ) -> TrainingHistory:
         '''
         Main loop of the Point-Based Value Iteration algorithm.
         It consists in 2 steps, Backup and Expand.

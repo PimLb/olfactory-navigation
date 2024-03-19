@@ -17,6 +17,7 @@ class SimulationHistory:
         - the action the agent takes ('action')
         - the observation the agent takes ('observation')
 
+    # TODO Reword this
     ...
 
     Parameters
@@ -37,6 +38,7 @@ class SimulationHistory:
                  start_state:np.ndarray,
                  environment:Environment,
                  agent:Agent,
+                 time_shift:np.ndarray,
                  reward_discount:float=0.99
                  ) -> None:
         # If only on state is provided, we make it a 1x2 vector
@@ -46,6 +48,7 @@ class SimulationHistory:
         # Fixed parameters
         self.environment = environment
         self.agent = agent
+        self.time_shift = time_shift
         self.reward_discount = reward_discount
         self.start_time = datetime.now()
 
@@ -147,7 +150,7 @@ class SimulationHistory:
                 length = self.done_at_step[i] if self.done_at_step[i] >= 0 else len(states_array)
 
                 df = {
-                    'steps': np.arange(length+1),
+                    'time':  np.arange(length+1) + self.time_shift[i],
                     'y':     np.hstack([self.start_state[i,0], states_array[:length, i, 0]]),
                     'x':     np.hstack([self.start_state[i,1], states_array[:length, i, 1]]),
                     'dy':    np.hstack([[0], action_array[:length, i, 0]]),
@@ -197,9 +200,9 @@ class SimulationHistory:
 
         # Adding Environment and Agent info
         padding = [None] * len(combined_df)
-        combined_df['Reward_Discount'] = [self.reward_discount] + padding[:-1]
-        combined_df['Environment'] = [self.environment.name, self.environment.saved_at] + padding[:-2]
-        combined_df['Agent'] = [] + padding[:] # TODO
+        combined_df['reward_discount'] = [self.reward_discount] + padding[:-1]
+        combined_df['environment'] = [self.environment.name, self.environment.saved_at] + padding[:-2]
+        combined_df['agent'] = [] + padding[:] # TODO
 
         # Saving csv
         combined_df.to_csv(folder + file, index=False)
@@ -215,14 +218,14 @@ class SimulationHistory:
         combined_df = pd.read_csv(file)
 
         # Retrieving reward discount
-        reward_discount = combined_df['Reward_Discount'][0]
+        reward_discount = combined_df['reward_discount'][0]
 
         # Retrieving environment
         loaded_environment = None
-        environment_name = combined_df['Environment'][0]
-        if combined_df['Environment'][1] is not None:
+        environment_name = combined_df['environment'][0]
+        if combined_df['environment'][1] is not None:
             try:
-                loaded_environment = Environment.load(combined_df['Environment'][1])
+                loaded_environment = Environment.load(combined_df['environment'][1])
             except:
                 print(f'Failed to retrieve "{environment_name}" environment from memory')
 
@@ -232,7 +235,7 @@ class SimulationHistory:
 
         # Columns to retrieve
         columns = [
-            'steps',
+            'time',
             'y',
             'x',
             'dy',
@@ -243,29 +246,32 @@ class SimulationHistory:
 
         # Recreation of list of simulations
         simulation_dfs = []
-        sim_start_rows = np.argwhere(combined_df['steps'] == 0)[:,0].tolist()
-        sim_start_rows.append(None)
-        for i in range(len(sim_start_rows)-1):
+        sim_start_rows = [None] + np.argwhere(combined_df[['time']].diff() < 1)[:,0].tolist() + [None]
+        n = len(sim_start_rows)-1
+
+        for i in range(n):
             simulation_dfs.append(combined_df[columns].iloc[sim_start_rows[i]:sim_start_rows[i+1]])
 
         # Gathering start states
         start_states = np.array([sim[['y', 'x']].iloc[0] for sim in simulation_dfs])
+        time_shift = np.array([sim['time'].iloc[0] for sim in simulation_dfs])
 
         # Generation of SimHist instance
         hist = SimulationHistory(
             start_state=start_states,
             environment=environment,
             agent=None, # TODO
+            time_shift=time_shift,
             reward_discount=reward_discount
         )
 
         max_length = max(len(sim) for sim in simulation_dfs)
 
-        # Recreating action, state and 
-        actions = np.full((max_length-1, len(simulation_dfs), 2), -1)
-        states = np.full((max_length-1, len(simulation_dfs), 2), -1)
-        observations = np.full((max_length-1, len(simulation_dfs)), -1)
-        done_at_step = np.full((len(simulation_dfs),), -1)
+        # Recreating action, state and observations
+        states = np.full((max_length-1, n, 2), -1)
+        actions = np.full((max_length-1, n, 2), -1)
+        observations = np.full((max_length-1, n), -1)
+        done_at_step = np.full((n,), -1)
 
         for i, sim in enumerate(simulation_dfs):
             states[:len(sim)-1, i, :] = sim[['y','x']].to_numpy()[1:]
@@ -372,6 +378,13 @@ def run_test(agent:Agent,
         else:
             n = len(start_points)
 
+    # Handle the case an specific environment is given
+    if environment is not None:
+        assert environment.shape == agent.environment.shape
+        print('Using the provided environment, not the agent environment.')
+    else:
+        environment = agent.environment
+
     # Set start positions
     agent_position = None
     if start_points is not None:
@@ -381,19 +394,13 @@ def run_test(agent:Agent,
         # Generating random starts
         agent_position = environment.random_start_points(n)
 
-    # Handle the case an specific environment is given
-    if environment is not None:
-        assert environment.shape == agent.environment.shape
-        print('Using the provided environment, not the agent environment.')
-    else:
-        environment = agent.environment
-
     # Timeshift
     if isinstance(time_shift, int):
         time_shift = np.ones(n) * time_shift
     else:
-        time_shift = np.ndarray(time_shift)
+        time_shift = np.array(time_shift)
         assert time_shift.shape == (n,), f"time_shift array has a wrong shape (Given: {time_shift.shape}, expected ({n},))"
+    time_shift = time_shift.astype(int)
 
     # Initialize agent's state
     agent.initialize_state(n)
@@ -403,6 +410,7 @@ def run_test(agent:Agent,
         start_state=agent_position,
         environment=environment,
         agent=agent,
+        time_shift=time_shift,
         reward_discount=reward_discount
     )
 
@@ -437,6 +445,9 @@ def run_test(agent:Agent,
 
         # Updating the list of agent positions and filtering to only the ones still running
         agent_position = new_agent_position[~source_reached]
+
+        # Filtering time_shift list
+        time_shift = time_shift[~source_reached]
 
         # Early stopping if all agents done
         if len(agent_position) == 0:
