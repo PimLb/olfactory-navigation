@@ -344,18 +344,27 @@ def run_test(agent:Agent,
              n:int|None=None,
              start_points:np.ndarray|None=None,
              environment:Environment|None=None,
+             time_shift:int|np.ndarray=0,
              horizon:int=1000,
              reward_discount:float=0.99,
              print_progress:bool=True,
              print_stats:bool=True
              ) -> SimulationHistory:
-    
-    if environment is not None:
-        assert environment.shape == agent.environment.shape
-        print('Using the provided environment, not the agent environment.')
-    else:
-        environment = agent.environment
+    '''
+    Function to run n simulations for a given agent in its environment (or a given agent).
+    The simulations start either from random start points or provided trough the start_points parameter.
+    The simulation can have a shifted initial time (in the olfactory simulation).
 
+    # TODO Explain sim loop
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    hist : SimulationHistory
+        A SimulationHistory object that tracked all the positions, actions and observations.
+    '''
     # Gathering n
     if n is None:
         if start_points is None:
@@ -371,6 +380,20 @@ def run_test(agent:Agent,
     else:
         # Generating random starts
         agent_position = environment.random_start_points(n)
+
+    # Handle the case an specific environment is given
+    if environment is not None:
+        assert environment.shape == agent.environment.shape
+        print('Using the provided environment, not the agent environment.')
+    else:
+        environment = agent.environment
+
+    # Timeshift
+    if isinstance(time_shift, int):
+        time_shift = np.ones(n) * time_shift
+    else:
+        time_shift = np.ndarray(time_shift)
+        assert time_shift.shape == (n,), f"time_shift array has a wrong shape (Given: {time_shift.shape}, expected ({n},))"
 
     # Initialize agent's state
     agent.initialize_state(n)
@@ -396,7 +419,7 @@ def run_test(agent:Agent,
         new_agent_position = environment.move(agent_position, action)
 
         # Get an observation based on the new position of the agent
-        observation = environment.get_observation(new_agent_position, time=i)
+        observation = environment.get_observation(new_agent_position, time=(time_shift + i))
 
         # Check if the source is reached
         source_reached = environment.source_reached(new_agent_position)
