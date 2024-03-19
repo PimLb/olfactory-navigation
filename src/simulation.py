@@ -341,7 +341,8 @@ class SimulationHistory:
 
 
 def run_test(agent:Agent,
-             n:int=1,
+             n:int|None=None,
+             start_points:np.ndarray|None=None,
              environment:Environment|None=None,
              horizon:int=1000,
              reward_discount:float=0.99,
@@ -349,14 +350,27 @@ def run_test(agent:Agent,
              print_stats:bool=True
              ) -> SimulationHistory:
     
-    if environment is None and print_progress:
-        print('Environment not provided, using the agent\'s environment')
-        environment = agent.environment
-    else:
+    if environment is not None:
         assert environment.shape == agent.environment.shape
+        print('Using the provided environment, not the agent environment.')
+    else:
+        environment = agent.environment
 
-    # Set position at random
-    agent_position = environment.random_start_points(n)
+    # Gathering n
+    if n is None:
+        if start_points is None:
+            n = 1
+        else:
+            n = len(start_points)
+
+    # Set start positions
+    agent_position = None
+    if start_points is not None:
+        assert start_points.shape == (n, 2), 'The provided start_points are of the wrong shape'
+        agent_position = start_points
+    else:
+        # Generating random starts
+        agent_position = environment.random_start_points(n)
 
     # Initialize agent's state
     agent.initialize_state(n)
