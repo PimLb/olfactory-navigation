@@ -1,8 +1,9 @@
 import os
 import numpy as np
+import pandas as pd
 
 from datetime import datetime
-import pandas as pd
+from matplotlib import pyplot as plt 
 from tqdm.auto import trange
 
 from src import Agent
@@ -281,6 +282,62 @@ class SimulationHistory:
         hist._simulation_dfs = simulation_dfs
         
         return hist
+
+
+    def plot(self,
+            sim_id:int=0,
+            ax=None
+            ) -> None:
+        '''
+        Function to plot a the trajectory of a given simulation.
+        An ax can be use to plot it on.
+
+        Parameters
+        ----------
+        sim_id : int (default=0)
+            The id of the simulation to plot.
+        ax : (Optional)
+            The ax on which to plot the path.
+        '''
+        # Generate ax is not provided
+        if ax is None:
+            _, ax = plt.subplots(figsize=(18,3))
+
+        # Initial clearing
+        ax.clear()
+
+        # Retrieving sim
+        sim = self.simulation_dfs[sim_id]
+
+        # Plot setup
+        env_shape = self.environment.shape
+        ax.set_xlim(0, env_shape[1])
+        ax.set_ylim(env_shape[0], 0)
+
+        # Start
+        start_coord = sim[['x', 'y']].to_numpy()[0]
+        ax.scatter(start_coord[0], start_coord[1], c='green', label='Start')
+
+        # Source circle
+        goal_circle = plt.Circle(self.environment.source_position[::-1], self.environment.source_radius, color='r', fill=False, label='Source')
+        ax.add_patch(goal_circle)
+
+        # Until step
+        seq = sim[['x','y']][1:].to_numpy()
+
+        # Path
+        ax.plot(seq[:,0], seq[:,1], zorder=-1, c='black', label='Path')
+
+        # Something sensed
+        if self.agent is not None: # TODO: Agent to save
+            something_sensed = sim['o'][1:].to_numpy() > self.agent.treshold
+            points_obs = seq[something_sensed,:]
+            ax.scatter(points_obs[:,0], points_obs[:,1], zorder=1, label='Something observed')
+        else:
+            print('Agent used is not tracked')
+
+        # Generate legend
+        ax.legend()
 
 
 def run_test(agent:Agent,
