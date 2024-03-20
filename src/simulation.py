@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import pandas as pd
 
 from datetime import datetime
@@ -8,6 +7,14 @@ from tqdm.auto import trange
 
 from src import Agent
 from src.environment import Environment
+
+import numpy as np
+gpu_support = False
+try:
+    import cupy as cp
+    gpu_support = True
+except:
+    print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
 
 class SimulationHistory:
@@ -46,14 +53,14 @@ class SimulationHistory:
             start_state = start_state[None,:]
 
         # Fixed parameters
-        self.environment = environment
-        self.agent = agent
-        self.time_shift = time_shift
+        self.environment = environment.to_cpu()
+        self.agent = agent.to_cpu()
+        self.time_shift = time_shift if gpu_support and cp.get_array_module(time_shift) == np else cp.asnumpy(time_shift)
         self.reward_discount = reward_discount
         self.start_time = datetime.now()
 
         # Simulation Tracking
-        self.start_state = start_state
+        self.start_state = start_state if gpu_support and cp.get_array_module(start_state) == np else cp.asnumpy(start_state)
         self.actions = []
         self.states = []
         self.observations = []
@@ -69,7 +76,8 @@ class SimulationHistory:
                  action:np.ndarray,
                  next_state:np.ndarray,
                  observation:np.ndarray,
-                 is_done:np.ndarray
+                 is_done:np.ndarray,
+                 interupt:np.ndarray
                  ) -> None:
         '''
         # TODO: Update this
@@ -87,6 +95,14 @@ class SimulationHistory:
             The observation the agent received after having made an action.
         '''
         self._simulation_dfs = None
+
+        # Handle case cupy arrays are provided
+        if gpu_support:
+            action = action if cp.get_array_module(action) == np else cp.asnumpy(action)
+            next_state = next_state if cp.get_array_module(next_state) == np else cp.asnumpy(next_state)
+            observation = observation if cp.get_array_module(observation) == np else cp.asnumpy(observation)
+            is_done = is_done if cp.get_array_module(is_done) == np else cp.asnumpy(is_done)
+            interupt = interupt if cp.get_array_module(interupt) == np else cp.asnumpy(interupt)
 
         # Actions tracking
         action_all_sims = np.full((len(self.start_state),2), fill_value=-1)
@@ -107,7 +123,7 @@ class SimulationHistory:
         self.done_at_step[self._running_sims[is_done]] = len(self.states)
 
         # Updating the list of running sims
-        self._running_sims = self._running_sims[~is_done]
+        self._running_sims = self._running_sims[~is_done & ~interupt]
 
 
     @property
@@ -128,10 +144,17 @@ class SimulationHistory:
         extra_steps = done_at_step_with_max - t_min
         t_min_over_t = t_min / done_at_step_with_max
 
-        summary_str += f'\n\t- Average step count: {np.average(done_at_step_with_max)} (Successfull only: {np.average(self.done_at_step[sim_is_done])})'
-        summary_str += f'\n\t- Extra steps: {np.average(extra_steps)} (Successful only: {np.average(extra_steps[sim_is_done])})'
-        summary_str += f'\n\t- Average discounted rewards (ADR): {np.average(discounted_rewards):.3f} (Successfull only: {np.average(discounted_rewards[sim_is_done]):.3f}) (discount: {self.reward_discount})'
-        summary_str += f'\n\t- Tmin/T: {np.average(t_min_over_t):.3f} (Successful only: {np.average(t_min_over_t[sim_is_done]):.3f})'
+        summary_str += f'\n\t- Average step count: {np.average(done_at_step_with_max)} '
+        summary_str += f'(Successfull only: {np.average(self.done_at_step[sim_is_done])})'
+
+        summary_str += f'\n\t- Extra steps: {np.average(extra_steps)} '
+        summary_str += f'(Successful only: {np.average(extra_steps[sim_is_done])})'
+
+        summary_str += f'\n\t- Average discounted rewards (ADR): {np.average(discounted_rewards):.3f} '
+        summary_str += f'(Successfull only: {np.average(discounted_rewards[sim_is_done]):.3f}) (discount: {self.reward_discount})'
+
+        summary_str += f'\n\t- Tmin/T: {np.average(t_min_over_t):.3f} '
+        summary_str += f'(Successful only: {np.average(t_min_over_t[sim_is_done]):.3f})'
 
         return summary_str
 
@@ -215,6 +238,9 @@ class SimulationHistory:
                        file:str,
                        environment:Environment|None=None
                        ) -> 'SimulationHistory':
+        '''
+        # TODO
+        '''
         combined_df = pd.read_csv(file)
 
         # Retrieving reward discount
@@ -354,7 +380,8 @@ def run_test(agent:Agent,
              horizon:int=1000,
              reward_discount:float=0.99,
              print_progress:bool=True,
-             print_stats:bool=True
+             print_stats:bool=True,
+             use_gpu:bool=False
              ) -> SimulationHistory:
     '''
     Function to run n simulations for a given agent in its environment (or a given agent).
@@ -385,6 +412,26 @@ def run_test(agent:Agent,
     else:
         environment = agent.environment
 
+    # Timeshift
+    if isinstance(time_shift, int):
+        time_shift = np.ones(n) * time_shift
+    else:
+        time_shift = np.array(time_shift)
+        assert time_shift.shape == (n,), f"time_shift array has a wrong shape (Given: {time_shift.shape}, expected ({n},))"
+    time_shift = time_shift.astype(int)
+
+    # Move things to GPU if needed
+    if use_gpu:
+        assert gpu_support, f"GPU support is not enabled, the use_gpu option is not available."
+
+        # Move instances to GPU
+        agent = agent.to_gpu()
+        environment = environment.to_gpu()
+        time_shift = cp.array(time_shift)
+
+        if start_points is not None:
+            start_points = cp.array(start_points)
+
     # Set start positions
     agent_position = None
     if start_points is not None:
@@ -393,14 +440,6 @@ def run_test(agent:Agent,
     else:
         # Generating random starts
         agent_position = environment.random_start_points(n)
-
-    # Timeshift
-    if isinstance(time_shift, int):
-        time_shift = np.ones(n) * time_shift
-    else:
-        time_shift = np.array(time_shift)
-        assert time_shift.shape == (n,), f"time_shift array has a wrong shape (Given: {time_shift.shape}, expected ({n},))"
-    time_shift = time_shift.astype(int)
 
     # Initialize agent's state
     agent.initialize_state(n)
@@ -435,27 +474,22 @@ def run_test(agent:Agent,
         # Return the observation to the agent
         agent.update_state(observation, source_reached)
 
+        # Handling the case where simulations have reached the end
+        sims_at_end = ((time_shift + i + 1) >= len(environment.grid))
+
+        # Interupt agents that reached the end
+        agent_position = new_agent_position[~source_reached & ~sims_at_end]
+        time_shift = time_shift[~source_reached & ~sims_at_end]
+        agent.kill(simulations_to_kill=sims_at_end[~source_reached])
+
         # Send the values to the tracker
         hist.add_step(
             action=action,
             next_state=new_agent_position,
             observation=observation,
-            is_done=source_reached
+            is_done=source_reached,
+            interupt=sims_at_end
         )
-
-        # Updating the list of agent positions and filtering to only the ones still running
-        agent_position = new_agent_position[~source_reached]
-
-        # Filtering time_shift list
-        time_shift = time_shift[~source_reached]
-
-        # Handling the case where simulations have reached the end
-        sims_at_end = (time_shift + i + 1) >= len(environment.grid)
-
-        agent_position = agent_position[~sims_at_end]
-        time_shift = time_shift[~sims_at_end]
-        hist._running_sims = hist._running_sims[~sims_at_end]
-        agent.kill(simulations_to_kill=sims_at_end)
 
         # Early stopping if all agents done
         if len(agent_position) == 0:

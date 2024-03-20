@@ -1,10 +1,18 @@
 import json
 import os
 import shutil
-import numpy as np
-from matplotlib import pyplot as plt
 
+from matplotlib import pyplot as plt
 from typing import Literal
+
+import numpy as np
+gpu_support = False
+try:
+    import cupy as cp
+    gpu_support = True
+except:
+    print('[Warning] Cupy could not be loaded: GPU support is not available.')
+
 
 class Environment:
     '''
@@ -128,6 +136,10 @@ class Environment:
             self.name += f'-start_{self.start_type if self.start_type is not None else "custom"}' # Start zone
             self.name += f'-source_{self.source_position[0]}_{self.source_position[1]}_radius{self.source_radius}' # Source
 
+        # gpu support
+        self._alternate_version = None
+        self.on_gpu = False
+
 
     def plot(self, frame:int=0, ax=None) -> None:
         '''
@@ -138,6 +150,14 @@ class Environment:
         ax : Optional
             An ax on which the environment can be plot
         '''
+        # If on GPU use the CPU version to plot
+        if self.on_gpu:
+            self._alternate_version.plot(
+                frame=frame,
+                ax=ax
+            )
+            return
+
         if ax is None:
             _, ax = plt.subplots(1, figsize=(15,5))
 
@@ -177,12 +197,19 @@ class Environment:
         observation : float or np.ndarray
             A single observation or list of observations.
         '''
-        return self.grid[time, pos[0], pos[1]] if len(pos.shape) == 1 else self.grid[time, pos[:,0], pos[:,1]]
+        # Handling the case of a single point
+        is_single_point = (len(pos.shape) == 1)
+        if is_single_point:
+            pos = pos[None,:]
+
+        observation = self.grid[time, pos[0], pos[1]] if len(pos.shape) == 1 else self.grid[time, pos[:,0], pos[:,1]]
+
+        return float(observation[0]) if is_single_point else observation
 
 
     def source_reached(self,
                        pos:np.ndarray
-                       ) -> bool:
+                       ) -> bool | np.ndarray:
         '''
         Checks whether a given position is within the source radius.
 
@@ -196,7 +223,16 @@ class Environment:
         is_at_source : bool
             Whether or not the position is within the radius of the source.
         '''
-        return np.sum((pos - self.source_position) ** 2, axis=1) <= (self.source_radius ** 2)
+        xp = cp if self.on_gpu else np
+
+        # Handling the case of a single point
+        is_single_point = (len(pos.shape) == 1)
+        if is_single_point:
+            pos = pos[None,:]
+
+        is_at_source = (xp.sum((pos - self.source_position) ** 2, axis=1) <= (self.source_radius ** 2))
+
+        return bool(is_at_source[0]) if is_single_point else is_at_source
 
 
     def random_start_points(self,
@@ -215,10 +251,12 @@ class Environment:
         random_states_2d : np.ndarray
             The n random 2d points in a n x 2 array. 
         '''
+        xp = cp if self.on_gpu else np
+
         assert n>0, "n has to be a strictly positive number (>0)"
-        
-        random_states = np.random.choice(np.arange(self.padded_height * self.padded_width), size=n, replace=True, p=self.start_probabilities.ravel())
-        random_states_2d = np.array(np.unravel_index(random_states, shape=(self.padded_height, self.padded_width))).T
+
+        random_states = xp.random.choice(xp.arange(self.padded_height * self.padded_width), size=n, replace=True, p=self.start_probabilities.ravel())
+        random_states_2d = xp.array(xp.unravel_index(random_states, (self.padded_height, self.padded_width))).T
         return random_states_2d
 
 
@@ -241,11 +279,14 @@ class Environment:
         new_pos : np.ndarray
             The new position after applying the movement.
         '''
+        xp = cp if self.on_gpu else np
+
         # Applying the movement vector
         new_pos = pos + movement
 
         # Handling the case we are dealing with a single point.
-        if len(pos.shape) == 1:
+        is_single_point = (len(pos.shape) == 1)
+        if is_single_point:
             new_pos = new_pos[None,:]
 
         # Wrap condition for vertical axis
@@ -260,12 +301,12 @@ class Environment:
 
         # Stop condition
         if (self.boundary_condition == 'stop') or (self.boundary_condition == 'wrap_horizontal'):
-            new_pos[:,0] = np.clip(new_pos[:,0], 0, (self.padded_height-1))
+            new_pos[:,0] = xp.clip(new_pos[:,0], 0, (self.padded_height-1))
 
         if (self.boundary_condition == 'stop') or (self.boundary_condition == 'wrap_vertical'):
-            new_pos[:,1] = np.clip(new_pos[:,1], 0, (self.padded_width-1))
+            new_pos[:,1] = xp.clip(new_pos[:,1], 0, (self.padded_width-1))
 
-        if len(pos.shape) == 1:
+        if is_single_point:
             new_pos = new_pos[0]
 
         return new_pos
@@ -290,19 +331,21 @@ class Environment:
         dist : float or np.ndarray
             A single distance or a list of distance in a 1D distance array.
         '''
+        xp = cp if self.on_gpu else np
+
         # Handling the case we have a single point
-        is_single_point = len(point.shape) == 1
+        is_single_point = (len(point.shape) == 1)
         if is_single_point:
             point = point[None,:]
         
         # Computing dist
         dist = None
         if metric == 'manhattan':
-            dist = np.sum(np.abs(self.source_position[None,:] - point), axis=1) - self.source_radius
+            dist = xp.sum(xp.abs(self.source_position[None,:] - point), axis=1) - self.source_radius
         else:
             raise NotImplementedError('This distance metric has not yet been implemented')
 
-        return dist[0] if is_single_point else dist
+        return float(dist[0]) if is_single_point else dist
 
 
     def save(self,
@@ -330,6 +373,15 @@ class Environment:
         force : bool (default = False)
             In case an environment of the same name is already saved, it will be overwritten.
         '''
+        # If on gpu, use the cpu version to save
+        if self.on_gpu:
+            self._alternate_version.save(
+                folder=folder,
+                save_arrays=save_arrays,
+                force=force
+            )
+            return
+
         # Assert either data_file is provided or save_arrays is enabled
         assert save_arrays or ((self.source_data_file is not None) and (self.start_type is not None)), "The environment was not created from a data file so 'save_arrays' has to be set to True."
 
@@ -458,3 +510,51 @@ class Environment:
         loaded_env.saved_at = os.path.abspath(folder)
 
         return loaded_env
+
+
+    def to_gpu(self) -> 'Environment':
+        '''
+        Function to send the numpy arrays of the environment to the gpu memory.
+        It returns a new instance of the Environment with the arrays as cupy arrays.
+
+        Returns
+        -------
+        gpu_environment : Environment
+            A new environment instance where the arrays are on the gpu memory.
+        '''
+        assert gpu_support, "GPU support is not enabled..."
+
+        # Generating a new instance
+        cls = self.__class__
+        gpu_environment = cls.__new__(cls)
+
+        # Copying arguments to gpu
+        for arg, val in self.__dict__.items():
+            if isinstance(val, np.ndarray):
+                setattr(gpu_environment, arg, cp.array(val))
+            else:
+                setattr(gpu_environment, arg, val)
+
+        # Self reference instances
+        self._alternate_version = gpu_environment
+        gpu_environment._alternate_version = self
+
+        gpu_environment.on_gpu = True
+        return gpu_environment
+
+
+    def to_cpu(self) -> 'Environment':
+        '''
+        Function to send the numpy arrays of the environment to the cpu memory.
+        It returns a new instance of the Environment with the arrays as numpy arrays.
+
+        Returns
+        -------
+        cpu_environment : Environment
+            A new environment instance where the arrays are on the cpu memory.
+        '''
+        if self.on_gpu:
+            assert self._alternate_version is not None, "Something went wrong"
+            return self._alternate_version
+
+        return self

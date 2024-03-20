@@ -244,11 +244,47 @@ class PBVI_Agent(Agent):
 
         self.model = Model.from_environment(environment, treshold)
         self.treshold = treshold
+
+        # Trainable variables
         self.value_function = None
 
         # Status variables
         self.belief = None
         self.action_played = None
+
+
+    def to_gpu(self) -> Agent:
+        '''
+        Function to send the numpy arrays of the agent to the gpu.
+        It returns a new instance of the Agent class with the arrays on the gpu
+
+        Returns
+        -------
+        gpu_agent
+        '''
+        # Generating a new instance
+        cls = self.__class__
+        gpu_agent = cls.__new__(cls)
+
+        # Copying arguments to gpu
+        for arg, val in self.__dict__.items():
+            if isinstance(val, np.ndarray):
+                setattr(gpu_agent, arg, cp.array(val))
+            elif isinstance(val, Model):
+                gpu_agent.model = self.model.gpu_model
+            elif isinstance(val, ValueFunction):
+                gpu_agent.value_function =self.value_function.to_gpu()
+            elif isinstance(val, BeliefSet):
+                gpu_agent.belief = self.belief.to_gpu()
+            else:
+                setattr(gpu_agent, arg, val)
+
+        # Self reference instances
+        self._alternate_version = gpu_agent
+        gpu_agent._alternate_version = self
+
+        gpu_agent.on_gpu = True
+        return gpu_agent
 
 
     def train(self,
@@ -466,7 +502,7 @@ class PBVI_Agent(Agent):
         alpha_vectors_pruned = len(value_function) - vf_len
         training_history.add_prune_step(prune_time, alpha_vectors_pruned)
 
-        self.value_function = value_function
+        self.value_function = value_function.to_cpu() if not self.on_gpu else value_function.to_gpu()
 
         return training_history
 

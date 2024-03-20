@@ -21,6 +21,36 @@ class Agent:
         self.treshold = treshold
         self.name = name
 
+        self.saved_at = None
+
+        self.on_gpu = False
+        self._alternate_version = None
+
+
+    def to_gpu(self) -> 'Agent':
+        '''
+        Function to send the numpy arrays of the agent to the gpu.
+        It returns a new instance of the Agent class with the arrays on the gpu
+        '''
+        raise NotImplementedError('The to_gpu function is not implemented, make an agent subclass to implement the method')
+
+
+    def to_cpu(self) -> 'Agent':
+        '''
+        Function to send the numpy arrays of the agent to the gpu.
+        It returns a new instance of the Agent class with the arrays on the gpu
+
+        Returns
+        -------
+        cpu_agent : Agent
+            A new environment instance where the arrays are on the cpu memory.
+        '''
+        if self.on_gpu:
+            assert self._alternate_version is not None, "Something went wrong"
+            return self._alternate_version
+
+        return self
+
 
     def train(self) -> None:
         '''
