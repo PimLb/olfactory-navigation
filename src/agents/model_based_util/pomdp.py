@@ -121,13 +121,6 @@ class Model(MDP_Model):
         An equivalent model with the np.ndarray objects on CPU. (If already on CPU, returns self)
     '''
 
-    movement_vector = np.array([
-        [-1,  0], # North
-        [ 0,  1], # East
-        [ 1,  0], # South
-        [ 0, -1]  # West
-    ])
-
     def __init__(self,
                  states:Union[int, list[str], list[list[str]]],
                  actions:Union[int, list],
@@ -157,8 +150,12 @@ class Model(MDP_Model):
         print()
         log('POMDP particular parameters:')
 
-        def end_reward_function(s, a, sn, o):
-            return (np.isin(sn, self.end_states) | np.isin(a, self.end_actions)).astype(int)
+        self.movement_vector = np.array([
+            [-1,  0], # North
+            [ 0,  1], # East
+            [ 1,  0], # South
+            [ 0, -1]  # West
+        ])
 
         # ------------------------- Observations -------------------------
         if isinstance(observations, int):
@@ -242,14 +239,15 @@ class Model(MDP_Model):
 
 
     @classmethod
-    def from_environment(cls, environment:Environment) -> 'Model':
+    def from_environment(cls, environment:Environment, treshold:float) -> 'Model':
         state_count = np.prod(environment.shape)
 
         state_grid = [[f's_{x}_{y}' for x in range(environment.shape[1])] for y in range(environment.shape[0])]
-        end_states = np.argwhere(np.fromfunction(lambda x,y: ((x-environment.source_position[0])**2 + (y-environment.source_position[1])**2) <= environment.source_radius**2, shape=environment.shape).ravel())[:,0].tolist()
+        end_states = np.argwhere(np.fromfunction(lambda x,y: ((x-environment.source_position[0])**2 + (y-environment.source_position[1])**2) <= environment.source_radius**2,
+                                                 shape=environment.shape).ravel())[:,0].tolist()
         
         # Compute observation matrix
-        odor_probability = np.mean(environment.grid, axis=0).ravel()
+        odor_probability = np.mean((environment.grid > treshold).astype(int), axis=0).ravel()
         observations = np.empty((state_count, 4, 3), dtype=float) # 4-actions, 3-observations
 
         observations[:,:,0] = (1 - odor_probability[:,None])
