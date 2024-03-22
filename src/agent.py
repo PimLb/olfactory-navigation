@@ -40,7 +40,7 @@ class Agent:
 
     def choose_action(self) -> np.ndarray:
         '''
-        Function to allow for the agent to choose an action to take based on it's current state.
+        Function to allow for the agent to choose an action to take based on its current state.
         It then stores this action in its state.
 
         Returns
