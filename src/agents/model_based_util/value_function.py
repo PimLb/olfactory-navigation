@@ -385,7 +385,7 @@ class ValueFunction:
             best_vectors = xp.argmax(belief_values, axis=1)
 
             # Retrieving the values and actions associated with the vectors chosen
-            best_value = belief_values[xp.arange(belief_values.shape[0]), best_vector]
+            best_value = belief_values[xp.arange(belief_values.shape[0]), best_vectors]
             best_action = self.actions[best_vectors]
 
         return (best_value, best_action)

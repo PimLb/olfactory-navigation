@@ -237,16 +237,54 @@ class TrainingHistory:
 
 class PBVI_Agent(Agent):
     def __init__(self,
-                 environment:Environment
+                 environment:Environment,
+                 treshold:float|None=3e-6
                  ) -> None:
         super().__init__(environment)
 
-        self.model = Model.from_environment(environment)
+        self.model = Model.from_environment(environment, treshold)
+        self.treshold = treshold
+
+        # Trainable variables
         self.value_function = None
 
         # Status variables
         self.belief = None
         self.action_played = None
+
+
+    def to_gpu(self) -> Agent:
+        '''
+        Function to send the numpy arrays of the agent to the gpu.
+        It returns a new instance of the Agent class with the arrays on the gpu
+
+        Returns
+        -------
+        gpu_agent
+        '''
+        # Generating a new instance
+        cls = self.__class__
+        gpu_agent = cls.__new__(cls)
+
+        # Copying arguments to gpu
+        for arg, val in self.__dict__.items():
+            if isinstance(val, np.ndarray):
+                setattr(gpu_agent, arg, cp.array(val))
+            elif isinstance(val, Model):
+                gpu_agent.model = self.model.gpu_model
+            elif isinstance(val, ValueFunction):
+                gpu_agent.value_function =self.value_function.to_gpu()
+            elif isinstance(val, BeliefSet):
+                gpu_agent.belief = self.belief.to_gpu()
+            else:
+                setattr(gpu_agent, arg, val)
+
+        # Self reference instances
+        self._alternate_version = gpu_agent
+        gpu_agent._alternate_version = self
+
+        gpu_agent.on_gpu = True
+        return gpu_agent
 
 
     def train(self,
@@ -266,7 +304,7 @@ class PBVI_Agent(Agent):
               force:bool=False,
               print_progress:bool=True,
               **expand_arguments
-              ) -> None:
+              ) -> TrainingHistory:
         '''
         Main loop of the Point-Based Value Iteration algorithm.
         It consists in 2 steps, Backup and Expand.
@@ -464,10 +502,45 @@ class PBVI_Agent(Agent):
         alpha_vectors_pruned = len(value_function) - vf_len
         training_history.add_prune_step(prune_time, alpha_vectors_pruned)
 
-        self.value_function = value_function
+        self.value_function = value_function.to_cpu() if not self.on_gpu else value_function.to_gpu()
 
         return training_history
-    
+
+
+    def compute_change(self,
+                       value_function:ValueFunction,
+                       new_value_function:ValueFunction,
+                       belief_set:BeliefSet
+                       ) -> float:
+        '''
+        Function to compute whether the change between two value functions can be considered as having converged based on the eps parameter of the Solver.
+        It check for each belief, the maximum value and take the max change between believe's value functions.
+        If this max change is lower than eps * (gamma / (1 - gamma)).
+
+        Parameters
+        ----------
+        value_function : ValueFunction
+            The first value function to compare.
+        new_value_function : ValueFunction
+            The second value function to compare.
+        belief_set : BeliefSet
+            The set of believes to check the values on to compute the max change on.
+
+        Returns
+        -------
+        max_change : float
+            The maximum change between value functions at belief points.
+        '''
+        # Get numpy corresponding to the arrays
+        xp = np if not gpu_support else cp.get_array_module(value_function.alpha_vector_array)
+
+        # Computing Delta for each beliefs
+        max_val_per_belief = xp.max(xp.matmul(belief_set.belief_array, value_function.alpha_vector_array.T), axis=1)
+        new_max_val_per_belief = xp.max(xp.matmul(belief_set.belief_array, new_value_function.alpha_vector_array.T), axis=1)
+        max_change = xp.max(xp.abs(new_max_val_per_belief - max_val_per_belief))
+
+        return max_change
+
 
     def expand(self,
                belief_set:BeliefSet,
@@ -613,8 +686,29 @@ class PBVI_Agent(Agent):
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 
+        # Binarize observations
+        observation_ids = np.where(observation > self.treshold, 1, 0).astype(int)
+        observation_ids[source_reached] = 2 # Observe source
+
         # Update the set of beliefs
-        self.belief = self.belief.update(actions=self.action_played, observations=observation)
+        self.belief = self.belief.update(actions=self.action_played, observations=observation_ids)
 
         # Remove the beliefs of the agents having reached the source
         self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~source_reached])
+
+
+    def kill(self,
+             simulations_to_kill:np.ndarray
+             ) -> None:
+        '''
+        Function to kill any simulations that have not reached the source but can't continue further
+
+        Parameters
+        ----------
+        simulations_to_kill : np.ndarray
+            A boolean array of the simulations to kill.
+        '''
+        if all(simulations_to_kill):
+            self.belief = None
+        else:
+            self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~simulations_to_kill])
