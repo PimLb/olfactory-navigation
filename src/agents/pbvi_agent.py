@@ -287,6 +287,21 @@ class PBVI_Agent(Agent):
         return gpu_agent
 
 
+    def save(self,
+             folder:str|None=None,
+             force:bool=False
+             ) -> None:
+        return super().save(folder, force)
+
+
+    @classmethod
+    def load(cls,
+             folder:str
+             ) -> 'PBVI_Agent':
+        instance = cls.__new__(cls)
+        return 
+
+
     def train(self,
               expansions:int,
               full_backup:bool=True,

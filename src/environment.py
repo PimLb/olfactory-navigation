@@ -39,6 +39,26 @@ class Environment:
     # TODO Write these
     Parameters
     ----------
+    data : str or np.ndarray
+        The dataset containing the olfactory data. It can be provided as a path to a file containing said array.
+    source_position : list or np.ndarray
+        The center point of the source provided as a list or a 1D array with the components being x,y.
+    source_radius : int (default: 1)
+        The radius from the center point of the source in which we consider the agent has reached the source.
+    discretization : int (default: 1)
+        How many units should be kept in the final array (a discretization of 2 will retain every other point of the original array).
+    margins : int or list or np.ndarray (default: 0)
+        How many discretized units have to be added to the data as margins.
+        If a unique element is provided, the margin will be this same value on each side.
+        If a list or array of 2 elements is provided, the first number will be vertical margins (y-axis), while the other will be on the x-axis (horizontal).
+    boundary_condition : 'stop' or 'wrap' or 'wrap_vertical' or 'wrap_horizontal' or 'clip' (default: 'stop')
+        How the agent should behave at the boundary.
+        Stop means for the agent to stop at the boundary, if the agent tries to move north while being on the top edge, it will stay in the same state.
+        Wrap means for the borders to be like portals, when entering on one side, it reappears on the other side.
+        Wrap can be specified to be only vertically or horizontally
+    start_zone:Literal['odor_present','data_zone']|np.ndarray='data_zone',
+    odor_present_treshold:float|None=None,
+    name:str|None=None
 
     Arguments
     ---------

@@ -27,6 +27,11 @@ class Agent:
         self._alternate_version = None
 
 
+    @property
+    def class_name(self):
+        return self.__class__.__name__
+
+
     def to_gpu(self) -> 'Agent':
         '''
         Function to send the numpy arrays of the agent to the gpu.
