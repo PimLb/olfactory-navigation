@@ -374,6 +374,7 @@ class SimulationHistory:
 
         # Plot setup
         env_shape = self.environment.shape
+        ax.imshow(np.zeros(self.environment.shape), cmap='Greys', zorder=-100)
         ax.set_xlim(0, env_shape[1])
         ax.set_ylim(env_shape[0], 0)
 
