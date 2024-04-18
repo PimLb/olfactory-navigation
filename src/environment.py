@@ -50,10 +50,11 @@ class Environment:
                  source_radius:int=1,
                  discretization:int=1,
                  margins:int|list|np.ndarray=0,
-                 boundary_condition:Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip']='stop',
+                 boundary_condition:Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip' ,'no']='stop',
                  start_zone:Literal['odor_present','data_zone']|np.ndarray='data_zone',
                  odor_present_treshold:float|None=None,
-                 name:str|None=None
+                 name:str|None=None,
+                 seed : int = 12131415,
                  ) -> None:
         self.saved_at = None
 
@@ -89,7 +90,7 @@ class Environment:
         self.discretization = discretization
         if discretization != 1:
             raise NotImplementedError('Different discretizations have not been implemented yet') # TODO
-        self.grid = data
+        self.grid : np.ndarray = data
 
         # Apply margins to grid
         self.grid = np.hstack([np.zeros((timesteps, self.margins[0,0], self.width)), self.grid, np.zeros((timesteps, self.margins[0,1], self.width))])
@@ -139,6 +140,10 @@ class Environment:
         # gpu support
         self._alternate_version = None
         self.on_gpu = False
+
+        # random state
+        xp = cp if self.on_gpu else np
+        self.rnd_state = xp.random.RandomState(seed = seed)
 
 
     def plot(self, frame:int=0, ax=None) -> None:
@@ -201,7 +206,19 @@ class Environment:
         is_single_point = (len(pos.shape) == 1)
         if is_single_point:
             pos = pos[None,:]
-
+        if self.boundary_condition is None or self.boundary_condition == 'no':
+            if is_single_point:
+                return float(self.grid[time, pos[0], pos[1]] ) if  0 <= pos[0] < self.grid.shape[1] and 0 <= pos[1] < self.grid.shape[2] else 0.0
+            #print(pos[:, 0], pos[:, 1], self.grid.shape)
+            mask = (0 <= pos[:, 0]) & (pos[:, 0] < self.grid.shape[1]) & (0 <= pos[:, 1]) & (pos[:, 1] < self.grid.shape[2])
+ #           print(mask.shape, pos.shape)
+            observation = np.zeros((mask.shape[0], ))
+#            print(observation[mask].shape, pos[mask,0].shape, time)#, self.grid[time, pos[mask,0], pos[mask,1]].shape)
+            if isinstance(time, int):
+                observation[mask] = self.grid[time, pos[mask,0], pos[mask,1]]
+            else:
+                observation[mask] = self.grid[time[mask], pos[mask,0], pos[mask,1]]
+            return observation
         observation = self.grid[time, pos[0], pos[1]] if len(pos.shape) == 1 else self.grid[time, pos[:,0], pos[:,1]]
 
         return float(observation[0]) if is_single_point else observation
@@ -255,7 +272,7 @@ class Environment:
 
         assert n>0, "n has to be a strictly positive number (>0)"
 
-        random_states = xp.random.choice(xp.arange(self.padded_height * self.padded_width), size=n, replace=True, p=self.start_probabilities.ravel())
+        random_states = self.rnd_state.choice(xp.arange(self.padded_height * self.padded_width), size=n, replace=True, p=self.start_probabilities.ravel())
         random_states_2d = xp.array(xp.unravel_index(random_states, (self.padded_height, self.padded_width))).T
         return random_states_2d
 
