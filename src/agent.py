@@ -1,3 +1,4 @@
+import inspect
 import numpy as np
 
 from src.environment import Environment
@@ -25,6 +26,11 @@ class Agent:
 
         self.on_gpu = False
         self._alternate_version = None
+
+
+    @property
+    def class_name(self):
+        return self.__class__.__name__
 
 
     def to_gpu(self) -> 'Agent':
@@ -61,7 +67,8 @@ class Agent:
 
     def save(self,
              folder:str|None=None,
-             force:bool=False
+             force:bool=False,
+             save_environment:bool=False
              ) -> None:
         '''
         Function to save a trained agent to memory.
@@ -70,10 +77,18 @@ class Agent:
 
 
     @classmethod
-    def load(cls, folder:str):
+    def load(cls,
+             folder:str
+             ) -> 'Agent':
         '''
-        Function to save a trained agent to memory.
+        Function to load a trained agent from memory.
         '''
+        from src import agents
+
+        for name, obj in inspect.getmembers(agents):
+            if inspect.isclass(obj) and (name in folder) and issubclass(obj, cls) and (obj != cls):
+                return obj.load(folder)
+
         raise NotImplementedError('The load function is not implemented, make an agent subclass to implement the method')
 
 

@@ -1,5 +1,7 @@
 import os
+import inspect
 import pandas as pd
+import sys
 
 from datetime import datetime
 from matplotlib import pyplot as plt 
@@ -7,6 +9,7 @@ from tqdm.auto import trange
 
 from src import Agent
 from src.environment import Environment
+from src.agent import *
 
 import numpy as np
 gpu_support = False
@@ -20,16 +23,16 @@ except:
 class SimulationHistory:
     '''
     Class to represent a list of the steps that happened during a simulation or set of simulations with:
-        - the state the agent passes by ('state')
-        - the action the agent takes ('action')
-        - the observation the agent takes ('observation')
+        - the state the agent passes by ('states')
+        - the action the agent takes ('actions')
+        - the observation the agent takes ('observations')
 
     # TODO Reword this
     ...
 
     Parameters
     ----------
-    start_state : int
+    start_state : np.ndarray
         The initial state in the simulation.
     
     Attributes
@@ -190,10 +193,12 @@ class SimulationHistory:
 
     def save(self,
              file:str|None=None,
-             folder:str|None=None
+             folder:str|None=None,
+             save_components:bool=False
              ) -> None:
         '''
-        Function to save the simulation history to a given folder.
+        Function to save the simulation history to a csv file in a given folder.
+        The environment and agent used can be saved in the saved folder by enabling the 'save_component' parameter.
 
         Parameters
         ----------
@@ -204,7 +209,7 @@ class SimulationHistory:
         '''
         if file is None:
             env_name = f's_{self.environment.shape[0]}_{self.environment.shape[1]}'
-            file = f'Simulations-{env_name}-n_{len(self.start_state)}-horizon_{len(self.states)}-{self.start_time.strftime("%m%d%Y_%H%M%S")}.csv'
+            file = f'Simulations-{env_name}-n_{len(self.start_state)}-{self.start_time.strftime("%m%d%Y_%H%M%S")}-horizon_{len(self.states)}.csv'
 
         if folder is None:
             folder = './'
@@ -218,6 +223,14 @@ class SimulationHistory:
         if not folder.endswith('/'):
             folder += '/'
 
+        # Save components if requested
+        if save_components:
+            if (self.environment.saved_at is None) or (folder not in self.environment.saved_at):
+                self.environment.save(folder=folder)
+
+            if (self.agent.saved_at is None) or (folder not in self.agent.saved_at):
+                self.agent.save(folder=folder)
+
         # Create csv file
         combined_df = pd.concat(self.simulation_dfs)
 
@@ -225,7 +238,7 @@ class SimulationHistory:
         padding = [None] * len(combined_df)
         combined_df['reward_discount'] = [self.reward_discount] + padding[:-1]
         combined_df['environment'] = [self.environment.name, self.environment.saved_at] + padding[:-2]
-        combined_df['agent'] = [] + padding[:] # TODO
+        combined_df['agent'] = [self.agent.name, self.agent.class_name, self.agent.saved_at] + padding[:-3]
 
         # Saving csv
         combined_df.to_csv(folder + file, index=False)
@@ -236,7 +249,8 @@ class SimulationHistory:
     @classmethod
     def load_from_file(cls,
                        file:str,
-                       environment:Environment|None=None
+                       environment:Environment|None=None,
+                       agent:Agent|None=None
                        ) -> 'SimulationHistory':
         '''
         # TODO
@@ -258,6 +272,23 @@ class SimulationHistory:
         if loaded_environment is not None:
             print(f'Environment "{environment_name}" loaded from memory' + (' (Ignoring environment provided as a parameter)' if environment is not None else ''))
             environment = loaded_environment
+
+        # Retrieving agent
+        loaded_agent = None
+        agent_name = combined_df['agent'][0]
+        agent_class = combined_df['agent'][1]
+        if combined_df['agent'][2] is not None:
+            try:
+                for (class_name, class_obj) in inspect.getmembers(sys.modules[__name__], inspect.isclass):
+                    if class_name == agent_class:
+                        loaded_agent = class_obj.load(combined_df['agent'][2])
+                        break
+            except:
+                print(f'Failed to retrieve "{agent_name}" agent from memory')
+
+        if loaded_agent is not None:
+            print(f'Agent "{agent_name}" loaded from memory' + (' (Ignoring agent provided as a parameter)' if agent is not None else ''))
+            agent = loaded_agent
 
         # Columns to retrieve
         columns = [
@@ -286,7 +317,7 @@ class SimulationHistory:
         hist = SimulationHistory(
             start_state=start_states,
             environment=environment,
-            agent=None, # TODO
+            agent=agent,
             time_shift=time_shift,
             reward_discount=reward_discount
         )
@@ -343,6 +374,7 @@ class SimulationHistory:
 
         # Plot setup
         env_shape = self.environment.shape
+        ax.imshow(np.zeros(self.environment.shape), cmap='Greys', zorder=-100)
         ax.set_xlim(0, env_shape[1])
         ax.set_ylim(env_shape[0], 0)
 
@@ -384,15 +416,54 @@ def run_test(agent:Agent,
              use_gpu:bool=False
              ) -> SimulationHistory:
     '''
-    Function to run n simulations for a given agent in its environment (or a given agent).
+    Function to run n simulations for a given agent in its environment (or a given modified environment).
     The simulations start either from random start points or provided trough the start_points parameter.
-    The simulation can have a shifted initial time (in the olfactory simulation).
+    The simulation can have shifted initial times (in the olfactory simulation).
 
-    # TODO Explain sim loop
+    The simulation will run for at most 'horizon' steps, after which the simulations will be considered failed.
+
+    Some statistics can be printed at end of the simulation with the 'print_stats' parameter.
+    It will print some performance statisitcs about the simulations such as the average discounter reward.
+    The reward discount can be set by the 'reward_discount' parameter.
+
+    To speedup the simulations, it can be run on the gpu by toggling the 'use_gpu' parameter.
+    This will have the consequence to send the various arrays to the gpu memory.
+    This will only work if the agent has the support for to work with cupy arrays.
+
+    This method returns a SimulationHistory object that saves all the positions the agent went through,
+    the actions the agent took, and the observation the agent received.
+    It also provides the possibility the save the results to a csv file and plot the various trajectories.
 
     Parameters
     ----------
-
+    agent : Agent
+        The agent to be tested
+    n : int (optional)
+        How many simulation to run in parallel.
+        n is optional but it needs to match with what is provided in start_points.
+    start_points : np.ndarray (optional)
+        The starting points of the simulation in 2d space.
+        If not provided, n random points will be generated based on the start probabilities of the environment.
+        Else, the amount of start_points need to match to n, if it is provided.
+    environment : Environment (optional)
+        The environment to run the simulations in.
+        By default, the environment linked to the agent will used.
+        This parameter is intended if the environment needs to be modified compared to environment the agent was trained on.
+    time_shift : int or np.ndarray (default = 0)
+        The time at which to start the olfactory simulation array.
+        It can be either a single value, or n values.
+    horizon : int (default = 1000)
+        The amount of steps to run the simulation for before killing the remaining simulations.
+    reward_discount : float (default = 0.99)
+        How much a given reward is discounted based on how long it took to get it.
+        It is purely used to compute the Average Discount Reward (ADR) after the simulation.
+    print_progress : bool (default = True)
+        Wheter to show a progress bar of what step the simulations are at.
+    print_stats : bool (default = True)
+        Wheter to print the stats at the end of the run.
+    use_gpu : bool (default = False)
+        Whether to run the simulations on the GPU or not.
+    
     Returns
     -------
     hist : SimulationHistory
@@ -400,7 +471,7 @@ def run_test(agent:Agent,
     '''
     # Gathering n
     if n is None:
-        if start_points is None:
+        if (start_points is None) or (len(start_points.shape) == 1):
             n = 1
         else:
             n = len(start_points)

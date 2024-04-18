@@ -1,3 +1,8 @@
+import inspect
+import json
+import os
+import shutil
+
 from datetime import datetime
 from typing import Union
 from tqdm.auto import trange
@@ -10,6 +15,7 @@ from .model_based_util.value_function import ValueFunction
 from .model_based_util.belief import Belief, BeliefSet
 
 import numpy as np
+
 gpu_support = False
 try:
     import cupy as cp
@@ -238,14 +244,23 @@ class TrainingHistory:
 class PBVI_Agent(Agent):
     def __init__(self,
                  environment:Environment,
-                 treshold:float|None=3e-6
+                 treshold:float|None=3e-6,
+                 name:str|None=None
                  ) -> None:
         super().__init__(environment)
 
         self.model = Model.from_environment(environment, treshold)
         self.treshold = treshold
 
+        # setup name
+        if name is None:
+            self.name = self.class_name
+            self.name += f'-tresh_{self.treshold}'
+        else:
+            self.name = name
+
         # Trainable variables
+        self.trained_at = None
         self.value_function = None
 
         # Status variables
@@ -285,6 +300,90 @@ class PBVI_Agent(Agent):
 
         gpu_agent.on_gpu = True
         return gpu_agent
+
+
+    def save(self,
+             folder:str|None=None,
+             force:bool=False,
+             save_environment:bool=False
+             ) -> None:
+        '''
+        
+        '''
+        # Adding env name to folder path
+        if folder is None:
+            folder = f'./Agent-{self.name}'
+        else:
+            folder += '/Agent-' + self.name
+
+        # Checking the folder exists or creates it
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        elif len(os.listdir(folder)):
+            if force:
+                shutil.rmtree(folder)
+                os.mkdir(folder)
+            else:
+                raise Exception(f'{folder} is not empty. If you want to overwrite the saved model, enable "force".')
+
+        # If requested save environment
+        if save_environment:
+            self.environment.save(folder=folder)
+
+        # Generating the metadata arguments dictionary
+        arguments = {}
+        arguments['name'] = self.name
+        arguments['class'] = self.class_name
+        arguments['treshold'] = self.treshold
+        arguments['environment_name'] = self.environment.name
+        arguments['environment_saved_at'] = self.environment.saved_at
+        arguments['trained_at'] = self.trained_at
+
+        # Output the arguments to a METADATA file
+        with open(folder + '/METADATA.json', 'w') as json_file:
+            json.dump(arguments, json_file, indent=4)
+
+        # Save value function
+        self.value_function.save(folder=folder, file_name='Value_Function.npy')
+        
+        # Finalization
+        self.saved_at = os.path.abspath(folder).replace('\\', '/')
+        print(f'Agent saved to: {folder}')
+
+
+    @classmethod
+    def load(cls,
+             folder:str
+             ) -> 'PBVI_Agent':
+        # Load arguments
+        arguments = None
+        with open(folder + '/METADATA.json', 'r') as json_file:
+            arguments = json.load(json_file)
+        
+        # Load environment
+        environment = Environment.load(arguments['environment_saved_at'])
+
+        # Load specific class
+        if arguments['class'] != 'PBVI_Agent':
+            from src import agents
+            cls = {name:obj for name, obj in inspect.getmembers(agents)}[arguments['class']]
+
+        # Build instance
+        instance = cls(
+            environment=environment,
+            treshold=arguments['treshold'],
+            name=arguments['name']
+        )
+
+        # Load and set the value function on the instance
+        instance.value_function = ValueFunction.load(
+            file=folder + '/Value_Function.npy',
+            model=instance.model
+        )
+        instance.trained_at = arguments['trained_at']
+        instance.saved_at = folder
+
+        return instance
 
 
     def train(self,
@@ -366,6 +465,8 @@ class PBVI_Agent(Agent):
         if (self.value_function is not None) and (not force):
             raise Exception('Agent has already been trained. The force parameter needs to be set to "True" if training should still happen')
         else:
+            self.trained_at = None
+            self.name = '-'.join(self.name.split('-')[:-1])
             self.value_function = None
 
         # Initial value function
@@ -498,9 +599,14 @@ class PBVI_Agent(Agent):
 
         value_function.prune(prune_level)
 
+        # History tracking
         prune_time = (datetime.now() - start_ts).total_seconds()
         alpha_vectors_pruned = len(value_function) - vf_len
         training_history.add_prune_step(prune_time, alpha_vectors_pruned)
+
+        # Record when it was trained
+        self.trained_at = datetime.now().strftime("%m%d%Y_%H%M%S")
+        self.name += f'-trained_{self.trained_at}'
 
         self.value_function = value_function.to_cpu() if not self.on_gpu else value_function.to_gpu()
 
