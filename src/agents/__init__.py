@@ -7,6 +7,8 @@ from src.agents.pbvi_ssea_agent import PBVI_SSEA_Agent
 from src.agents.pbvi_ssga_agent import PBVI_SSGA_Agent
 from src.agents.pbvi_ssra_agent import PBVI_SSRA_Agent
 from src.agents.perseus_agent import Perseus_Agent
+from src.agents.q_agent import QAgent
+
 
 __all__ = (
     'PBVI_Agent',
@@ -17,5 +19,6 @@ __all__ = (
     'PBVI_SSEA_Agent',
     'PBVI_SSGA_Agent',
     'PBVI_SSRA_Agent',
-    'Perseus_Agent'
+    'Perseus_Agent',
+    'QAgent',
 )
