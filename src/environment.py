@@ -162,8 +162,8 @@ class Environment:
         self.on_gpu = False
 
         # random state
-        xp = cp if self.on_gpu else np
-        self.rnd_state = xp.random.RandomState(seed = seed)
+        self.seed = seed
+        self.rnd_state = np.random.RandomState(seed = seed)
 
 
     def plot(self, frame:int=0, ax=None) -> None:
@@ -226,20 +226,18 @@ class Environment:
         is_single_point = (len(pos.shape) == 1)
         if is_single_point:
             pos = pos[None,:]
+
+        # Handle the case where the agent is allowed to be outside the grid
         if self.boundary_condition is None or self.boundary_condition == 'no':
             if is_single_point:
                 return float(self.grid[time, pos[0], pos[1]] ) if  0 <= pos[0] < self.grid.shape[1] and 0 <= pos[1] < self.grid.shape[2] else 0.0
-            #print(pos[:, 0], pos[:, 1], self.grid.shape)
             mask = (0 <= pos[:, 0]) & (pos[:, 0] < self.grid.shape[1]) & (0 <= pos[:, 1]) & (pos[:, 1] < self.grid.shape[2])
- #           print(mask.shape, pos.shape)
             observation = np.zeros((mask.shape[0], ))
-#            print(observation[mask].shape, pos[mask,0].shape, time)#, self.grid[time, pos[mask,0], pos[mask,1]].shape)
             if isinstance(time, int):
                 observation[mask] = self.grid[time, pos[mask,0], pos[mask,1]]
             else:
                 observation[mask] = self.grid[time[mask], pos[mask,0], pos[mask,1]]
             return observation
-        
 
         observation = self.grid[time, pos[0], pos[1]] if len(pos.shape) == 1 else self.grid[time, pos[:,0], pos[:,1]]
 
@@ -571,6 +569,8 @@ class Environment:
         for arg, val in self.__dict__.items():
             if isinstance(val, np.ndarray):
                 setattr(gpu_environment, arg, cp.array(val))
+            elif arg == 'rnd_state':
+                setattr(gpu_environment, arg, cp.random.RandomState(self.seed))
             else:
                 setattr(gpu_environment, arg, val)
 
