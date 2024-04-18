@@ -9,7 +9,6 @@ from tqdm.auto import trange
 
 from ..environment import Environment
 from ..agent import Agent
-from .model_based_util.mdp import log
 from .model_based_util.pomdp import Model
 from .model_based_util.value_function import ValueFunction
 from .model_based_util.belief import Belief, BeliefSet
