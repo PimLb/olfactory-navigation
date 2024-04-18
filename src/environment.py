@@ -219,6 +219,8 @@ class Environment:
             else:
                 observation[mask] = self.grid[time[mask], pos[mask,0], pos[mask,1]]
             return observation
+        
+
         observation = self.grid[time, pos[0], pos[1]] if len(pos.shape) == 1 else self.grid[time, pos[:,0], pos[:,1]]
 
         return float(observation[0]) if is_single_point else observation

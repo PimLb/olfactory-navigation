@@ -17,7 +17,7 @@ env = Environment(data=data_path,
                   source_position=[13, 0],
                   source_radius=2,
                   margins=[14, 62],
-                  boundary_condition='no',
+                  boundary_condition='stop',
                   start_zone='odor_present',
                   odor_present_treshold=3e-6)
 
@@ -33,7 +33,7 @@ alpha_decay = 0.0001
 eps = lambda t : 0.9 * np.exp(-eps_decay * t)  #if np.exp(-eps_decay * t)  > 0.3 else 0.3
 alpha = lambda t : 0.9 * np.exp(-alpha_decay * t) # if np.exp(-alpha_decay * t) > 0.0001 else 0.0001 #0.3 * np.exp(-alpha_decay * t) > 0.001 else 0.001
 
-checkpoint_folder = "./q_agent_training/checkpoints"
+checkpoint_folder = "./q_agent_training/clip/checkpoints"
 checkpoint_frequency = 5000
 
 
