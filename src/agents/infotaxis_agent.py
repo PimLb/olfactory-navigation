@@ -93,6 +93,7 @@ class Infotaxis_Agent(Agent):
         movement_vector : np.ndarray
             A single or a list of actions chosen by the agent(s) based on their belief.
         '''
+        # TODO Check if can be improved with beliefset update
         xp = np if not self.on_gpu else cp
         
         chosen_actions = []
