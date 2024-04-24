@@ -2,6 +2,7 @@ from matplotlib import cm, colors, ticker
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from typing import Union
+from scipy.stats import entropy
 
 from .pomdp import Model
 
@@ -9,6 +10,7 @@ import numpy as np
 gpu_support = False
 try:
     import cupy as cp
+    from cupyx.scipy.stats import entropy as cupy_entropy
     gpu_support = True
 except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
@@ -102,16 +104,20 @@ class Belief:
         '''
         xp = np if not gpu_support else cp.get_array_module(self._values)
 
+        # Check if successor exists
         succ_id = f'{a}_{o}'
         succ = self._successors.get(succ_id)
         if succ is not None:
             return succ
 
+        # Computing new probabilities
         reachable_state_probabilities = self.model.reachable_transitional_observation_table[:,a,o,:] * self.values[:,None]
         new_state_probabilities = xp.bincount(self.model.reachable_states[:,a,:].flatten(), weights=reachable_state_probabilities.flatten(), minlength=self.model.state_count)
         
         # Normalization
-        new_state_probabilities /= xp.sum(new_state_probabilities)
+        probability_sum = xp.sum(new_state_probabilities)
+        assert probability_sum > 0, "Impossible belief: the sum of probabilities is 0..."
+        new_state_probabilities /= probability_sum
 
         # Generation of new belief from new state probabilities
         new_belief = self.__new__(self.__class__)
@@ -136,7 +142,12 @@ class Belief:
         successor_beliefs = []
         for a in self.model.actions:
             for o in self.model.observations:
-                successor_beliefs.append(self.update(a,o))
+                try:
+                    b_ao = self.update(a,o)
+                except:
+                    # Ignoring failure to generate a belief point
+                    continue
+                successor_beliefs.append(b_ao)
 
         return successor_beliefs
 
@@ -154,6 +165,16 @@ class Belief:
 
         rand_s = int(xp.random.choice(a=self.model.states, size=1, p=self._values)[0])
         return rand_s
+    
+
+    @property
+    def entropy(self) -> float:
+        '''
+        The entropy of the belief point
+        '''
+        xp = np if not gpu_support else cp.get_array_module(self._values)
+
+        return float(entropy(self._values) if xp == np else cupy_entropy(self._values))
     
 
     def plot(self, size:int=5) -> None:

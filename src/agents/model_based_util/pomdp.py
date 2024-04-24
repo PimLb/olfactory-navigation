@@ -239,7 +239,10 @@ class Model(MDP_Model):
 
 
     @classmethod
-    def from_environment(cls, environment:Environment, treshold:float) -> 'Model':
+    def from_environment(cls, environment:Environment, treshold:float|list) -> 'Model':
+        '''
+        Method to create a POMDP model based on an olfactory environment object.
+        '''
         state_count = np.prod(environment.shape)
 
         state_grid = [[f's_{x}_{y}' for x in range(environment.shape[1])] for y in range(environment.shape[0])]
@@ -247,15 +250,30 @@ class Model(MDP_Model):
                                                  shape=environment.shape).ravel())[:,0].tolist()
         
         # Compute observation matrix
-        odor_probability = np.mean((environment.grid > treshold).astype(int), axis=0).ravel()
-        observations = np.empty((state_count, 4, 3), dtype=float) # 4-actions, 3-observations
+        if not isinstance(treshold, list):
+            treshold = [treshold]
 
-        observations[:,:,0] = (1 - odor_probability[:,None])
-        observations[:,:,1] = odor_probability[:,None]
+        # Ensure 0.0 and 1.0 begin and end the treshold list
+        if treshold[0] != 0.0:
+            treshold = [0.0] + treshold
 
-        observations[:,:,2] = 0.0
+        if treshold[-1] != 1.0:
+            treshold = treshold + [1.0]
+
+        # Computing odor probabilities
+        grid = environment.grid[:,:,:,None]
+        threshs = np.array(treshold)
+        odor_fields = np.average(((grid >= threshs[:-1][None,None,None,:]) & (grid < threshs[1:][None,None,None,:])), axis=0)
+
+        # Building observation matrix
+        observations = np.empty((state_count, 4, len(treshold)), dtype=float) # 4-actions, observations: |thresholds|-1 + goal 
+
+        for i in range(len(treshold)-1):
+            observations[:,:,i] = odor_fields[:,:,i].ravel()[:,None]
+
+        observations[:,:,-1] = 0.0
         observations[end_states,:,:] = 0.0
-        observations[end_states,:,2] = 1.0
+        observations[end_states,:,-1] = 1.0
 
         # Compute reachable states
         row_w = environment.shape[1]
@@ -273,6 +291,7 @@ class Model(MDP_Model):
         model = Model(
             states=state_grid,
             actions=['N','E','S','W'],
+            # observations=['nothing','something'],
             observations=['nothing','something','goal'],
             reachable_states=reachable_states,
             observation_table=observations,
