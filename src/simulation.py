@@ -478,7 +478,7 @@ def run_test(agent:Agent,
 
     # Handle the case an specific environment is given
     if environment is not None:
-        assert environment.shape == agent.environment.shape
+        assert environment.shape == agent.environment.shape, "The provided environment's shape doesn't match the environment has been trained on..."
         print('Using the provided environment, not the agent environment.')
     else:
         environment = agent.environment
