@@ -227,6 +227,9 @@ class Environment:
         if is_single_point:
             pos = pos[None,:]
 
+        # Time looping
+        time = time % len(self.grid)
+
         # Handle the case where the agent is allowed to be outside the grid
         if self.boundary_condition is None or self.boundary_condition == 'no':
             if is_single_point:
