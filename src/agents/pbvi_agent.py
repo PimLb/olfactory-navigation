@@ -464,7 +464,7 @@ class PBVI_Agent(Agent):
         if (self.value_function is not None) and (not force):
             raise Exception('Agent has already been trained. The force parameter needs to be set to "True" if training should still happen')
         else:
-            self.trained_at = None
+            self.trained_at = None # TODO fix this
             self.name = '-'.join(self.name.split('-')[:-1])
             self.value_function = None
 

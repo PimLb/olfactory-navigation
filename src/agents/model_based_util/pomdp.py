@@ -254,11 +254,11 @@ class Model(MDP_Model):
             treshold = [treshold]
 
         # Ensure 0.0 and 1.0 begin and end the treshold list
-        if treshold[0] != 0.0:
-            treshold = [0.0] + treshold
+        if treshold[0] != -np.inf:
+            treshold = [-np.inf] + treshold
 
-        if treshold[-1] != 1.0:
-            treshold = treshold + [1.0]
+        if treshold[-1] != np.inf:
+            treshold = treshold + [np.inf]
 
         # Computing odor probabilities
         grid = environment.grid[:,:,:,None]
