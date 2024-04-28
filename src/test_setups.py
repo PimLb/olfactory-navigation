@@ -18,10 +18,10 @@ def run_all_starts_test(
     '''
     # TODO
     '''
-        # Handle the case an specific environment is given
-    if environment is not None:
+    # Handle the case an specific environment is given
+    environment_provided = environment is not None
+    if environment_provided:
         assert environment.shape == agent.environment.shape, "The provided environment's shape doesn't match the environment has been trained on..."
-        print('Using the provided environment, not the agent environment.')
     else:
         environment = agent.environment
     
@@ -33,7 +33,7 @@ def run_all_starts_test(
         agent=agent,
         n=n,
         start_points=start_points,
-        environment=environment,
+        environment=environment if environment_provided else None,
         time_shift=time_shift,
         horizon=horizon,
         reward_discount=reward_discount,
@@ -58,10 +58,10 @@ def run_n_by_cell_test(
     '''
     # TODO
     '''
-        # Handle the case an specific environment is given
-    if environment is not None:
+    # Handle the case an specific environment is given
+    environment_provided = environment is not None
+    if environment_provided:
         assert environment.shape == agent.environment.shape, "The provided environment's shape doesn't match the environment has been trained on..."
-        print('Using the provided environment, not the agent environment.')
     else:
         environment = agent.environment
     
@@ -90,7 +90,7 @@ def run_n_by_cell_test(
         agent=agent,
         n=n,
         start_points=start_points,
-        environment=environment,
+        environment=environment if environment_provided else None,
         time_shift=time_shift,
         horizon=horizon,
         reward_discount=reward_discount,
