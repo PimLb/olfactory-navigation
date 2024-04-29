@@ -1,3 +1,4 @@
+import math
 import os
 import inspect
 import pandas as pd
@@ -409,6 +410,7 @@ def run_test(agent:Agent,
              start_points:np.ndarray|None=None,
              environment:Environment|None=None,
              time_shift:int|np.ndarray=0,
+             time_loop:bool=True,
              horizon:int=1000,
              reward_discount:float=0.99,
              print_progress:bool=True,
@@ -452,6 +454,8 @@ def run_test(agent:Agent,
     time_shift : int or np.ndarray (default = 0)
         The time at which to start the olfactory simulation array.
         It can be either a single value, or n values.
+    time_loop : bool (default = True)
+        Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int (default = 1000)
         The amount of steps to run the simulation for before killing the remaining simulations.
     reward_discount : float (default = 0.99)
@@ -478,7 +482,7 @@ def run_test(agent:Agent,
 
     # Handle the case an specific environment is given
     if environment is not None:
-        assert environment.shape == agent.environment.shape
+        assert environment.shape == agent.environment.shape, "The provided environment's shape doesn't match the environment has been trained on..."
         print('Using the provided environment, not the agent environment.')
     else:
         environment = agent.environment
@@ -546,7 +550,7 @@ def run_test(agent:Agent,
         agent.update_state(observation, source_reached)
 
         # Handling the case where simulations have reached the end
-        sims_at_end = ((time_shift + i + 1) >= len(environment.grid))
+        sims_at_end = ((time_shift + i + 1) >= (math.inf if time_loop else len(environment.grid)))
 
         # Interupt agents that reached the end
         agent_position = new_agent_position[~source_reached & ~sims_at_end]

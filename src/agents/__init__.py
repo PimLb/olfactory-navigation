@@ -8,6 +8,8 @@ from src.agents.pbvi_ssga_agent import PBVI_SSGA_Agent
 from src.agents.pbvi_ssra_agent import PBVI_SSRA_Agent
 from src.agents.perseus_agent import Perseus_Agent
 from src.agents.q_agent import QAgent
+from src.agents.qmdp_agent import QMDP_Agent
+from src.agents.infotaxis_agent import Infotaxis_Agent
 
 
 __all__ = (
@@ -21,4 +23,6 @@ __all__ = (
     'PBVI_SSRA_Agent',
     'Perseus_Agent',
     'QAgent',
+    'QMDP_Agent',
+    'Infotaxis_Agent',
 )

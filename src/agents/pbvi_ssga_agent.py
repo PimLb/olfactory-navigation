@@ -1,6 +1,4 @@
-from ..environment import Environment
-from ..agents.pbvi_agent import PBVI_Agent
-from .model_based_util.pomdp import Model
+from ..agents.pbvi_agent import PBVI_Agent, TrainingHistory
 from .model_based_util.value_function import ValueFunction
 from .model_based_util.belief import Belief, BeliefSet
 
@@ -100,7 +98,7 @@ class PBVI_SSGA_Agent(PBVI_Agent):
               force:bool=False,
               print_progress:bool=True,
               epsilon:float=0.99
-              ) -> None:
+              ) -> TrainingHistory:
         
         return super().train(expansions = expansions,
                              full_backup = True,

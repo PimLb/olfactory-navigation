@@ -1,6 +1,4 @@
-from ..environment import Environment
-from .pbvi_agent import PBVI_Agent
-from .model_based_util.pomdp import Model
+from .pbvi_agent import PBVI_Agent, TrainingHistory
 from .model_based_util.mdp import log
 from .model_based_util.value_function import ValueFunction
 from .model_based_util.belief import Belief, BeliefSet
@@ -108,7 +106,7 @@ class FSVI_Agent(PBVI_Agent):
               history_tracking_level:int=1,
               force:bool=False,
               print_progress:bool=True
-              ) -> None:
+              ) -> TrainingHistory:
 
         if mdp_policy is None:
             log('MDP_policy, not provided. Solving MDP with Value Iteration...')

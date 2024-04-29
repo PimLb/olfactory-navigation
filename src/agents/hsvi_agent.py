@@ -1,6 +1,4 @@
-from ..environment import Environment
-from ..agents.pbvi_agent import PBVI_Agent
-from .model_based_util.pomdp import Model
+from ..agents.pbvi_agent import PBVI_Agent, TrainingHistory
 from .model_based_util.value_function import ValueFunction
 from .model_based_util.belief import Belief, BeliefSet
 from .model_based_util.belief_value_mapping import BeliefValueMapping
@@ -140,7 +138,7 @@ class HSVI_Agent(PBVI_Agent):
               history_tracking_level:int=1,
               force:bool=False,
               print_progress:bool=True
-              ) -> None:
+              ) -> TrainingHistory:
         
         return super().train(expansions = expansions,
                              full_backup = False,

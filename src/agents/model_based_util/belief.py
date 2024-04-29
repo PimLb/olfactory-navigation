@@ -2,6 +2,7 @@ from matplotlib import cm, colors, ticker
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from typing import Union
+from scipy.stats import entropy
 
 from .pomdp import Model
 
@@ -9,6 +10,7 @@ import numpy as np
 gpu_support = False
 try:
     import cupy as cp
+    from cupyx.scipy.stats import entropy as cupy_entropy
     gpu_support = True
 except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
@@ -84,7 +86,7 @@ class Belief:
         return self._values
     
 
-    def update(self, a:int, o:int) -> 'Belief':
+    def update(self, a:int, o:int, throw_error:bool=True) -> 'Belief':
         '''
         Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).
 
@@ -102,16 +104,23 @@ class Belief:
         '''
         xp = np if not gpu_support else cp.get_array_module(self._values)
 
+        # Check if successor exists
         succ_id = f'{a}_{o}'
         succ = self._successors.get(succ_id)
         if succ is not None:
             return succ
 
+        # Computing new probabilities
         reachable_state_probabilities = self.model.reachable_transitional_observation_table[:,a,o,:] * self.values[:,None]
         new_state_probabilities = xp.bincount(self.model.reachable_states[:,a,:].flatten(), weights=reachable_state_probabilities.flatten(), minlength=self.model.state_count)
         
         # Normalization
-        new_state_probabilities /= xp.sum(new_state_probabilities)
+        probability_sum = xp.sum(new_state_probabilities)
+        if probability_sum == 0:
+            if throw_error:
+                raise ValueError("Impossible belief: the sum of probabilities is 0...")
+        else:
+            new_state_probabilities /= probability_sum
 
         # Generation of new belief from new state probabilities
         new_belief = self.__new__(self.__class__)
@@ -136,7 +145,12 @@ class Belief:
         successor_beliefs = []
         for a in self.model.actions:
             for o in self.model.observations:
-                successor_beliefs.append(self.update(a,o))
+                try:
+                    b_ao = self.update(a,o)
+                except:
+                    # Ignoring failure to generate a belief point
+                    continue
+                successor_beliefs.append(b_ao)
 
         return successor_beliefs
 
@@ -154,6 +168,16 @@ class Belief:
 
         rand_s = int(xp.random.choice(a=self.model.states, size=1, p=self._values)[0])
         return rand_s
+    
+
+    @property
+    def entropy(self) -> float:
+        '''
+        The entropy of the belief point
+        '''
+        xp = np if not gpu_support else cp.get_array_module(self._values)
+
+        return float(entropy(self._values) if xp == np else cupy_entropy(self._values))
     
 
     def plot(self, size:int=5) -> None:
@@ -231,10 +255,8 @@ class BeliefSet:
                 self.is_on_gpu = True
         else:
             assert beliefs.shape[1] == model.state_count, f"Belief array provided doesnt have the right shape (expected (-,{model.state_count}), received {beliefs.shape})"
-            
-            self._belief_list = []
-            for belief_values in beliefs:
-                self._belief_list.append(Belief(model, belief_values))
+
+            self._belief_array = beliefs
 
             # Check if array is on gpu
             if gpu_support and cp.get_array_module(beliefs) == cp:
@@ -280,7 +302,8 @@ class BeliefSet:
 
     def update(self,
                actions:list|np.ndarray,
-               observations:list|np.ndarray
+               observations:list|np.ndarray,
+               throw_error:bool=True
                ) -> 'BeliefSet':
         '''
         Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).
@@ -316,12 +339,16 @@ class BeliefSet:
         w=reachable_probabilities.swapaxes(0,1).reshape(flat_shape)
 
         a_offs = a + flatten_offset
-        new_beliefs = xp.bincount(a_offs.ravel(), weights=w.ravel(), minlength=a.shape[0]*self.model.state_count).reshape((-1,self.model.state_count))
+        new_probabilities = xp.bincount(a_offs.ravel(), weights=w.ravel(), minlength=a.shape[0]*self.model.state_count).reshape((-1,self.model.state_count))
 
         # Normalization
-        new_beliefs /= xp.sum(new_beliefs, axis=1)[:,None]
+        probability_sum = xp.sum(new_probabilities, axis=1)
+        if xp.any(probability_sum == 0.0) and throw_error:
+            raise ValueError('One or more belief is impossible, (ie the sum of the probability distribution is 0)')
+        non_zero_mask = probability_sum != 0
+        new_probabilities[non_zero_mask] /= probability_sum[non_zero_mask,None]
 
-        return BeliefSet(self.model, new_beliefs)
+        return BeliefSet(self.model, new_probabilities)
 
 
     @property
@@ -358,6 +385,16 @@ class BeliefSet:
     def __len__(self) -> int:
         return len(self._belief_list) if self._belief_list is not None else self._belief_array.shape[0]
     
+
+    @property
+    def entropies(self) -> np.ndarray:
+        '''
+        An array of the entropies of the belief points
+        '''
+        xp = np if not gpu_support else cp.get_array_module(self.belief_array)
+
+        return entropy(self.belief_array, axis=1) if xp == np else cupy_entropy(self.belief_array, axis=1)
+
 
     def to_gpu(self) -> 'BeliefSet':
         '''
@@ -406,127 +443,3 @@ class BeliefSet:
             cpu_belief_set = BeliefSet(cpu_model, cpu_belief_list)
 
         return cpu_belief_set
-    
-    
-    def plot(self, size:int=15):
-        '''
-        Function to plot the beliefs in the belief set.
-        Note: Only works for 2-state and 3-state believes.
-
-        Parameters
-        ----------
-        size : int, default=15
-            The figure size and general scaling factor
-        '''
-        assert self.model.state_count in [2,3], "Can't plot for models with state count other than 2 or 3"
-
-        # If on GPU, convert to CPU and plot that one
-        if self.is_on_gpu:
-            print('[Warning] Value function on GPU, converting to numpy before plotting...')
-            cpu_belief_set = self.to_cpu()
-            cpu_belief_set.plot(size)
-            return
-
-        if self.model.state_count == 2:
-            self._plot_2D(size)
-        elif self.model.state_count == 3:
-            self._plot_3D(size)
-
-
-    def _plot_2D(self, size=15):
-        beliefs_x = self.belief_array[:,1]
-
-        plt.figure(figsize=(size, max([int(size/7),1])))
-        plt.scatter(beliefs_x, np.zeros(beliefs_x.shape[0]), c=list(range(beliefs_x.shape[0])), cmap='Blues')
-        ax = plt.gca()
-        ax.get_yaxis().set_visible(False)
-
-        # Set title and ax-label
-        ax.set_title('Set of beliefs')
-        ax.set_xlabel('Belief space')
-
-        # X-axis setting
-        ticks = [0,0.25,0.5,0.75,1]
-        x_ticks = [str(t) for t in ticks]
-        x_ticks[0] = self.model.state_labels[0]
-        x_ticks[-1] = self.model.state_labels[1]
-
-        plt.xticks(ticks, x_ticks)
-        plt.show()
-
-
-    def _plot_3D(self, size=15):
-        # Function to project points to a simplex triangle
-        def projectSimplex(points):
-            """ 
-            Project probabilities on the 3-simplex to a 2D triangle
-            
-            N points are given as N x 3 array
-            """
-            # Convert points one at a time
-            tripts = np.zeros((points.shape[0],2))
-            for idx in range(points.shape[0]):
-                # Init to triangle centroid
-                x = 1.0 / 2
-                y = 1.0 / (2 * np.sqrt(3))
-                # Vector 1 - bisect out of lower left vertex 
-                p1 = points[idx, 0]
-                x = x - (1.0 / np.sqrt(3)) * p1 * np.cos(np.pi / 6)
-                y = y - (1.0 / np.sqrt(3)) * p1 * np.sin(np.pi / 6)
-                # Vector 2 - bisect out of lower right vertex  
-                p2 = points[idx, 1]  
-                x = x + (1.0 / np.sqrt(3)) * p2 * np.cos(np.pi / 6)
-                y = y - (1.0 / np.sqrt(3)) * p2 * np.sin(np.pi / 6)        
-                # Vector 3 - bisect out of top vertex
-                p3 = points[idx, 2]
-                y = y + (1.0 / np.sqrt(3) * p3)
-            
-                tripts[idx,:] = (x,y)
-
-            return tripts
-        
-        # Plotting the simplex 
-        def plotSimplex(points,
-                        fig=None,
-                        vertexlabels=['s_0','s_1','s_2'],
-                        **kwargs):
-            """
-            Plot Nx3 points array on the 3-simplex 
-            (with optionally labeled vertices) 
-            
-            kwargs will be passed along directly to matplotlib.pyplot.scatter    
-            Returns Figure, caller must .show()
-            """
-            if(fig == None):        
-                fig = plt.figure()
-            # Draw the triangle
-            l1 = Line2D([0, 0.5, 1.0, 0], # xcoords
-                        [0, np.sqrt(3) / 2, 0, 0], # ycoords
-                        color='k')
-            fig.gca().add_line(l1)
-            fig.gca().xaxis.set_major_locator(ticker.NullLocator())
-            fig.gca().yaxis.set_major_locator(ticker.NullLocator())
-            # Draw vertex labels
-            fig.gca().text(-0.05, -0.05, vertexlabels[0])
-            fig.gca().text(1.05, -0.05, vertexlabels[1])
-            fig.gca().text(0.5, np.sqrt(3) / 2 + 0.05, vertexlabels[2])
-            # Project and draw the actual points
-            projected = projectSimplex(points)
-            plt.scatter(projected[:,0], projected[:,1], **kwargs)              
-            # Leave some buffer around the triangle for vertex labels
-            fig.gca().set_xlim(-0.2, 1.2)
-            fig.gca().set_ylim(-0.2, 1.2)
-
-            return fig
-
-        # Actual plot
-        fig = plt.figure(figsize=(size,size))
-        plt.title('Set of Beliefs')
-
-        cmap = cm.get_cmap('Blues')
-        norm = colors.Normalize(vmin=0, vmax=self.belief_array.shape[0])
-        c = range(self.belief_array.shape[0])
-        # Do scatter plot
-        fig = plotSimplex(self.belief_array, fig=fig, vertexlabels=self.model.state_labels, s=size, c=c, cmap=cmap, norm=norm)
-
-        plt.show()
