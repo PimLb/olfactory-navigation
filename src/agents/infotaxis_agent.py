@@ -1,3 +1,4 @@
+import warnings
 from ..environment import Environment
 from ..agent import Agent
 from .model_based_util.pomdp import Model
@@ -13,6 +14,9 @@ except:
 
 
 class Infotaxis_Agent(Agent):
+    '''
+    # TODO
+    '''
     def __init__(self,
                  environment:Environment,
                  treshold:float|None=3e-6,
@@ -93,57 +97,6 @@ class Infotaxis_Agent(Agent):
         movement_vector : np.ndarray
             A single or a list of actions chosen by the agent(s) based on their belief.
         '''
-        return self.choose_action_par()
-    
-        # TODO Check if can be improved with beliefset update
-        xp = np if not self.on_gpu else cp
-        
-        chosen_actions = []
-        for b in self.beliefs.belief_list:
-            best_entropy = None
-            best_action = None
-
-            current_entropy = b.entropy
-
-            for a in self.model.actions:
-                total_entropy = 0.0
-
-                for o in self.model.observations:
-                    b_ao = b.update(a,o, throw_error=False)
-
-                    # Computing entropy
-                    b_ao_entropy = b_ao.entropy
-
-                    b_prob = xp.dot(xp.sum(self.model.reachable_transitional_observation_table[:,a,o,:], axis=1), b.values)
-                    total_entropy += (b_prob * (current_entropy - b_ao_entropy))
-                
-                # Checking if action is superior to previous best
-                if (best_entropy is None) or (total_entropy > best_entropy):
-                    best_entropy = total_entropy
-                    best_action = a
-
-            chosen_actions.append(best_action)
-        
-        # Recording the action played
-        self.action_played = chosen_actions
-
-        # Converting action indexes to movement vectors
-        movemement_vector = self.model.movement_vector[chosen_actions,:]
-
-        return movemement_vector
-
-
-    def choose_action_par(self) -> np.ndarray:
-        '''
-        Function to let the agent or set of agents choose an action based on their current belief.
-        As for the Infotaxis principle, it will choose an action that will minimize the sum of next entropies.
-
-        Returns
-        -------
-        movement_vector : np.ndarray
-            A single or a list of actions chosen by the agent(s) based on their belief.
-        '''
-        # TODO Check if can be improved with beliefset update
         xp = np if not self.on_gpu else cp
 
         n = len(self.beliefs)
@@ -162,7 +115,10 @@ class Infotaxis_Agent(Agent):
                                            throw_error=False)
 
                 # Computing entropy
-                b_ao_entropy = b_ao.entropies
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    b_ao_entropy = b_ao.entropies
+
                 b_prob = xp.dot(self.beliefs.belief_array, xp.sum(self.model.reachable_transitional_observation_table[:,a,o,:], axis=1))
 
                 total_entropy += (b_prob * (current_entropy - b_ao_entropy))

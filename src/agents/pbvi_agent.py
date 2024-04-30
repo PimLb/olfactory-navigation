@@ -241,22 +241,67 @@ class TrainingHistory:
 
 
 class PBVI_Agent(Agent):
+    '''
+    A generic Point-Based Value Iteration based agent. It relies on Model-Based reinforcement learning as described in: Pineau J. et al, Point-based value iteration: An anytime algorithm for POMDPs
+    The training consist in two steps:
+
+    - Expand: Where belief points are explored based on the some strategy (to be defined by subclasses)
+
+    - Backup: Using the generated belief points, the value function is updated.
+
+    The belief points are probability distributions over the state space and are therefore
+
+    How a best action is chosen is based on a value function. A value function is a set of alpha vectors of dimentionality |S|.
+    Each alpha vector is associated to a single action but multiple alpha vectors can be associated to the same action.
+    To choose an action at a given belief, a dot product is taken between each alpha vector and the belief point and the action associated with the highest result is chosen.
+
+    ...
+
+    Parameters
+    ----------
+    environment : Environment
+        The olfactory environment to train the agent with.
+    treshold : float (optional) (default = 3e-6)
+        The olfactory sensitivity of the agent. Odor cues under this treshold will not be detected by the agent.
+    name : str (optional)
+        A custom name to give the agent. If not provided is will be a combination of the class-name and the treshold.
+
+    Attibutes
+    ---------
+    environment : Environment
+    threshold : float
+    name : str
+    model : pomdp.Model
+        The environment converted to a POMDP model using the "from_environment" constructor of the pomdp.Model class.
+    saved_at : str
+        The place on disk where the agent has been saved (None if not saved yet).
+    on_gpu : bool
+        Whether the agent has been sent to the gpu or not.
+    trained_at : str
+        A string timestamp of when the agent has been trained (None if not trained yet).
+    value_function : ValueFunction
+        The value function used for the agent to make decisions.
+    belief : BeliefSet
+        Used only during simulations.
+        Part of the Agent's status. Where the agent believes he is over the state space.
+        It is a list of n belief points based on how many simulations are running at once.
+    action_played : list[int]
+        Used only during simulations.
+        Part of the Agent's status. Records what action was last played by the agent.
+        A list of n actions played based on how many simulations are running at once.
+    '''
     def __init__(self,
                  environment:Environment,
                  treshold:float|None=3e-6,
                  name:str|None=None
                  ) -> None:
-        super().__init__(environment)
+        super().__init__(
+            environment=environment,
+            treshold=treshold,
+            name=name
+        )
 
         self.model = Model.from_environment(environment, treshold)
-        self.treshold = treshold
-
-        # setup name
-        if name is None:
-            self.name = self.class_name
-            self.name += f'-tresh_{self.treshold}'
-        else:
-            self.name = name
 
         # Trainable variables
         self.trained_at = None
@@ -413,30 +458,36 @@ class PBVI_Agent(Agent):
         ----------
         expansions : int
             How many times the algorithm has to expand the belief set. (the size will be doubled every time, eg: for 5, the belief set will be of size 32)
-        full_backup : bool, default=True
+        full_backup : bool (default = True)
             Whether to force the backup function has to be run on the full set beliefs uncovered since the beginning or only on the new points.
-        update_passes : int, default=1
+        update_passes : int (default = 1)
             How many times the backup function has to be run every time the belief set is expanded.
-        max_belief_growth : int, default=10
+        max_belief_growth : int (default = 10)
             How many beliefs can be added at every expansion step to the belief set.
-        initial_belief : BeliefSet or Belief, optional
+        initial_belief : BeliefSet or Belief (optional)
             An initial list of beliefs to start with.
-        initial_value_function : ValueFunction, optional
+        initial_value_function : ValueFunction (optional)
             An initial value function to start the solving process with.
-        prune_level : int, default=1
+        prune_level : int (default = 1)
             Parameter to prune the value function further before the expand function.
-        prune_interval : int, default=10
+        prune_interval : int (default = 10)
             How often to prune the value function. It is counted in number of backup iterations.
-        limit_value_function_size : int, default=-1
+        limit_value_function_size : int (default = -1)
             When the value function size crosses this treshold, a random selection of 'max_belief_growth' alpha vectors will be removed from the value function
             If set to -1, the value function can grow without bounds.
-        use_gpu : bool, default=False
+        use_gpu : bool (default = False)
             Whether to use the GPU with cupy array to accelerate solving.
-        history_tracking_level : int, default=1
+        gamma : float (default = 0.99)
+            The discount factor to value immediate rewards more than long term rewards.
+            The learning rate is 1/gamma.
+        eps : float (default = 1e-6)
+            The smallest allowed changed for the value function.
+            Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+        history_tracking_level : int (default = 1)
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
-        force : bool, default=False
+        force : bool (default = False)
             Whether to force retraining if a value function already exists for this agent.
-        print_progress : bool, default=True
+        print_progress : bool (default = True)
             Whether or not to print out the progress of the value iteration process.
 
         Returns
@@ -461,12 +512,13 @@ class PBVI_Agent(Agent):
             belief_set = BeliefSet(model, [initial_belief])
         
         # Handeling the case where the agent is already trained
-        if (self.value_function is not None) and (not force):
-            raise Exception('Agent has already been trained. The force parameter needs to be set to "True" if training should still happen')
-        else:
-            self.trained_at = None # TODO fix this
-            self.name = '-'.join(self.name.split('-')[:-1])
-            self.value_function = None
+        if (self.value_function is not None):
+            if not force:
+                raise Exception('Agent has already been trained. The force parameter needs to be set to "True" if training should still happen')
+            else:
+                self.trained_at = None
+                self.name = '-'.join(self.name.split('-')[:-1])
+                self.value_function = None
 
         # Initial value function
         if initial_value_function is None:
@@ -682,10 +734,14 @@ class PBVI_Agent(Agent):
             The belief set to use to generate the new alpha vectors with.
         value_function : ValueFunction
             The alpha vectors to generate the new set from.
-        append : bool, default=False
+        gamma : float (default = 0.99)
+            The discount factor to value immediate rewards more than long term rewards.
+            The learning rate is 1/gamma.
+        append : bool (default = False)
             Whether to append the new alpha vectors generated to the old alpha vectors before pruning.
-        belief_dominance_prune : bool, default=True
+        belief_dominance_prune : bool (default = True)
             Whether, before returning the new value function, checks what alpha vectors have a supperior value, if so it adds it.
+        use_gpu : bool (default = False)
             
         Returns
         -------

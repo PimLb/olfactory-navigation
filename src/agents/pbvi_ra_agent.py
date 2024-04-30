@@ -23,6 +23,7 @@ class PBVI_RA_Agent(PBVI_Agent):
         This expansion technique relies only randomness and will generate at most 'max_generation' beliefs.
 
         Parameters
+        ----------
         model : pomdp.Model
             The POMDP model on which to expand the belief set on.
         belief_set : BeliefSet
@@ -63,7 +64,7 @@ class PBVI_RA_Agent(PBVI_Agent):
               force:bool=False,
               print_progress:bool=True
               ) -> TrainingHistory:
-        
+
         return super().train(expansions = expansions,
                              full_backup = True,
                              update_passes = update_passes,

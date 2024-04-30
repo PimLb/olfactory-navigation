@@ -20,7 +20,13 @@ class Agent:
                  ) -> None:
         self.environment = environment
         self.treshold = treshold
-        self.name = name
+
+        # setup name
+        if name is None:
+            self.name = self.class_name
+            self.name += f'-tresh_{self.treshold}'
+        else:
+            self.name = name
 
         self.saved_at = None
 

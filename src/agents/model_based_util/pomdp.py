@@ -239,9 +239,22 @@ class Model(MDP_Model):
 
 
     @classmethod
-    def from_environment(cls, environment:Environment, treshold:float|list) -> 'Model':
+    def from_environment(cls,
+                         environment:Environment,
+                         treshold:float|list
+                         ) -> 'Model':
         '''
         Method to create a POMDP model based on an olfactory environment object.
+        # TODO: Implement different action sets
+
+        Parameters
+        ----------
+        environment : Environment
+            The olfactory environment object to create the POMDP model from.
+        threshold : float or list
+            A threshold for the odor cues.
+            If a single is provided, the agent will smell something when an odor is above the threshold and nothing when it is bellow.
+            If a list is provided, the agent will able to distinguish different levels of smell.
         '''
         state_count = np.prod(environment.shape)
 
@@ -271,9 +284,19 @@ class Model(MDP_Model):
         for i in range(len(treshold)-1):
             observations[:,:,i] = odor_fields[:,:,i].ravel()[:,None]
 
+        # Goal observation
         observations[:,:,-1] = 0.0
         observations[end_states,:,:] = 0.0
         observations[end_states,:,-1] = 1.0
+
+        # Observation labels
+        observation_labels = ['nothing']
+        if len(treshold) > 3:
+            for i,_ in enumerate(treshold[1:-1]):
+                observation_labels.append(f'something_l{i}')
+        else:
+            observation_labels.append('something')
+        observation_labels.append('goal')
 
         # Compute reachable states
         row_w = environment.shape[1]
@@ -291,8 +314,7 @@ class Model(MDP_Model):
         model = Model(
             states=state_grid,
             actions=['N','E','S','W'],
-            # observations=['nothing','something'],
-            observations=['nothing','something','goal'],
+            observations=observation_labels,
             reachable_states=reachable_states,
             observation_table=observations,
             end_states=end_states,
@@ -302,6 +324,10 @@ class Model(MDP_Model):
 
 
     def _end_reward_function(self, s, a, sn, o):
+        '''
+        The default reward function.
+        Returns 1 if the next state sn is in the end states or if the action is in the end actions (terminating actions)
+        '''
         return (np.isin(sn, self.end_states) | np.isin(a, self.end_actions)).astype(int)
     
 
