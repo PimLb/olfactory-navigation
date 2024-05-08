@@ -14,7 +14,62 @@ except:
 
 
 class FSVI_Agent(PBVI_Agent):
+    '''
+    A particular flavor of the Point-Based Value Iteration based agent.
+    The general concept relies on Model-Based reinforcement learning as described in: Pineau, J., Gordon, G., & Thrun, S. (2003, August). Point-based value iteration: An anytime algorithm for POMDPs
+    The Forward Search Value Iteration algorithm is described in: Shani, G., Brafman, R. I., & Shimony, S. E. (2007, January). Forward Search Value Iteration for POMDPs
 
+    The training consist in two steps:
+
+    - Expand: Where belief points are explored based on the some strategy (to be defined by subclasses).
+
+    - Backup: Using the generated belief points, the value function is updated.
+
+    The belief points are probability distributions over the state space and are therefore vectors of |S| elements.
+
+    Actions are chosen based on a value function. A value function is a set of alpha vectors of dimentionality |S|.
+    Each alpha vector is associated to a single action but multiple alpha vectors can be associated to the same action.
+    To choose an action at a given belief point, a dot product is taken between each alpha vector and the belief point and the action associated with the highest result is chosen.
+
+    Forward Search exploration concept:
+    It relies of the solution of the Fully-Observable (MDP) problem to guide the exploration of belief points.
+    It makes an agent start randomly in the environment and makes him take steps following the MDP solution while generating belief points along the way.
+    Each time the expand function is called it starts generated a new set of belief points and the update function uses only the latest generated belief points to make update the value function.
+    ...
+
+    Parameters
+    ----------
+    environment : Environment
+        The olfactory environment to train the agent with.
+    treshold : float (optional) (default = 3e-6)
+        The olfactory sensitivity of the agent. Odor cues under this treshold will not be detected by the agent.
+    name : str (optional)
+        A custom name to give the agent. If not provided is will be a combination of the class-name and the treshold.
+
+    Attibutes
+    ---------
+    environment : Environment
+    threshold : float
+    name : str
+    model : pomdp.Model
+        The environment converted to a POMDP model using the "from_environment" constructor of the pomdp.Model class.
+    saved_at : str
+        The place on disk where the agent has been saved (None if not saved yet).
+    on_gpu : bool
+        Whether the agent has been sent to the gpu or not.
+    trained_at : str
+        A string timestamp of when the agent has been trained (None if not trained yet).
+    value_function : ValueFunction
+        The value function used for the agent to make decisions.
+    belief : BeliefSet
+        Used only during simulations.
+        Part of the Agent's status. Where the agent believes he is over the state space.
+        It is a list of n belief points based on how many simulations are running at once.
+    action_played : list[int]
+        Used only during simulations.
+        Part of the Agent's status. Records what action was last played by the agent.
+        A list of n actions played based on how many simulations are running at once.
+    '''
     def expand(self,
                belief_set:BeliefSet,
                value_function:ValueFunction,
@@ -23,22 +78,25 @@ class FSVI_Agent(PBVI_Agent):
                use_gpu:bool=False
                ) -> BeliefSet:
         '''
-        # TODO: Not anymore a recursive function, to rework
         Function implementing the exploration process using the MDP policy in order to generate a sequence of Beliefs following the the Forward Search Value Iteration principles.
-        It is a recursive function that is started by a initial state 's' and using the MDP policy, chooses the best action to take.
+        It is a loop is started by a initial state 's' and using the MDP policy, chooses the best action to take.
         Following this, a random next state 's_p' is being sampled from the transition probabilities and a random observation 'o' based on the observation probabilities.
         Then the given belief is updated using the chosen action and the observation received and the updated belief is added to the sequence.
-        Once the state is a goal state, the recursion is done and the belief sequence is returned.
+        Once the state is a goal state, the loop is done and the belief sequence is returned.
 
         Parameters
         ----------
-        b0 : Belief
-            The belief to start the sequence with.
+        belief_set : BeliefSet
+            A belief set containing a single belief to start the sequence with.
             A random state will be chosen based on the probability distribution of the belief.
+        value_function : ValueFunction
+            The current value function. (NOT USED)
+        max_generation : int
+            How many beliefs to be generated at most.
         mdp_policy : ValueFunction
             The mdp policy used to choose the action from with the given state 's'.
-        max_generation : int, default=10
-            The maximum recursion depth that can be reached before the generated belief sequence is returned.
+        use_gpu : bool (default = False)
+            Whether to run this operation on the GPU or not.
         
         Returns
         -------
@@ -107,17 +165,67 @@ class FSVI_Agent(PBVI_Agent):
               force:bool=False,
               print_progress:bool=True
               ) -> TrainingHistory:
+        '''
+        Main loop of the Point-Based Value Iteration algorithm.
+        It consists in 2 steps, Backup and Expand.
+        1. Expand: Expands the belief set base with a expansion strategy given by the parameter expand_function
+        2. Backup: Updates the alpha vectors based on the current belief set
 
+        Foward Search Value Iteration:
+        - By default it performs the backup only on set of beliefs generated by the expand function. (so it full_backup=False)
+
+        Parameters
+        ----------
+        expansions : int
+            How many times the algorithm has to expand the belief set. (the size will be doubled every time, eg: for 5, the belief set will be of size 32)
+        update_passes : int (default = 1)
+            How many times the backup function has to be run every time the belief set is expanded.
+        max_belief_growth : int (default = 10)
+            How many beliefs can be added at every expansion step to the belief set.
+        initial_belief : BeliefSet or Belief (optional)
+            An initial list of beliefs to start with.
+        initial_value_function : ValueFunction (optional)
+            An initial value function to start the solving process with.
+        mdp_policy : ValueFunction (optional)
+            The MDP solution to guide the expand process.
+            If it is not provided, the Value Iteration for the MDP version of the problem will be run. (using the same gamma and eps as set here; horizon=1000)
+        prune_level : int (default = 1)
+            Parameter to prune the value function further before the expand function.
+        prune_interval : int (default = 10)
+            How often to prune the value function. It is counted in number of backup iterations.
+        limit_value_function_size : int (default = -1)
+            When the value function size crosses this treshold, a random selection of 'max_belief_growth' alpha vectors will be removed from the value function
+            If set to -1, the value function can grow without bounds.
+        use_gpu : bool (default = False)
+            Whether to use the GPU with cupy array to accelerate solving.
+        gamma : float (default = 0.99)
+            The discount factor to value immediate rewards more than long term rewards.
+            The learning rate is 1/gamma.
+        eps : float (default = 1e-6)
+            The smallest allowed changed for the value function.
+            Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+        history_tracking_level : int (default = 1)
+            How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
+        force : bool (default = False)
+            Whether to force retraining if a value function already exists for this agent.
+        print_progress : bool (default = True)
+            Whether or not to print out the progress of the value iteration process.
+
+        Returns
+        -------
+        solver_history : SolverHistory
+            The history of the solving process with some plotting options.
+        '''
         if mdp_policy is None:
             log('MDP_policy, not provided. Solving MDP with Value Iteration...')
-            mdp_policy, hist = vi_solver.solve(model=self.model,
-                                            horizon=1000,
-                                            initial_value_function=initial_value_function,
-                                            gamma=gamma,
-                                            eps=eps,
-                                            use_gpu=use_gpu,
-                                            history_tracking_level=1,
-                                            print_progress=print_progress)
+            mdp_policy, hist = vi_solver.solve(model = self.model,
+                                               horizon = 1000,
+                                               initial_value_function = initial_value_function,
+                                               gamma = gamma,
+                                               eps = eps,
+                                               use_gpu = use_gpu,
+                                               history_tracking_level = 1,
+                                               print_progress = print_progress)
             
             print(hist.summary)
 

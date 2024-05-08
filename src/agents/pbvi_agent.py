@@ -208,11 +208,6 @@ class TrainingHistory:
     def summary(self) -> str:
         '''
         A summary as a string of the information recorded.
-
-        Returns
-        -------
-        summary_str : str
-            The summary of the information.
         '''
         summary_str =  f'Summary of Value Iteration run'
         summary_str += f'\n  - Model: {self.model.state_count} state, {self.model.action_count} action, {self.model.observation_count} observations'
@@ -245,15 +240,15 @@ class PBVI_Agent(Agent):
     A generic Point-Based Value Iteration based agent. It relies on Model-Based reinforcement learning as described in: Pineau J. et al, Point-based value iteration: An anytime algorithm for POMDPs
     The training consist in two steps:
 
-    - Expand: Where belief points are explored based on the some strategy (to be defined by subclasses)
+    - Expand: Where belief points are explored based on the some strategy (to be defined by subclasses).
 
     - Backup: Using the generated belief points, the value function is updated.
 
-    The belief points are probability distributions over the state space and are therefore
+    The belief points are probability distributions over the state space and are therefore vectors of |S| elements.
 
-    How a best action is chosen is based on a value function. A value function is a set of alpha vectors of dimentionality |S|.
+    Actions are chosen based on a value function. A value function is a set of alpha vectors of dimentionality |S|.
     Each alpha vector is associated to a single action but multiple alpha vectors can be associated to the same action.
-    To choose an action at a given belief, a dot product is taken between each alpha vector and the belief point and the action associated with the highest result is chosen.
+    To choose an action at a given belief point, a dot product is taken between each alpha vector and the belief point and the action associated with the highest result is chosen.
 
     ...
 
@@ -319,7 +314,8 @@ class PBVI_Agent(Agent):
 
         Returns
         -------
-        gpu_agent
+        gpu_agent : Agent
+            A copy of the agent with the arrays on the GPU.
         '''
         # Generating a new instance
         cls = self.__class__
@@ -352,8 +348,26 @@ class PBVI_Agent(Agent):
              save_environment:bool=False
              ) -> None:
         '''
-        
+        The save function for PBVI Agents consists in recording the value function after the training.
+        It saves the agent in a folder with the name of the agent (class name + training timestamp).
+        In this folder, there will be the metadata of the agent (all the attributes) in a json format and the value function.
+
+        Optionally, the environment can be saved too to be able to load it alongside the agent for future reuse.
+        If the agent has already been saved, the saving will not happen unless the force parameter is toggled.
+
+        Parameters
+        ----------
+        folder : str (optional)
+            The folder under which to save the agent (a subfolder will be created under this folder).
+            The agent will therefore be saved at <folder>/Agent-<agent_name> .
+            By default the current folder is used.
+        force : bool (default = False)
+            Whether to overwrite an already saved agent with the same name at the same path.
+        save_environment : bool (default = False)
+            Whether to save the environment data along with the agent.
         '''
+        assert self.trained_at is not None, "The agent is not trained, there is nothing to save."
+
         # Adding env name to folder path
         if folder is None:
             folder = f'./Agent-{self.name}'
@@ -399,6 +413,22 @@ class PBVI_Agent(Agent):
     def load(cls,
              folder:str
              ) -> 'PBVI_Agent':
+        '''
+        Function to load a PBVI agent from a given folder it has been saved to.
+        It will load the environment the agent has been trained on along with it.
+
+        If it is a subclass of the PBVI_Agent, an instance of that specific subclass will be returned.
+
+        Parameters
+        ----------
+        folder : str
+            The agent folder.
+
+        Returns
+        -------
+        instance : PBVI_Agent
+            The loaded instance of the PBVI Agent.
+        '''
         # Load arguments
         arguments = None
         with open(folder + '/METADATA.json', 'r') as json_file:
@@ -489,6 +519,8 @@ class PBVI_Agent(Agent):
             Whether to force retraining if a value function already exists for this agent.
         print_progress : bool (default = True)
             Whether or not to print out the progress of the value iteration process.
+        expand_arguments : kwargs
+            An arbitrary amount of parameters that will be passed on to the expand function.
 
         Returns
         -------
@@ -706,6 +738,32 @@ class PBVI_Agent(Agent):
                use_gpu:bool=False,
                **kwargs
                ) -> BeliefSet:
+        '''
+        Abstract function!
+        This function should be implemented in subclasses.
+        The expand function consists in the exploration of the belief set.
+        It takes as input a belief set and generates at most 'max_generation' beliefs from it.
+
+        The current value function is also passed as an argument as it is used in some PBVI techniques to guide the belief exploration.
+
+        Parameters
+        ----------
+        belief_set : BeliefSet
+            The belief or set of beliefs to be used as a starting point for the exploration.
+        value_function : ValueFunction
+            The current value function. To be used to guide the exploration process.
+        max_generation : int
+            How many beliefs to be generated at most.
+        use_gpu : bool (default = False)
+            Whether to run this operation on the GPU or not.
+        kwargs
+            Special parameters for the particular flavors of the PBVI Agent.
+
+        Returns
+        -------
+        new_belief_set : BeliefSet
+            A new (or expanded) set of beliefs.
+        '''
         raise NotImplementedError('PBVI class is abstract so expand function is not implemented, make an PBVI_agent subclass to implement the method')
 
 

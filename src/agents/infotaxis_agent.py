@@ -15,24 +15,56 @@ except:
 
 class Infotaxis_Agent(Agent):
     '''
-    # TODO
+    An agent following the Infotaxis principle.
+    It is a Model-Based approach that aims to make steps towards where the agent has the greatest likelihood to minimize the entropy of the belief.
+    The belief is (as for the PBVI agent) a probability distribution over the state space of how much the agent is to be confident in each state.
+    The technique was developped and described in the following article: Vergassola, M., Villermaux, E., & Shraiman, B. I. (2007). 'Infotaxis' as a strategy for searching without gradients.
+
+    It does not need to be trained to the train(), save() and load() function are not implemented.
+
+    ...
+
+    Parameters
+    ----------
+    environment : Environment
+        The olfactory environment to train the agent with.
+    treshold : float (optional) (default = 3e-6)
+        The olfactory sensitivity of the agent. Odor cues under this treshold will not be detected by the agent.
+    name : str (optional)
+        A custom name to give the agent. If not provided is will be a combination of the class-name and the treshold.
+
+    Attibutes
+    ---------
+    environment : Environment
+    threshold : float
+    name : str
+    model : pomdp.Model
+        The environment converted to a POMDP model using the "from_environment" constructor of the pomdp.Model class.
+    saved_at : str
+        The place on disk where the agent has been saved (None if not saved yet).
+    on_gpu : bool
+        Whether the agent has been sent to the gpu or not.
+    belief : BeliefSet
+        Used only during simulations.
+        Part of the Agent's status. Where the agent believes he is over the state space.
+        It is a list of n belief points based on how many simulations are running at once.
+    action_played : list[int]
+        Used only during simulations.
+        Part of the Agent's status. Records what action was last played by the agent.
+        A list of n actions played based on how many simulations are running at once.
     '''
     def __init__(self,
                  environment:Environment,
                  treshold:float|None=3e-6,
                  name:str|None=None
                  ) -> None:
-        super().__init__(environment)
+        super().__init__(
+            environment = environment,
+            treshold = treshold,
+            name = name
+        )
 
         self.model = Model.from_environment(environment, treshold)
-        self.treshold = treshold
-
-        # setup name
-        if name is None:
-            self.name = self.class_name
-            self.name += f'-tresh_{self.treshold}'
-        else:
-            self.name = name
 
         # Status variables
         self.beliefs = None
@@ -90,7 +122,7 @@ class Infotaxis_Agent(Agent):
     def choose_action(self) -> np.ndarray:
         '''
         Function to let the agent or set of agents choose an action based on their current belief.
-        As for the Infotaxis principle, it will choose an action that will minimize the sum of next entropies.
+        Following the Infotaxis principle, it will choose an action that will minimize the sum of next entropies.
 
         Returns
         -------

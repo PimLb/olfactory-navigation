@@ -12,7 +12,44 @@ except:
 
 
 class PBVI_RA_Agent(PBVI_Agent):
-    
+    '''
+    A flavor of the PBVI Agent. The expand function consists in choosing random belief points.
+
+    ...
+
+    Parameters
+    ----------
+    environment : Environment
+        The olfactory environment to train the agent with.
+    treshold : float (optional) (default = 3e-6)
+        The olfactory sensitivity of the agent. Odor cues under this treshold will not be detected by the agent.
+    name : str (optional)
+        A custom name to give the agent. If not provided is will be a combination of the class-name and the treshold.
+
+    Attibutes
+    ---------
+    environment : Environment
+    threshold : float
+    name : str
+    model : pomdp.Model
+        The environment converted to a POMDP model using the "from_environment" constructor of the pomdp.Model class.
+    saved_at : str
+        The place on disk where the agent has been saved (None if not saved yet).
+    on_gpu : bool
+        Whether the agent has been sent to the gpu or not.
+    trained_at : str
+        A string timestamp of when the agent has been trained (None if not trained yet).
+    value_function : ValueFunction
+        The value function used for the agent to make decisions.
+    belief : BeliefSet
+        Used only during simulations.
+        Part of the Agent's status. Where the agent believes he is over the state space.
+        It is a list of n belief points based on how many simulations are running at once.
+    action_played : list[int]
+        Used only during simulations.
+        Part of the Agent's status. Records what action was last played by the agent.
+        A list of n actions played based on how many simulations are running at once.
+    '''
     def expand(self,
                belief_set:BeliefSet,
                value_function:ValueFunction,
