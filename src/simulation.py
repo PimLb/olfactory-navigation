@@ -131,6 +131,43 @@ class SimulationHistory:
 
 
     @property
+    def analysis_df(self) -> pd.DataFrame:
+        # Dataframe creation
+        df = pd.DataFrame(self.start_state, columns=['y_start', 'x_start'])
+        df['optimal_steps_count'] = self.environment.distance_to_source(self.start_state)
+        df['converged'] = self.done_at_step >= 0
+        df['steps_taken'] = np.where(df['converged'], self.done_at_step, len(self.states))
+        df['discounted_rewards'] = self.reward_discount ** df['steps_taken']
+        df['extra_steps'] = df['steps_taken'] - df['optimal_steps_count']
+        df['t_min_over_t'] = df['optimal_steps_count'] / df['steps_taken']
+
+        # Reindex
+        runs_list = [f'run_{i}' for i in range(len(self.start_state))]
+        df.index = runs_list
+
+        # Analysis aggregations
+        columns_to_analyze = ['converged', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']
+        success_averages = df.loc[df['converged'], columns_to_analyze].mean()
+        succes_std = df.loc[df['converged'], columns_to_analyze].std()
+
+        df.loc['mean', columns_to_analyze] = df[columns_to_analyze].mean()
+        df.loc['standard_deviation', columns_to_analyze] = df[columns_to_analyze].std()
+
+        df.loc['success_mean', columns_to_analyze] = success_averages
+        df.loc['success_standard_deviation', columns_to_analyze] = succes_std
+
+        # Bringing analysis rows to top
+        df = df.reindex([
+            'mean',
+            'standard_deviation',
+            'success_mean',
+            'success_standard_deviation',
+            *runs_list])
+
+        return df
+
+
+    @property
     def summary(self) -> str:
         n = len(self.start_state)
         done_sim_count = np.sum(self.done_at_step >= 0)
@@ -140,25 +177,19 @@ class SimulationHistory:
             return summary_str
         
         # Metrics
-        sim_is_done = self.done_at_step >= 0
-        done_at_step_with_max = np.where(self.done_at_step < 0, len(self.states), self.done_at_step)
-        discounted_rewards = (self.reward_discount) ** done_at_step_with_max
+        df = self.analysis_df
 
-        t_min = self.environment.distance_to_source(self.start_state)
-        extra_steps = done_at_step_with_max - t_min
-        t_min_over_t = t_min / done_at_step_with_max
+        summary_str += f"\n\t- Average step count: {df.loc['mean','steps_taken']:.3f} +- {df.loc['standard_deviation','steps_taken']:.2f} "
+        summary_str += f"(Successfull only: {df.loc['success_mean','steps_taken']:.3f} +- {df.loc['success_standard_deviation','steps_taken']:.2f})"
 
-        summary_str += f'\n\t- Average step count: {np.average(done_at_step_with_max)} '
-        summary_str += f'(Successfull only: {np.average(self.done_at_step[sim_is_done])})'
+        summary_str += f"\n\t- Extra steps: {df.loc['mean','extra_steps']:.3f} +- {df.loc['standard_deviation','extra_steps']:.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','extra_steps']:.3f} +- {df.loc['success_standard_deviation','extra_steps']:.2f})"
 
-        summary_str += f'\n\t- Extra steps: {np.average(extra_steps)} '
-        summary_str += f'(Successful only: {np.average(extra_steps[sim_is_done])})'
+        summary_str += f"\n\t- Average discounted rewards (ADR): {df.loc['mean','discounted_rewards']:.3f} +- {df.loc['standard_deviation','discounted_rewards']:.2f} "
+        summary_str += f"(Successfull only: {df.loc['success_mean','discounted_rewards']:.3f} +- {df.loc['success_standard_deviation','discounted_rewards']:.2f})"
 
-        summary_str += f'\n\t- Average discounted rewards (ADR): {np.average(discounted_rewards):.3f} '
-        summary_str += f'(Successfull only: {np.average(discounted_rewards[sim_is_done]):.3f}) (discount: {self.reward_discount})'
-
-        summary_str += f'\n\t- Tmin/T: {np.average(t_min_over_t):.3f} '
-        summary_str += f'(Successful only: {np.average(t_min_over_t[sim_is_done]):.3f})'
+        summary_str += f"\n\t- Tmin/T: {df.loc['mean','t_min_over_t']:.3f} +- {df.loc['standard_deviation','t_min_over_t']:.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','t_min_over_t']:.3f} +- {df.loc['success_standard_deviation','t_min_over_t']:.2f})"
 
         return summary_str
 
