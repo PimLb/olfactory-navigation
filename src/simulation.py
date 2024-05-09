@@ -23,40 +23,59 @@ except:
 
 class SimulationHistory:
     '''
-    Class to represent a list of the steps that happened during a simulation or set of simulations with:
-        - the state the agent passes by ('states')
-        - the action the agent takes ('actions')
-        - the observation the agent takes ('observations')
+    Class to represent a list of the steps that happened during a simulation with:
+        - the positions the agents pass by
+        - the actions the agents take
+        - the observations the agents receive ('observations')
 
-    # TODO Reword this
     ...
 
     Parameters
     ----------
-    start_state : np.ndarray
-        The initial state in the simulation.
+    start_points : np.ndarray
+        The initial points of the agents in the simulation.
+    environment : Environment
+        The environment on which the simulation is run (can be different from the one associated with the agent).
+    agent : Agent
+        The agent used in the simulation.
+    time_shift : np.ndarray
+        An array of time shifts in the simulation data.
+    reward_discount : float (Default = 0.99)
+        A discount to be applied to the rewards received by the agent. (eg: reward of 1 received at time n would be: 1 * reward_discount^n)
     
     Attributes
     ----------
-    states : list[int]
-        A list of recorded states through which the agent passed by during the simulation process.
-    actions : list[int]
-        A list of recorded actions the agent took during the simulation process.
-    observations : list[int]
-        A list of recorded observations gotten by the agent during the simulation process.
+    start_points : np.ndarray
+    environment : Environment
+    agent : Agent
+    time_shift : np.ndarray
+    reward_discount : float
+    n : int
+        The amount of simulations.
+    start_time : datetime
+        The datetime the simulations start.
+    actions : list[np.ndarray]
+        A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n actions as dy,dx vectors.
+    positions : list[np.ndarray]
+        A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n positions as y,x vectors.
+    observations : list[np.ndarray]
+        A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n observations received by the agents.
+    done_at_step : np.ndarray
+        A numpy array containing n elements that records when a given simulation reaches the source (-1 is not reached).
     '''
     def __init__(self,
-                 start_state:np.ndarray,
+                 start_points:np.ndarray,
                  environment:Environment,
                  agent:Agent,
                  time_shift:np.ndarray,
                  reward_discount:float=0.99
                  ) -> None:
         # If only on state is provided, we make it a 1x2 vector
-        if len(start_state.shape) == 1:
-            start_state = start_state[None,:]
+        if len(start_points.shape) == 1:
+            start_points = start_points[None,:]
 
         # Fixed parameters
+        self.n = len(start_points)
         self.environment = environment.to_cpu()
         self.agent = agent.to_cpu()
         self.time_shift = time_shift if gpu_support and cp.get_array_module(time_shift) == np else cp.asnumpy(time_shift)
@@ -64,69 +83,73 @@ class SimulationHistory:
         self.start_time = datetime.now()
 
         # Simulation Tracking
-        self.start_state = start_state if gpu_support and cp.get_array_module(start_state) == np else cp.asnumpy(start_state)
+        self.start_points = start_points if gpu_support and cp.get_array_module(start_points) == np else cp.asnumpy(start_points)
         self.actions = []
-        self.states = []
+        self.positions = []
         self.observations = []
+        self.timestamps = []
         # TODO: Add time tracking
 
-        self._running_sims = np.arange(len(start_state))
-        self.done_at_step = np.full(len(start_state), fill_value=-1)
+        self._running_sims = np.arange(self.n)
+        self.done_at_step = np.full(self.n, fill_value=-1)
 
         # Other parameters
         self._simulation_dfs = None
 
 
     def add_step(self,
-                 action:np.ndarray,
-                 next_state:np.ndarray,
-                 observation:np.ndarray,
+                 actions:np.ndarray,
+                 next_positions:np.ndarray,
+                 observations:np.ndarray,
                  is_done:np.ndarray,
                  interupt:np.ndarray
                  ) -> None:
         '''
-        # TODO: Update this
-        Function to add a step in the simulation history
+        Function to add a step in the simulation history.
 
         Parameters
         ----------
-        action : np.ndarray
+        actions : np.ndarray
             The actions that were taken by the agents.
-        next_state : np.ndarray
-            The state that was reached by the agent after having taken action.
-        observation : np.ndarray
-            The observation the agent received after having made an action.
+        next_positions : np.ndarray
+            The positions that were reached by the agents after having taken actions.
+        observations : np.ndarray
+            The observations the agents receive after having taken actions.
         is_done : np.ndarray
+            A boolean array of whether each agent has reached the source or not.
         interupt : np.ndarray
+            A boolean array of whether each agent has to be terminated even if it hasnt reached the source yet.
         '''
         self._simulation_dfs = None
 
-        # TODO Add time tracking
+        # Time tracking
+        self.timestamps.append(datetime.now())
+
         # Handle case cupy arrays are provided
         if gpu_support:
-            action = action if cp.get_array_module(action) == np else cp.asnumpy(action)
-            next_state = next_state if cp.get_array_module(next_state) == np else cp.asnumpy(next_state)
-            observation = observation if cp.get_array_module(observation) == np else cp.asnumpy(observation)
+            actions = actions if cp.get_array_module(actions) == np else cp.asnumpy(actions)
+            next_positions = next_positions if cp.get_array_module(next_positions) == np else cp.asnumpy(next_positions)
+            observations = observations if cp.get_array_module(observations) == np else cp.asnumpy(observations)
             is_done = is_done if cp.get_array_module(is_done) == np else cp.asnumpy(is_done)
             interupt = interupt if cp.get_array_module(interupt) == np else cp.asnumpy(interupt)
 
         # Actions tracking
-        action_all_sims = np.full((len(self.start_state),2), fill_value=-1)
-        action_all_sims[self._running_sims] = action
+        action_all_sims = np.full((self.n,2), fill_value=-1)
+        action_all_sims[self._running_sims] = actions
         self.actions.append(action_all_sims)
 
         # Next states tracking
-        next_state_all_sims = np.full((len(self.start_state), 2), fill_value=-1)
-        next_state_all_sims[self._running_sims] = next_state
-        self.states.append(next_state_all_sims)
+        next_position_all_sims = np.full((self.n, 2), fill_value=-1)
+        next_position_all_sims[self._running_sims] = next_positions
+        self.positions.append(next_position_all_sims)
 
         # Observation tracking
-        observation_all_sims = np.full((len(self.start_state),), fill_value=-1, dtype=float)
-        observation_all_sims[self._running_sims] = observation
+        observation_all_sims = np.full((self.n,), fill_value=-1, dtype=float)
+        observation_all_sims[self._running_sims] = observations
         self.observations.append(observation_all_sims)
 
         # Recording at which step the simulation is done if it is done
-        self.done_at_step[self._running_sims[is_done]] = len(self.states)
+        self.done_at_step[self._running_sims[is_done]] = len(self.positions)
 
         # Updating the list of running sims
         self._running_sims = self._running_sims[~is_done & ~interupt]
@@ -148,16 +171,16 @@ class SimulationHistory:
         For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
         '''
         # Dataframe creation
-        df = pd.DataFrame(self.start_state, columns=['y_start', 'x_start'])
-        df['optimal_steps_count'] = self.environment.distance_to_source(self.start_state)
+        df = pd.DataFrame(self.start_points, columns=['y_start', 'x_start'])
+        df['optimal_steps_count'] = self.environment.distance_to_source(self.start_points)
         df['converged'] = self.done_at_step >= 0
-        df['steps_taken'] = np.where(df['converged'], self.done_at_step, len(self.states))
+        df['steps_taken'] = np.where(df['converged'], self.done_at_step, len(self.positions))
         df['discounted_rewards'] = self.reward_discount ** df['steps_taken']
         df['extra_steps'] = df['steps_taken'] - df['optimal_steps_count']
         df['t_min_over_t'] = df['optimal_steps_count'] / df['steps_taken']
 
         # Reindex
-        runs_list = [f'run_{i}' for i in range(len(self.start_state))]
+        runs_list = [f'run_{i}' for i in range(self.n)]
         df.index = runs_list
 
         # Analysis aggregations
@@ -194,9 +217,8 @@ class SimulationHistory:
         
         Along with the respective the standard deviations and equally for only for the successful simulations.
         '''
-        n = len(self.start_state)
         done_sim_count = np.sum(self.done_at_step >= 0)
-        summary_str = f'Simulations reached goal: {done_sim_count}/{n} ({n-done_sim_count} failures) ({(done_sim_count*100)/n:.2f}%)'
+        summary_str = f'Simulations reached goal: {done_sim_count}/{self.n} ({self.n-done_sim_count} failures) ({(done_sim_count*100)/self.n:.2f}%)'
 
         if done_sim_count == 0:
             return summary_str
@@ -236,17 +258,17 @@ class SimulationHistory:
             self._simulation_dfs = []
 
             # Converting state, actions and observation to numpy arrays
-            states_array = np.array(self.states)
+            states_array = np.array(self.positions)
             action_array = np.array(self.actions)
             observation_array = np.array(self.observations)
 
-            for i in range(len(self.start_state)):
+            for i in range(self.n):
                 length = self.done_at_step[i] if self.done_at_step[i] >= 0 else len(states_array)
 
                 df = {
                     'time':  np.arange(length+1) + self.time_shift[i],
-                    'y':     np.hstack([self.start_state[i,0], states_array[:length, i, 0]]),
-                    'x':     np.hstack([self.start_state[i,1], states_array[:length, i, 1]]),
+                    'y':     np.hstack([self.start_points[i,0], states_array[:length, i, 0]]),
+                    'x':     np.hstack([self.start_points[i,1], states_array[:length, i, 1]]),
                     'dy':    np.hstack([[0], action_array[:length, i, 0]]),
                     'dx':    np.hstack([[0], action_array[:length, i, 1]]),
                     'o':     np.hstack([[0], observation_array[:length, i]]),
@@ -289,7 +311,7 @@ class SimulationHistory:
         # Handle file name
         if file is None:
             env_name = f's_{self.environment.shape[0]}_{self.environment.shape[1]}'
-            file = f'Simulations-{env_name}-n_{len(self.start_state)}-{self.start_time.strftime("%m%d%Y_%H%M%S")}-horizon_{len(self.states)}.csv'
+            file = f'Simulations-{env_name}-n_{self.n}-{self.start_time.strftime("%m%d%Y_%H%M%S")}-horizon_{len(self.positions)}.csv'
 
         if not file.endswith('.csv'):
             file += '.csv'
@@ -427,12 +449,12 @@ class SimulationHistory:
             simulation_dfs.append(combined_df[columns].iloc[sim_start_rows[i]:sim_start_rows[i+1]])
 
         # Gathering start states
-        start_states = np.array([sim[['y', 'x']].iloc[0] for sim in simulation_dfs])
+        start_points = np.array([sim[['y', 'x']].iloc[0] for sim in simulation_dfs])
         time_shift = np.array([sim['time'].iloc[0] for sim in simulation_dfs])
 
         # Generation of SimHist instance
         hist = SimulationHistory(
-            start_state=start_states,
+            start_points=start_points,
             environment=environment,
             agent=agent,
             time_shift=time_shift,
@@ -442,18 +464,18 @@ class SimulationHistory:
         max_length = max(len(sim) for sim in simulation_dfs)
 
         # Recreating action, state and observations
-        states = np.full((max_length-1, n, 2), -1)
+        positions = np.full((max_length-1, n, 2), -1)
         actions = np.full((max_length-1, n, 2), -1)
         observations = np.full((max_length-1, n), -1)
         done_at_step = np.full((n,), -1)
 
         for i, sim in enumerate(simulation_dfs):
-            states[:len(sim)-1, i, :] = sim[['y','x']].to_numpy()[1:]
+            positions[:len(sim)-1, i, :] = sim[['y','x']].to_numpy()[1:]
             actions[:len(sim)-1, i, :] = sim[['dy','dx']].to_numpy()[1:]
             observations[:len(sim)-1, i] = sim[['o']].to_numpy()[1:,0]
             done_at_step[i] = len(sim)-1 if sim['done'].iloc[-1] == 1 else -1
 
-        hist.states = [arr for arr in states]
+        hist.positions = [arr for arr in positions]
         hist.actions = [arr for arr in actions]
         hist.observations = [arr for arr in observations]
         hist.done_at_step = done_at_step
