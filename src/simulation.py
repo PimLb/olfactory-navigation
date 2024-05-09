@@ -68,6 +68,7 @@ class SimulationHistory:
         self.actions = []
         self.states = []
         self.observations = []
+        # TODO: Add time tracking
 
         self._running_sims = np.arange(len(start_state))
         self.done_at_step = np.full(len(start_state), fill_value=-1)
@@ -89,17 +90,18 @@ class SimulationHistory:
 
         Parameters
         ----------
-        action : int
-            The action that was taken by the agent.
-        next_state : int
+        action : np.ndarray
+            The actions that were taken by the agents.
+        next_state : np.ndarray
             The state that was reached by the agent after having taken action.
-        next_belief : Belief
-            The new belief of the agent after having taken an action and received an observation.
-        observation : int
+        observation : np.ndarray
             The observation the agent received after having made an action.
+        is_done : np.ndarray
+        interupt : np.ndarray
         '''
         self._simulation_dfs = None
 
+        # TODO Add time tracking
         # Handle case cupy arrays are provided
         if gpu_support:
             action = action if cp.get_array_module(action) == np else cp.asnumpy(action)
@@ -132,6 +134,19 @@ class SimulationHistory:
 
     @property
     def analysis_df(self) -> pd.DataFrame:
+        '''
+        A Pandas DataFrame analyzing the results of the simulations.
+        It aggregates the simulations in single rows, recording:
+         - y_start and x_start: The x, y starting positions
+         - optimal_steps_count: The minimal amount of steps to reach the source
+         - converged:           Whether or not the simulation reached the source
+         - steps_taken:         The amount of steps the agent took to reach the source, (horizon if the simulation did not reach the source)
+         - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
+         - extra_steps:         The amount of extra steps compared to the optimal trajectory
+         - t_min_over_t:         normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
+
+        For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
+        '''
         # Dataframe creation
         df = pd.DataFrame(self.start_state, columns=['y_start', 'x_start'])
         df['optimal_steps_count'] = self.environment.distance_to_source(self.start_state)
@@ -169,6 +184,16 @@ class SimulationHistory:
 
     @property
     def summary(self) -> str:
+        '''
+        A string summarizing the performances of all the simulations.
+        The metrics used are averages of:
+         - Step count
+         - Extra steps
+         - Discounted rewards
+         - Tmin / T
+        
+        Along with the respective the standard deviations and equally for only for the successful simulations.
+        '''
         n = len(self.start_state)
         done_sim_count = np.sum(self.done_at_step >= 0)
         summary_str = f'Simulations reached goal: {done_sim_count}/{n} ({n-done_sim_count} failures) ({(done_sim_count*100)/n:.2f}%)'
@@ -196,6 +221,17 @@ class SimulationHistory:
 
     @property
     def simulation_dfs(self) -> list[pd.DataFrame]:
+        '''
+        A list of the pandas DataFrame where each dataframe is a single simulation history.
+        Each row is a different time instant of simulation process with each column being:
+         - time (of the simulation data)
+         - x
+         - y
+         - dx
+         - dy
+         - o (pure, not thresholded)
+         - done (boolean)
+        '''
         if self._simulation_dfs is None:
             self._simulation_dfs = []
 
@@ -226,23 +262,39 @@ class SimulationHistory:
     def save(self,
              file:str|None=None,
              folder:str|None=None,
+             save_analysis:bool=True,
              save_components:bool=False
              ) -> None:
         '''
         Function to save the simulation history to a csv file in a given folder.
+        Additionally, an analysis of the runs can be saved if the save_analysis is enabled.
         The environment and agent used can be saved in the saved folder by enabling the 'save_component' parameter.
 
         Parameters
         ----------
+        file : str (optional)
+            The name of the file the simulation histories will be saved to.
+            If it is not provided, it will be by default "Simulations-<env_name>-n_<sim_count>-<sim_start_timestamp>-horizon_<max_sim_length>.csv"
         folder : str (optional)
             Folder to save the simulation histories to.
-            The folder has to be empty, or, if it doesnt exist yet, it will be created.
-            If the folder name is not provided a combination of the environment name, the current timestamp and the amount of simulations run.
+            If the folder name is not provided the current folder will be used.
+        save_analysis : bool (Default = True)
+            Whether to save an additional csv file with an analysis of the runs of the simulation.
+            It will contain the amount of steps taken, the amount of extra steps compared to optimality, the discounted rewards and the ratio between optimal trajectory and the steps taken.
+            The means and standard deviations of all the runs are also computed.
+            The file will have the same name as the simulation history file with an additional '-analysis' tag at the end.
+        save_components : bool (Default = False)
+            Whether or not to save the environment and agent along with the simulation histories in the given folder.
         '''
+        # Handle file name
         if file is None:
             env_name = f's_{self.environment.shape[0]}_{self.environment.shape[1]}'
             file = f'Simulations-{env_name}-n_{len(self.start_state)}-{self.start_time.strftime("%m%d%Y_%H%M%S")}-horizon_{len(self.states)}.csv'
 
+        if not file.endswith('.csv'):
+            file += '.csv'
+
+        # Handle folder
         if folder is None:
             folder = './'
 
@@ -277,6 +329,12 @@ class SimulationHistory:
 
         print(f'Simulations saved to: {folder + file}')
 
+        if save_analysis:
+            analysis_file = file.replace('.csv', '-analysis.csv')
+            self.analysis_df.to_csv(folder + analysis_file)
+            
+            print(f"Simulation's analysis saved to: {folder + file}")
+
 
     @classmethod
     def load_from_file(cls,
@@ -285,7 +343,28 @@ class SimulationHistory:
                        agent:Agent|None=None
                        ) -> 'SimulationHistory':
         '''
-        # TODO
+        Function to load the simulation history from a file.
+        This can be useful to use the plot functions on the simulations saved in succh file.
+
+        The environment and agent can provided as a backup in the case they cannot be loaded from the file.
+        
+        Parameters
+        ----------
+        file : str
+            A file (with the path) of the simulation histories csv. (the analysis file cannot be used for this)
+        environment : Environment (optional)
+            An environment instance to be linked with the simulation history object.
+            If an environment can be loaded from the path found in the file, this parameter will be ignored.
+            But if this loading fails and no environment is provided, the loading will fail.
+        agent : Agent (optional)
+            An agent instance to be linked with the simulation history object.
+            If an agent can be loaded from the path found in the file, this parameter will be ignored.
+            But if this loading fails and no agent is provided, the loading will fail.
+
+        Returns
+        -------
+        hist : SimulationHistory
+            The loaded instance of a simulation history object.
         '''
         combined_df = pd.read_csv(file)
 
@@ -305,6 +384,9 @@ class SimulationHistory:
             print(f'Environment "{environment_name}" loaded from memory' + (' (Ignoring environment provided as a parameter)' if environment is not None else ''))
             environment = loaded_environment
 
+        if environment is None:
+            raise Exception('No environment could be linked, the simulation hisotry cannot be instanciated. Provide an environment to resolve this.')
+
         # Retrieving agent
         loaded_agent = None
         agent_name = combined_df['agent'][0]
@@ -321,6 +403,9 @@ class SimulationHistory:
         if loaded_agent is not None:
             print(f'Agent "{agent_name}" loaded from memory' + (' (Ignoring agent provided as a parameter)' if agent is not None else ''))
             agent = loaded_agent
+
+        if agent is None:
+            raise Exception('No agent could be linked, the simulation hisotry cannot be instanciated. Provide an agent to resolve this.')
 
         # Columns to retrieve
         columns = [
@@ -425,7 +510,7 @@ class SimulationHistory:
         ax.plot(seq[:,0], seq[:,1], zorder=-1, c='black', label='Path')
 
         # Something sensed
-        if self.agent is not None: # TODO: Agent to save
+        if self.agent is not None:
             something_sensed = sim['o'][1:].to_numpy() > self.agent.treshold
             points_obs = seq[something_sensed,:]
             ax.scatter(points_obs[:,0], points_obs[:,1], zorder=1, label='Something observed')
