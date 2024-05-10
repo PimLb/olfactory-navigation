@@ -269,10 +269,10 @@ class SimulationHistory:
                     'time':  np.arange(length+1) + self.time_shift[i],
                     'y':     np.hstack([self.start_points[i,0], states_array[:length, i, 0]]),
                     'x':     np.hstack([self.start_points[i,1], states_array[:length, i, 1]]),
-                    'dy':    np.hstack([[0], action_array[:length, i, 0]]),
-                    'dx':    np.hstack([[0], action_array[:length, i, 1]]),
-                    'o':     np.hstack([[0], observation_array[:length, i]]),
-                    'done':  np.where(np.arange(length+1) == self.done_at_step[i], 1, 0)
+                    'dy':    np.hstack([[None], action_array[:length, i, 0]]),
+                    'dx':    np.hstack([[None], action_array[:length, i, 1]]),
+                    'o':     np.hstack([[None], observation_array[:length, i]]),
+                    'done':  np.hstack([[None], np.where(np.arange(1,length+1) == self.done_at_step[i], 1, 0)])
                 }
 
                 # Append
@@ -355,7 +355,7 @@ class SimulationHistory:
             analysis_file = file.replace('.csv', '-analysis.csv')
             self.analysis_df.to_csv(folder + analysis_file)
             
-            print(f"Simulation's analysis saved to: {folder + file}")
+            print(f"Simulation's analysis saved to: {folder + analysis_file}")
 
 
     @classmethod
@@ -442,7 +442,7 @@ class SimulationHistory:
 
         # Recreation of list of simulations
         simulation_dfs = []
-        sim_start_rows = [None] + np.argwhere(combined_df[['time']].diff() < 1)[:,0].tolist() + [None]
+        sim_start_rows = [None] + np.argwhere(combined_df[['done']].isnull())[1:,0].tolist() + [None]
         n = len(sim_start_rows)-1
 
         for i in range(n):
@@ -659,7 +659,7 @@ def run_test(agent:Agent,
 
     # Create simulation history tracker
     hist = SimulationHistory(
-        start_state=agent_position,
+        start_points=agent_position,
         environment=environment,
         agent=agent,
         time_shift=time_shift,
@@ -697,9 +697,9 @@ def run_test(agent:Agent,
 
         # Send the values to the tracker
         hist.add_step(
-            action=action,
-            next_state=new_agent_position,
-            observation=observation,
+            actions=action,
+            next_positions=new_agent_position,
+            observations=observation,
             is_done=source_reached,
             interupt=sims_at_end
         )
