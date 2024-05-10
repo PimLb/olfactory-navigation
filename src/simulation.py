@@ -342,6 +342,7 @@ class SimulationHistory:
 
         # Adding Environment and Agent info
         padding = [None] * len(combined_df)
+        combined_df['timestamps'] = [ts.strftime('%H%M%S%f') for ts in self.timestamps] + padding[:-len(self.timestamps)]
         combined_df['reward_discount'] = [self.reward_discount] + padding[:-1]
         combined_df['environment'] = [self.environment.name, self.environment.saved_at] + padding[:-2]
         combined_df['agent'] = [self.agent.name, self.agent.class_name, self.agent.saved_at] + padding[:-3]
@@ -388,7 +389,18 @@ class SimulationHistory:
         hist : SimulationHistory
             The loaded instance of a simulation history object.
         '''
-        combined_df = pd.read_csv(file)
+        combined_df = pd.read_csv(file, dtype={
+            'time':             int,
+            'y':                float,
+            'x':                float,
+            'dy':               float,
+            'dx':               float,
+            'o':                float,
+            'done':             float,
+            'reward_discount':  str,
+            'environment':      str,
+            'agent':            str
+        })
 
         # Retrieving reward discount
         reward_discount = combined_df['reward_discount'][0]
@@ -407,7 +419,7 @@ class SimulationHistory:
             environment = loaded_environment
 
         if environment is None:
-            raise Exception('No environment could be linked, the simulation hisotry cannot be instanciated. Provide an environment to resolve this.')
+            raise Exception('No environment could be linked, the simulation history cannot be instanciated. Provide an environment to resolve this.')
 
         # Retrieving agent
         loaded_agent = None
@@ -427,7 +439,7 @@ class SimulationHistory:
             agent = loaded_agent
 
         if agent is None:
-            raise Exception('No agent could be linked, the simulation hisotry cannot be instanciated. Provide an agent to resolve this.')
+            raise Exception('No agent could be linked, the simulation history cannot be instanciated. Provide an agent to resolve this.')
 
         # Columns to retrieve
         columns = [
@@ -479,6 +491,7 @@ class SimulationHistory:
         hist.actions = [arr for arr in actions]
         hist.observations = [arr for arr in observations]
         hist.done_at_step = done_at_step
+        hist.timestamps = [datetime.strptime(str(int(ts)), '%H%M%S%f') for ts in combined_df['timestamps'][:max_length-1]]
 
         # Saving simulation dfs back
         hist._simulation_dfs = simulation_dfs
@@ -487,9 +500,9 @@ class SimulationHistory:
 
 
     def plot(self,
-            sim_id:int=0,
-            ax=None
-            ) -> None:
+             sim_id:int=0,
+             ax=None
+             ) -> None:
         '''
         Function to plot a the trajectory of a given simulation.
         An ax can be use to plot it on.
@@ -498,15 +511,12 @@ class SimulationHistory:
         ----------
         sim_id : int (default=0)
             The id of the simulation to plot.
-        ax : (Optional)
-            The ax on which to plot the path.
+        ax : (optional)
+            The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
         # Generate ax is not provided
         if ax is None:
             _, ax = plt.subplots(figsize=(18,3))
-
-        # Initial clearing
-        ax.clear()
 
         # Retrieving sim
         sim = self.simulation_dfs[sim_id]
@@ -541,6 +551,32 @@ class SimulationHistory:
 
         # Generate legend
         ax.legend()
+
+
+    def plot_runtimes(self,
+                      ax=None
+                      ) -> None:
+        '''
+        Function to plot the runtimes over the iterations.
+
+        Parameters
+        ----------
+        ax : (optional)
+            The ax on which to plot the path. (If not provided, a new axis will be created)
+        '''
+        # Generate ax is not provided
+        if ax is None:
+            _, ax = plt.subplots(figsize=(18,3))
+
+        # Computing differences
+        timestamp_differences_ms = np.diff(np.array([int(ts.strftime('%H%M%S%f')) for ts in self.timestamps])) / 1000
+
+        # Actual plot
+        ax.plot(timestamp_differences_ms)
+
+        # Axes
+        ax.set_xlabel('Iteration')
+        ax.set_ylabel('Runtime (ms)')
 
 
 def run_test(agent:Agent,
