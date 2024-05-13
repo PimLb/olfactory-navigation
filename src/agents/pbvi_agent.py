@@ -209,7 +209,7 @@ class TrainingHistory:
         '''
         A summary as a string of the information recorded.
         '''
-        summary_str =  f'Summary of Value Iteration run'
+        summary_str =  f'Summary of Point Based Value Iteration run'
         summary_str += f'\n  - Model: {self.model.state_count} state, {self.model.action_count} action, {self.model.observation_count} observations'
         summary_str += f'\n  - Converged or stopped after {len(self.expansion_times)} expansion steps and {len(self.backup_times)} backup steps.'
 
@@ -249,8 +249,6 @@ class PBVI_Agent(Agent):
     Actions are chosen based on a value function. A value function is a set of alpha vectors of dimentionality |S|.
     Each alpha vector is associated to a single action but multiple alpha vectors can be associated to the same action.
     To choose an action at a given belief point, a dot product is taken between each alpha vector and the belief point and the action associated with the highest result is chosen.
-
-    ...
 
     Parameters
     ----------
@@ -472,10 +470,11 @@ class PBVI_Agent(Agent):
               limit_value_function_size:int=-1,
               gamma:float=0.99,
               eps:float=1e-6,
-              use_gpu:bool=False,
+              use_gpu:bool=False, # TODO rehandle the way things are run on GPU
               history_tracking_level:int=1,
               force:bool=False,
               print_progress:bool=True,
+              print_stats:bool=True,
               **expand_arguments
               ) -> TrainingHistory:
         '''
@@ -519,6 +518,8 @@ class PBVI_Agent(Agent):
             Whether to force retraining if a value function already exists for this agent.
         print_progress : bool (default = True)
             Whether or not to print out the progress of the value iteration process.
+        print_stats : bool (default = True)
+            Whether or not to print out statistics at the end of the training run.
         expand_arguments : kwargs
             An arbitrary amount of parameters that will be passed on to the expand function.
 
@@ -693,6 +694,10 @@ class PBVI_Agent(Agent):
 
         self.value_function = value_function.to_cpu() if not self.on_gpu else value_function.to_gpu()
 
+        # Print stats if requested
+        if print_stats:
+            print(training_history.summary)
+
         return training_history
 
 
@@ -735,7 +740,7 @@ class PBVI_Agent(Agent):
                belief_set:BeliefSet,
                value_function:ValueFunction,
                max_generation:int,
-               use_gpu:bool=False,
+               use_gpu:bool=False, # TODO Remove this
                **kwargs
                ) -> BeliefSet:
         '''
@@ -773,7 +778,7 @@ class PBVI_Agent(Agent):
                gamma:float=0.99,
                append:bool=False,
                belief_dominance_prune:bool=True,
-               use_gpu:bool=False
+               use_gpu:bool=False # TODO Remove this
                ) -> ValueFunction:
         '''
         This function has purpose to update the set of alpha vectors. It does so in 3 steps:

@@ -62,7 +62,8 @@ class QMDP_Agent(PBVI_Agent):
               use_gpu:bool=False,
               history_tracking_level:int=1,
               force:bool=False,
-              print_progress:bool=True
+              print_progress:bool=True,
+              print_stats:bool=True
               ) -> TrainingHistory:
         '''
         Simplified version of the training. It consists in running the Value Iteration process.
@@ -87,6 +88,8 @@ class QMDP_Agent(PBVI_Agent):
             Whether to force retraining if a value function already exists for this agent.
         print_progress : bool (default = True)
             Whether or not to print out the progress of the value iteration process.
+        print_stats : bool (default = True)
+            Whether or not to print out statistics at the end of the training run.
 
         Returns
         -------
@@ -122,5 +125,9 @@ class QMDP_Agent(PBVI_Agent):
         self.name += f'-trained_{self.trained_at}'
 
         self.value_function = value_function.to_cpu() if not self.on_gpu else value_function.to_gpu()
+
+        # Print stats if requested
+        if print_stats:
+            print(hist.summary)
 
         return hist

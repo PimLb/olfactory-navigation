@@ -35,7 +35,6 @@ class FSVI_Agent(PBVI_Agent):
     It relies of the solution of the Fully-Observable (MDP) problem to guide the exploration of belief points.
     It makes an agent start randomly in the environment and makes him take steps following the MDP solution while generating belief points along the way.
     Each time the expand function is called it starts generated a new set of belief points and the update function uses only the latest generated belief points to make update the value function.
-    ...
 
     Parameters
     ----------
@@ -163,7 +162,8 @@ class FSVI_Agent(PBVI_Agent):
               use_gpu:bool=False,
               history_tracking_level:int=1,
               force:bool=False,
-              print_progress:bool=True
+              print_progress:bool=True,
+              print_stats:bool=True
               ) -> TrainingHistory:
         '''
         Main loop of the Point-Based Value Iteration algorithm.
@@ -210,6 +210,8 @@ class FSVI_Agent(PBVI_Agent):
             Whether to force retraining if a value function already exists for this agent.
         print_progress : bool (default = True)
             Whether or not to print out the progress of the value iteration process.
+        print_stats : bool (default = True)
+            Whether or not to print out statistics at the end of the training run.
 
         Returns
         -------
@@ -227,7 +229,8 @@ class FSVI_Agent(PBVI_Agent):
                                                history_tracking_level = 1,
                                                print_progress = print_progress)
             
-            print(hist.summary)
+            if print_stats:
+                print(hist.summary)
 
         return super().train(expansions = expansions,
                              full_backup = False,
@@ -244,4 +247,5 @@ class FSVI_Agent(PBVI_Agent):
                              history_tracking_level = history_tracking_level,
                              force = force,
                              print_progress = print_progress,
+                             print_stats = print_stats,
                              mdp_policy = mdp_policy)

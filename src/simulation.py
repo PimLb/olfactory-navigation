@@ -88,7 +88,6 @@ class SimulationHistory:
         self.positions = []
         self.observations = []
         self.timestamps = []
-        # TODO: Add time tracking
 
         self._running_sims = np.arange(self.n)
         self.done_at_step = np.full(self.n, fill_value=-1)
