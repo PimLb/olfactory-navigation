@@ -21,6 +21,12 @@ except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
 
+__all__ = (
+    'run_test',
+    'SimulationHistory'
+)
+
+
 class SimulationHistory:
     '''
     Class to represent a list of the steps that happened during a simulation with:

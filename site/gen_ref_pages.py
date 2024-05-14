@@ -7,14 +7,14 @@ import mkdocs_gen_files
 nav = mkdocs_gen_files.Nav()
 
 root = Path(__file__).parent.parent
-src = root / "src"
+src = root / "olfactory_navigation"
 
 for path in sorted(src.rglob("*.py")):
     module_path = path.relative_to(src).with_suffix("")
     doc_path = path.relative_to(src).with_suffix(".md")
     full_doc_path = Path("reference", doc_path)
 
-    parts = ('src',) + tuple(module_path.parts)
+    parts = ('olfactory_navigation',) + tuple(module_path.parts)
 
     if parts[-1] == "__init__":
         parts = parts[:-1]

@@ -1,21 +1,31 @@
-site_name: olfactory_navigation_docs
+site_name: Olfactory Navigation Documentation
 
 theme:
   name: "material"
+  logo: "img/squid_drawing.png"
+  favicon: "img/squid_drawing.png"
   palette:
-    - scheme: default
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
       primary: green
       accent: green
       toggle:
         icon: material/brightness-7 
         name: Switch to dark mode
 
-    - scheme: slate
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
       primary: green
       accent: green
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  features:
+    - navigation.footer
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.tabs
 
 plugins:
   - search
@@ -36,3 +46,5 @@ repo_url: https://github.com/PimLb/olfactory-navigation
 nav:
   - Home: 'index.md'
   - Code Reference: reference/
+  - Tutorials:
+    - 'How to Create an Agent?': 'agent_creation.md'
