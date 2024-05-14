@@ -1,6 +1,6 @@
 import sys
 sys.path.append('..')
-from src.agents import QAgent
+from olfactory_navigation.agents import QAgent
 
 from matplotlib import pyplot as plt
 
@@ -9,7 +9,7 @@ import numpy as np
 import cupy as cp
 
 
-from src import Environment
+from olfactory_navigation import Environment
 
 data_path = "/storage/rando/data/nose_data_27_123.npy" # INSERT YOUR PATH
 

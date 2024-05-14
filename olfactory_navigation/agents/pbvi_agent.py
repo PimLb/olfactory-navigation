@@ -437,7 +437,7 @@ class PBVI_Agent(Agent):
 
         # Load specific class
         if arguments['class'] != 'PBVI_Agent':
-            from src import agents
+            from olfactory_navigation import agents
             cls = {name:obj for name, obj in inspect.getmembers(agents)}[arguments['class']]
 
         # Build instance

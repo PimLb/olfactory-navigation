@@ -8,9 +8,9 @@ from datetime import datetime
 from matplotlib import pyplot as plt 
 from tqdm.auto import trange
 
-from src import Agent
-from src.environment import Environment
-from src.agent import *
+from olfactory_navigation import Agent
+from olfactory_navigation.environment import Environment
+from olfactory_navigation.agent import *
 
 import numpy as np
 gpu_support = False

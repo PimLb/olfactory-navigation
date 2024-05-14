@@ -1,7 +1,7 @@
 import inspect
 import numpy as np
 
-from src.environment import Environment
+from olfactory_navigation.environment import Environment
 
 
 class AgentState:
@@ -89,7 +89,7 @@ class Agent:
         '''
         Function to load a trained agent from memory.
         '''
-        from src import agents
+        from olfactory_navigation import agents
 
         for name, obj in inspect.getmembers(agents):
             if inspect.isclass(obj) and (name in folder) and issubclass(obj, cls) and (obj != cls):

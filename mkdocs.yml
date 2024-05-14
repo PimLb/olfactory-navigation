@@ -28,10 +28,11 @@ plugins:
       scripts:
       - docs/gen_ref_pages.py
   - literate-nav:
-      nav_file: reference/SUMMARY.md
+      nav_file: SUMMARY.md
+  - section-index
 
 repo_url: https://github.com/PimLb/olfactory-navigation
 
 nav:
-  - Olfactory Navigation Docs: 'index.md'
+  - Home: 'index.md'
   - Code Reference: reference/

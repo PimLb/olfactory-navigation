@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import random
 
-from src.agents.model_based_util.belief import Belief, BeliefSet
+from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
 
 from .mdp import Model
 from .mdp import log

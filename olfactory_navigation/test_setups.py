@@ -1,8 +1,8 @@
 import numpy as np
 
-from src.agent import Agent
-from src.environment import Environment
-from src.simulation import run_test, SimulationHistory
+from olfactory_navigation.agent import Agent
+from olfactory_navigation.environment import Environment
+from olfactory_navigation.simulation import run_test, SimulationHistory
 
 
 def run_all_starts_test(

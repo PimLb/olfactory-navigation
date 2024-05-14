@@ -14,7 +14,7 @@ except:
 
 from .mdp import log
 from .mdp import Model as MDP_Model
-from src import Environment
+from olfactory_navigation import Environment
 
 
 class Model(MDP_Model):
