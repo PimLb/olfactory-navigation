@@ -40,7 +40,7 @@ class SimulationHistory:
         The agent used in the simulation.
     time_shift : np.ndarray
         An array of time shifts in the simulation data.
-    reward_discount : float (Default = 0.99)
+    reward_discount : float, default=0.99
         A discount to be applied to the rewards received by the agent. (eg: reward of 1 received at time n would be: 1 * reward_discount^n)
     
     Attributes
@@ -293,18 +293,18 @@ class SimulationHistory:
 
         Parameters
         ----------
-        file : str (optional)
+        file : str, optional
             The name of the file the simulation histories will be saved to.
             If it is not provided, it will be by default "Simulations-<env_name>-n_<sim_count>-<sim_start_timestamp>-horizon_<max_sim_length>.csv"
-        folder : str (optional)
+        folder : str, optional
             Folder to save the simulation histories to.
             If the folder name is not provided the current folder will be used.
-        save_analysis : bool (Default = True)
+        save_analysis : bool, default=True
             Whether to save an additional csv file with an analysis of the runs of the simulation.
             It will contain the amount of steps taken, the amount of extra steps compared to optimality, the discounted rewards and the ratio between optimal trajectory and the steps taken.
             The means and standard deviations of all the runs are also computed.
             The file will have the same name as the simulation history file with an additional '-analysis' tag at the end.
-        save_components : bool (Default = False)
+        save_components : bool, default=False
             Whether or not to save the environment and agent along with the simulation histories in the given folder.
         '''
         # Handle file name
@@ -374,11 +374,11 @@ class SimulationHistory:
         ----------
         file : str
             A file (with the path) of the simulation histories csv. (the analysis file cannot be used for this)
-        environment : Environment (optional)
+        environment : Environment, optional
             An environment instance to be linked with the simulation history object.
             If an environment can be loaded from the path found in the file, this parameter will be ignored.
             But if this loading fails and no environment is provided, the loading will fail.
-        agent : Agent (optional)
+        agent : Agent, optional
             An agent instance to be linked with the simulation history object.
             If an agent can be loaded from the path found in the file, this parameter will be ignored.
             But if this loading fails and no agent is provided, the loading will fail.
@@ -500,7 +500,7 @@ class SimulationHistory:
 
     def plot(self,
              sim_id:int=0,
-             ax=None
+             ax:plt.Axes=None
              ) -> None:
         '''
         Function to plot a the trajectory of a given simulation.
@@ -508,9 +508,9 @@ class SimulationHistory:
 
         Parameters
         ----------
-        sim_id : int (default=0)
+        sim_id : int, default=0
             The id of the simulation to plot.
-        ax : (optional)
+        ax : plt.Axes, optional
             The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
         # Generate ax is not provided
@@ -542,7 +542,7 @@ class SimulationHistory:
 
         # Something sensed
         if self.agent is not None:
-            something_sensed = sim['o'][1:].to_numpy() > self.agent.treshold
+            something_sensed = sim['o'][1:].to_numpy() > self.agent.threshold
             points_obs = seq[something_sensed,:]
             ax.scatter(points_obs[:,0], points_obs[:,1], zorder=1, label='Something observed')
         else:
@@ -553,14 +553,14 @@ class SimulationHistory:
 
 
     def plot_runtimes(self,
-                      ax=None
+                      ax:plt.Axes=None
                       ) -> None:
         '''
         Function to plot the runtimes over the iterations.
 
         Parameters
         ----------
-        ax : (optional)
+        ax : plt.Axes, optional
             The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
         # Generate ax is not provided
@@ -613,32 +613,32 @@ def run_test(agent:Agent,
     ----------
     agent : Agent
         The agent to be tested
-    n : int (optional)
+    n : int, optional
         How many simulation to run in parallel.
         n is optional but it needs to match with what is provided in start_points.
-    start_points : np.ndarray (optional)
+    start_points : np.ndarray, optional
         The starting points of the simulation in 2d space.
         If not provided, n random points will be generated based on the start probabilities of the environment.
         Else, the amount of start_points need to match to n, if it is provided.
-    environment : Environment (optional)
+    environment : Environment, optional
         The environment to run the simulations in.
         By default, the environment linked to the agent will used.
         This parameter is intended if the environment needs to be modified compared to environment the agent was trained on.
-    time_shift : int or np.ndarray (default = 0)
+    time_shift : int or np.ndarray, default=0
         The time at which to start the olfactory simulation array.
         It can be either a single value, or n values.
-    time_loop : bool (default = True)
+    time_loop : bool, default=True
         Whether to loop the time if reaching the end. (starts back at 0)
-    horizon : int (default = 1000)
+    horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    reward_discount : float (default = 0.99)
+    reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
-    print_progress : bool (default = True)
+    print_progress : bool, default=True
         Wheter to show a progress bar of what step the simulations are at.
-    print_stats : bool (default = True)
+    print_stats : bool, default=True
         Wheter to print the stats at the end of the run.
-    use_gpu : bool (default = False)
+    use_gpu : bool, default=False
         Whether to run the simulations on the GPU or not.
     
     Returns

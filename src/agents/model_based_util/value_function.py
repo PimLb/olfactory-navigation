@@ -401,7 +401,7 @@ class ValueFunction:
 
         Parameters
         ----------
-        path : str, default='./ValueFunctions'
+        folder : str, default='./ValueFunctions'
             The path at which the npy file will be saved.
         file_name : str, default='<current_timestamp>_value_function.npy'
             The file name used to save in.

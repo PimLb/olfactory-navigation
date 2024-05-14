@@ -154,14 +154,14 @@ def solve(model:Model,
     ----------
     model : mdp.Model
         The model on which to run value iteration.
-    horizon : int (default = 100)
+    horizon : int, default=100
         How many iterations to run the value iteration solver for.
-    initial_value_function : ValueFunction (optional)
+    initial_value_function : ValueFunction, optional
         An optional initial value function to kick-start the value iteration process.
-    gamma : float (default = 0.99)
+    gamma : float, default=0.99
         The discount factor to value immediate rewards more than long term rewards.
         The learning rate is 1/gamma.
-    eps : float (default = 1e-6)
+    eps : float, default=1e-6
         The smallest allowed changed for the value function.
         Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
     use_gpu : bool, default=False

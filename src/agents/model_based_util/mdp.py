@@ -71,7 +71,7 @@ class Model:
         The distribution of chances to start in each state. If not provided, there will be an uniform chance for each state.
     end_states : list, optional
         Entering either state in the list during a simulation will end the simulation.
-    end_action : list, optional
+    end_actions : list, optional
         Playing action of the list during a simulation will end the simulation.
     
     Attributes
@@ -456,7 +456,7 @@ class Model:
             return reward
     
 
-    def get_coords(self, item:Union[int,list]) -> list[list[int]] | list[int]:
+    def get_coords(self, items:Union[int,list]) -> list[list[int]] | list[int]:
         '''
         Function to get the coordinate (on the state_grid) for the provided state index or indices.
 
@@ -470,10 +470,10 @@ class Model:
         item_coords : list[int] | list[list[int]]
             The 2D positions of the provided item ids.
         '''
-        item_list = [item] if isinstance(item, int) else item
+        item_list = [items] if isinstance(items, int) else items
         item_coords = [np.argwhere(self.cpu_model.state_grid == s)[0] for s in item_list]
 
-        return item_coords[0] if isinstance(item, int) else item_coords
+        return item_coords[0] if isinstance(items, int) else item_coords
 
 
     def save(self, file_name:str, path:str='./Models') -> None:

@@ -15,7 +15,7 @@ except:
 
 class QAgent(Agent):
     def __init__(self, environment: Environment, 
-                 treshold: float  = 0.000003, 
+                 threshold: float  = 0.000003, 
                  memory_size : int = 1,
                  time_disc : int = 100,
                  horizon : int = 100, # horizon
@@ -30,7 +30,7 @@ class QAgent(Agent):
                  checkpoint_frequency : int | None = None
                  ) -> None:
         assert checkpoint_folder is None or (checkpoint_folder is not None and checkpoint_frequency is not None and checkpoint_frequency > 0)
-        super().__init__(environment, treshold, "QAgent")
+        super().__init__(environment, threshold, "QAgent")
         self.xp = cp if self.on_gpu else np
         self.memory_size = memory_size
         self.learning_rate = learning_rate
@@ -90,7 +90,7 @@ class QAgent(Agent):
                      observation : float|np.ndarray,
                      source_reached : bool|np.ndarray
                      ) -> None:
-        filtered_observations = (observation > self.treshold).astype(np.int32).reshape(self.memory.shape[0]) # type: ignore
+        filtered_observations = (observation > self.threshold).astype(np.int32).reshape(self.memory.shape[0]) # type: ignore
         prev_memory = self.memory[:, 1:].copy()
         self.memory = np.zeros_like(self.memory)
         self.memory[:, :-1] = prev_memory

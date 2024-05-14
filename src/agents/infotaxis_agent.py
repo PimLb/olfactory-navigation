@@ -28,12 +28,12 @@ class Infotaxis_Agent(Agent):
     ----------
     environment : Environment
         The olfactory environment to train the agent with.
-    treshold : float (optional) (default = 3e-6)
-        The olfactory sensitivity of the agent. Odor cues under this treshold will not be detected by the agent.
-    name : str (optional)
-        A custom name to give the agent. If not provided is will be a combination of the class-name and the treshold.
+    threshold : float, optional, default=3e-6
+        The olfactory sensitivity of the agent. Odor cues under this threshold will not be detected by the agent.
+    name : str, optional
+        A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
 
-    Attibutes
+    Attributes
     ---------
     environment : Environment
     threshold : float
@@ -55,16 +55,16 @@ class Infotaxis_Agent(Agent):
     '''
     def __init__(self,
                  environment:Environment,
-                 treshold:float|None=3e-6,
+                 threshold:float|None=3e-6,
                  name:str|None=None
                  ) -> None:
         super().__init__(
             environment = environment,
-            treshold = treshold,
+            threshold = threshold,
             name = name
         )
 
-        self.model = Model.from_environment(environment, treshold)
+        self.model = Model.from_environment(environment, threshold)
 
         # Status variables
         self.beliefs = None
@@ -186,7 +186,7 @@ class Infotaxis_Agent(Agent):
         assert self.beliefs is not None, "Agent was not initialized yet, run the initialize_state function first"
 
         # Binarize observations
-        observation_ids = np.where(observation > self.treshold, 1, 0).astype(int)
+        observation_ids = np.where(observation > self.threshold, 1, 0).astype(int)
         observation_ids[source_reached] = 2 # Observe source
 
         # Update the set of beliefs

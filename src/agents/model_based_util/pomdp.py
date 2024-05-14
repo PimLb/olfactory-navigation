@@ -52,7 +52,7 @@ class Model(MDP_Model):
         The distribution of chances to start in each state. If not provided, there will be an uniform chance for each state. It is also used to represent a belief of complete uncertainty.
     end_states : list, optional
         Entering either state in the list during a simulation will end the simulation.
-    end_action : list, optional
+    end_actions : list, optional
         Playing action of the list during a simulation will end the simulation.
 
     Attributes
@@ -241,7 +241,7 @@ class Model(MDP_Model):
     @classmethod
     def from_environment(cls,
                          environment:Environment,
-                         treshold:float|list
+                         threshold:float|list
                          ) -> 'Model':
         '''
         Method to create a POMDP model based on an olfactory environment object.
@@ -263,25 +263,25 @@ class Model(MDP_Model):
                                                  shape=environment.shape).ravel())[:,0].tolist()
         
         # Compute observation matrix
-        if not isinstance(treshold, list):
-            treshold = [treshold]
+        if not isinstance(threshold, list):
+            threshold = [threshold]
 
-        # Ensure 0.0 and 1.0 begin and end the treshold list
-        if treshold[0] != -np.inf:
-            treshold = [-np.inf] + treshold
+        # Ensure 0.0 and 1.0 begin and end the threshold list
+        if threshold[0] != -np.inf:
+            threshold = [-np.inf] + threshold
 
-        if treshold[-1] != np.inf:
-            treshold = treshold + [np.inf]
+        if threshold[-1] != np.inf:
+            threshold = threshold + [np.inf]
 
         # Computing odor probabilities
         grid = environment.grid[:,:,:,None]
-        threshs = np.array(treshold)
+        threshs = np.array(threshold)
         odor_fields = np.average(((grid >= threshs[:-1][None,None,None,:]) & (grid < threshs[1:][None,None,None,:])), axis=0)
 
         # Building observation matrix
-        observations = np.empty((state_count, 4, len(treshold)), dtype=float) # 4-actions, observations: |thresholds|-1 + goal 
+        observations = np.empty((state_count, 4, len(threshold)), dtype=float) # 4-actions, observations: |thresholds|-1 + goal 
 
-        for i in range(len(treshold)-1):
+        for i in range(len(threshold)-1):
             observations[:,:,i] = odor_fields[:,:,i].ravel()[:,None]
 
         # Goal observation
@@ -291,8 +291,8 @@ class Model(MDP_Model):
 
         # Observation labels
         observation_labels = ['nothing']
-        if len(treshold) > 3:
-            for i,_ in enumerate(treshold[1:-1]):
+        if len(threshold) > 3:
+            for i,_ in enumerate(threshold[1:-1]):
                 observation_labels.append(f'something_l{i}')
         else:
             observation_labels.append('something')

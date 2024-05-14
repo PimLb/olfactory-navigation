@@ -38,7 +38,7 @@ class TrainingHistory:
     ----------
     tracking_level : int
         The tracking level of the solver.
-    model : pomdp.Model
+    model : Model
         The model the solver has solved.
     gamma : float
         The gamma parameter used by the solver (learning rate).
@@ -54,7 +54,7 @@ class TrainingHistory:
     Attributes
     ----------
     tracking_level : int
-    model : pomdp.Model
+    model : Model
     gamma : float
     eps : float
     expand_append : bool
@@ -254,18 +254,18 @@ class PBVI_Agent(Agent):
     ----------
     environment : Environment
         The olfactory environment to train the agent with.
-    treshold : float (optional) (default = 3e-6)
-        The olfactory sensitivity of the agent. Odor cues under this treshold will not be detected by the agent.
-    name : str (optional)
-        A custom name to give the agent. If not provided is will be a combination of the class-name and the treshold.
+    threshold : float, optional, default=3e-6
+        The olfactory sensitivity of the agent. Odor cues under this threshold will not be detected by the agent.
+    name : str, optional
+        A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
 
-    Attibutes
+    Attributes
     ---------
     environment : Environment
     threshold : float
     name : str
-    model : pomdp.Model
-        The environment converted to a POMDP model using the "from_environment" constructor of the pomdp.Model class.
+    model : Model
+        The environment converted to a POMDP model using the "from_environment" constructor of the Model class.
     saved_at : str
         The place on disk where the agent has been saved (None if not saved yet).
     on_gpu : bool
@@ -285,16 +285,16 @@ class PBVI_Agent(Agent):
     '''
     def __init__(self,
                  environment:Environment,
-                 treshold:float|None=3e-6,
+                 threshold:float|None=3e-6,
                  name:str|None=None
                  ) -> None:
         super().__init__(
             environment=environment,
-            treshold=treshold,
+            threshold=threshold,
             name=name
         )
 
-        self.model = Model.from_environment(environment, treshold)
+        self.model = Model.from_environment(environment, threshold)
 
         # Trainable variables
         self.trained_at = None
@@ -355,13 +355,13 @@ class PBVI_Agent(Agent):
 
         Parameters
         ----------
-        folder : str (optional)
+        folder : str, optional
             The folder under which to save the agent (a subfolder will be created under this folder).
             The agent will therefore be saved at <folder>/Agent-<agent_name> .
             By default the current folder is used.
-        force : bool (default = False)
+        force : bool, default=False
             Whether to overwrite an already saved agent with the same name at the same path.
-        save_environment : bool (default = False)
+        save_environment : bool, default=False
             Whether to save the environment data along with the agent.
         '''
         assert self.trained_at is not None, "The agent is not trained, there is nothing to save."
@@ -390,7 +390,7 @@ class PBVI_Agent(Agent):
         arguments = {}
         arguments['name'] = self.name
         arguments['class'] = self.class_name
-        arguments['treshold'] = self.treshold
+        arguments['threshold'] = self.threshold
         arguments['environment_name'] = self.environment.name
         arguments['environment_saved_at'] = self.environment.saved_at
         arguments['trained_at'] = self.trained_at
@@ -443,7 +443,7 @@ class PBVI_Agent(Agent):
         # Build instance
         instance = cls(
             environment=environment,
-            treshold=arguments['treshold'],
+            threshold=arguments['threshold'],
             name=arguments['name']
         )
 
@@ -487,38 +487,38 @@ class PBVI_Agent(Agent):
         ----------
         expansions : int
             How many times the algorithm has to expand the belief set. (the size will be doubled every time, eg: for 5, the belief set will be of size 32)
-        full_backup : bool (default = True)
+        full_backup : bool, default=True
             Whether to force the backup function has to be run on the full set beliefs uncovered since the beginning or only on the new points.
-        update_passes : int (default = 1)
+        update_passes : int, default=1
             How many times the backup function has to be run every time the belief set is expanded.
-        max_belief_growth : int (default = 10)
+        max_belief_growth : int, default=10
             How many beliefs can be added at every expansion step to the belief set.
-        initial_belief : BeliefSet or Belief (optional)
+        initial_belief : BeliefSet or Belief, optional
             An initial list of beliefs to start with.
-        initial_value_function : ValueFunction (optional)
+        initial_value_function : ValueFunction, optional
             An initial value function to start the solving process with.
-        prune_level : int (default = 1)
+        prune_level : int, default=1
             Parameter to prune the value function further before the expand function.
-        prune_interval : int (default = 10)
+        prune_interval : int, default=10
             How often to prune the value function. It is counted in number of backup iterations.
-        limit_value_function_size : int (default = -1)
-            When the value function size crosses this treshold, a random selection of 'max_belief_growth' alpha vectors will be removed from the value function
+        limit_value_function_size : int, default=-1
+            When the value function size crosses this threshold, a random selection of 'max_belief_growth' alpha vectors will be removed from the value function
             If set to -1, the value function can grow without bounds.
-        use_gpu : bool (default = False)
+        use_gpu : bool, default=False
             Whether to use the GPU with cupy array to accelerate solving.
-        gamma : float (default = 0.99)
+        gamma : float, default=0.99
             The discount factor to value immediate rewards more than long term rewards.
             The learning rate is 1/gamma.
-        eps : float (default = 1e-6)
+        eps : float, default=1e-6
             The smallest allowed changed for the value function.
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
-        history_tracking_level : int (default = 1)
+        history_tracking_level : int, default=1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
-        force : bool (default = False)
+        force : bool, default=False
             Whether to force retraining if a value function already exists for this agent.
-        print_progress : bool (default = True)
+        print_progress : bool, default=True
             Whether or not to print out the progress of the value iteration process.
-        print_stats : bool (default = True)
+        print_stats : bool, default=True
             Whether or not to print out statistics at the end of the training run.
         expand_arguments : kwargs
             An arbitrary amount of parameters that will be passed on to the expand function.
@@ -620,7 +620,7 @@ class PBVI_Agent(Agent):
                         alpha_vectors_pruned = len(value_function) - vf_len
                         training_history.add_prune_step(prune_time, alpha_vectors_pruned)
 
-                    # Check if value function size is above treshold
+                    # Check if value function size is above threshold
                     if limit_value_function_size >= 0 and len(value_function) > limit_value_function_size:
                         # Compute matrix multiplications between avs and beliefs
                         alpha_value_per_belief = xp.matmul(value_function.alpha_vector_array, belief_set.belief_array.T)
@@ -759,7 +759,7 @@ class PBVI_Agent(Agent):
             The current value function. To be used to guide the exploration process.
         max_generation : int
             How many beliefs to be generated at most.
-        use_gpu : bool (default = False)
+        use_gpu : bool, default=False
             Whether to run this operation on the GPU or not.
         kwargs
             Special parameters for the particular flavors of the PBVI Agent.
@@ -791,20 +791,18 @@ class PBVI_Agent(Agent):
 
         Parameters
         ----------
-        model : pomdp.Model
-            The model on which to run the backup method on.
         belief_set : BeliefSet
             The belief set to use to generate the new alpha vectors with.
         value_function : ValueFunction
             The alpha vectors to generate the new set from.
-        gamma : float (default = 0.99)
+        gamma : float, default=0.99
             The discount factor to value immediate rewards more than long term rewards.
             The learning rate is 1/gamma.
-        append : bool (default = False)
+        append : bool, default=False
             Whether to append the new alpha vectors generated to the old alpha vectors before pruning.
-        belief_dominance_prune : bool (default = True)
+        belief_dominance_prune : bool, default=True
             Whether, before returning the new value function, checks what alpha vectors have a supperior value, if so it adds it.
-        use_gpu : bool (default = False)
+        use_gpu : bool, default=False
             
         Returns
         -------
@@ -911,7 +909,7 @@ class PBVI_Agent(Agent):
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 
         # Binarize observations
-        observation_ids = np.where(observation > self.treshold, 1, 0).astype(int)
+        observation_ids = np.where(observation > self.threshold, 1, 0).astype(int)
         observation_ids[source_reached] = 2 # Observe source
 
         # Update the set of beliefs
