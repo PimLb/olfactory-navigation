@@ -150,13 +150,20 @@ def solve(model:Model,
     Function to solve an MDP model using Value Iteration.
     If an initial value function is not provided, the value function will be initiated with the expected rewards.
 
-    # TODO: Update this
     Parameters
     ----------
     model : mdp.Model
         The model on which to run value iteration.
+    horizon : int, default=100
+        How many iterations to run the value iteration solver for.
     initial_value_function : ValueFunction, optional
         An optional initial value function to kick-start the value iteration process.
+    gamma : float, default=0.99
+        The discount factor to value immediate rewards more than long term rewards.
+        The learning rate is 1/gamma.
+    eps : float, default=1e-6
+        The smallest allowed changed for the value function.
+        Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
     use_gpu : bool, default=False
         Whether to use the GPU with cupy array to accelerate solving.
     history_tracking_level : int, default=1

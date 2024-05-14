@@ -1,6 +1,4 @@
-from matplotlib import cm, colors, ticker
 from matplotlib import pyplot as plt
-from matplotlib.lines import Line2D
 from typing import Union
 from scipy.stats import entropy
 
@@ -69,12 +67,19 @@ class Belief:
 
     @property
     def bytes_repr(self) -> bytes:
+        '''
+        A representation as bytes of a belief.
+        '''
         if self._bytes_repr is None:
             self._bytes_repr = self.values.tobytes()
         return self._bytes_repr
 
 
     def __eq__(self, other: object) -> bool:
+        '''
+        A way to check the equality between two belief points.
+        The byte representation of each belief point is compared.
+        '''
         return self.bytes_repr == other.bytes_repr
 
     
@@ -86,7 +91,11 @@ class Belief:
         return self._values
     
 
-    def update(self, a:int, o:int, throw_error:bool=True) -> 'Belief':
+    def update(self,
+               a:int,
+               o:int,
+               throw_error:bool=True
+               ) -> 'Belief':
         '''
         Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).
 
@@ -96,6 +105,8 @@ class Belief:
             The most recent action.
         o : int
             The most recent observation.
+        throw_error : bool, default=True
+            Whether the creation of an impossible belief (sum of probabilities of 0.0) will throw an error or not.
 
         Returns
         -------
@@ -145,11 +156,7 @@ class Belief:
         successor_beliefs = []
         for a in self.model.actions:
             for o in self.model.observations:
-                try:
-                    b_ao = self.update(a,o)
-                except:
-                    # Ignoring failure to generate a belief point
-                    continue
+                b_ao = self.update(a,o)
                 successor_beliefs.append(b_ao)
 
         return successor_beliefs
@@ -216,8 +223,7 @@ class Belief:
 class BeliefSet:
     '''
     Class to represent a set of beliefs with regard to a POMDP model.
-    It has the purpose to store the beliefs in numpy array format and be able to conver it to a list of Belief class objects.
-    This class also provides the option to display the beliefs when operating on a 2 or 3d space with the plot() function.
+    It has the purpose to store the beliefs in a numpy array format and be able to conver it to a list of Belief class objects.
     
     ...
 
@@ -314,6 +320,8 @@ class BeliefSet:
             The most recent played actions.
         observations : list or np.ndarray
             The most recent received observations.
+        throw_error : bool, default=True
+            Whether the throw an error when attempting to generate impossible beliefs.
 
         Returns
         -------
@@ -353,6 +361,9 @@ class BeliefSet:
 
     @property
     def unique_belief_dict(self) -> dict:
+        '''
+        A dictionary of unique belief points with the keys being the byte representation of these belief points.
+        '''
         if self._uniqueness_dict is None:
             self._uniqueness_dict = {belief.bytes_repr: belief for belief in self.belief_list}
         return self._uniqueness_dict
@@ -389,7 +400,7 @@ class BeliefSet:
     @property
     def entropies(self) -> np.ndarray:
         '''
-        An array of the entropies of the belief points
+        An array of the entropies of the belief points.
         '''
         xp = np if not gpu_support else cp.get_array_module(self.belief_array)
 

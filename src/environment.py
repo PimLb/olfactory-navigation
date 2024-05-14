@@ -43,21 +43,21 @@ class Environment:
         The dataset containing the olfactory data. It can be provided as a path to a file containing said array.
     source_position : list or np.ndarray
         The center point of the source provided as a list or a 1D array with the components being x,y.
-    source_radius : int (default: 1)
+    source_radius : int, default=1
         The radius from the center point of the source in which we consider the agent has reached the source.
-    discretization : int (default: 1)
+    discretization : int, default=1
         How many units should be kept in the final array (a discretization of 2 will retain every other point of the original array).
-    margins : int or list or np.ndarray (default: 0)
+    margins : int or list or np.ndarray, default=0
         How many discretized units have to be added to the data as margins.
         If a unique element is provided, the margin will be this same value on each side.
         If a list or array of 2 elements is provided, the first number will be vertical margins (y-axis), while the other will be on the x-axis (horizontal).
-    boundary_condition : 'stop' or 'wrap' or 'wrap_vertical' or 'wrap_horizontal' or 'clip' (default: 'stop')
+    boundary_condition : 'stop' or 'wrap' or 'wrap_vertical' or 'wrap_horizontal' or 'clip', default='stop'
         How the agent should behave at the boundary.
         Stop means for the agent to stop at the boundary, if the agent tries to move north while being on the top edge, it will stay in the same state.
         Wrap means for the borders to be like portals, when entering on one side, it reappears on the other side.
         Wrap can be specified to be only vertically or horizontally
     start_zone:Literal['odor_present','data_zone']|np.ndarray='data_zone',
-    odor_present_treshold:float|None=None,
+    odor_present_threshold:float|None=None,
     name:str|None=None
 
     Arguments
@@ -72,7 +72,7 @@ class Environment:
                  margins:int|list|np.ndarray=0,
                  boundary_condition:Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip' ,'no']='stop',
                  start_zone:Literal['odor_present','data_zone']|np.ndarray='data_zone',
-                 odor_present_treshold:float|None=None,
+                 odor_present_threshold:float|None=None,
                  name:str|None=None,
                  seed : int = 12131415,
                  ) -> None:
@@ -127,7 +127,7 @@ class Environment:
         if start_zone == 'data_zone':
             self.start_probabilities[self.margins[0,0]:self.margins[0,0]+self.height, self.margins[1,0]:self.margins[1,0]+self.width] = 1.0
         elif start_zone == 'odor_present':
-            self.start_probabilities = (np.mean((self.grid > (odor_present_treshold if odor_present_treshold is not None else 0)).astype(int), axis=0) > 0).astype(float)
+            self.start_probabilities = (np.mean((self.grid > (odor_present_threshold if odor_present_threshold is not None else 0)).astype(int), axis=0) > 0).astype(float)
         elif isinstance(start_zone, np.ndarray):
             if start_zone.shape == (2,2):
                 self.start_probabilities[start_zone[0,0]:start_zone[0,1], start_zone[1,0]:start_zone[1,1]] = 1.0
@@ -141,7 +141,7 @@ class Environment:
         self.start_type = start_zone
 
         # Odor present tresh
-        self.odor_present_treshold = odor_present_treshold
+        self.odor_present_threshold = odor_present_threshold
 
         # Removing the source area from the starting zone
         source_mask = np.fromfunction(lambda x,y: ((x - self.source_position[0])**2 + (y - self.source_position[1])**2) <= self.source_radius**2, shape=self.shape)
@@ -166,13 +166,13 @@ class Environment:
         self.rnd_state = np.random.RandomState(seed = seed)
 
 
-    def plot(self, frame:int=0, ax=None) -> None:
+    def plot(self, frame:int=0, ax:plt.Axes=None) -> None:
         '''
         Simple function to plot the environment
 
         Parameters
         ----------
-        ax : Optional
+        ax : plt.Axes, optional
             An ax on which the environment can be plot
         '''
         # If on GPU use the CPU version to plot
@@ -188,7 +188,7 @@ class Environment:
 
         # Odor grid
         odor = plt.Rectangle([0,0], 1, 1, color='black', fill=True)
-        ax.imshow((self.grid[frame] > (self.odor_present_treshold if self.odor_present_treshold is not None else 0)).astype(float), cmap='Greys')
+        ax.imshow((self.grid[frame] > (self.odor_present_threshold if self.odor_present_threshold is not None else 0)).astype(float), cmap='Greys')
 
         # Start zone contour
         start_zone = plt.Rectangle([0,0], 1, 1, color='blue', fill=False)
@@ -406,11 +406,11 @@ class Environment:
 
         Parameters
         ----------
-        folder : str (optional)
+        folder : str, optional
             The folder to which to save the environment data. If it is not provided, it will be created in the current folder.
-        save_arrays : bool (default = False)
+        save_arrays : bool, default=False
             Whether or not to save the numpy arrays to memory. (The arrays can be heavy)
-        force : bool (default = False)
+        force : bool, default=False
             In case an environment of the same name is already saved, it will be overwritten.
         '''
         # If on gpu, use the cpu version to save
@@ -460,8 +460,8 @@ class Environment:
         arguments['source_radius']         = self.source_radius
         arguments['boundary_condition']    = self.boundary_condition
 
-        if self.odor_present_treshold is not None:
-            arguments['odor_present_treshold'] = self.odor_present_treshold
+        if self.odor_present_threshold is not None:
+            arguments['odor_present_threshold'] = self.odor_present_threshold
         if self.start_type is not None:
             arguments['start_type'] = self.start_type
 
@@ -526,7 +526,7 @@ class Environment:
 
             # Optional arguments
             loaded_env.source_data_file      = arguments.get('source_data_file')
-            loaded_env.odor_present_treshold = arguments.get('odor_present_treshold')
+            loaded_env.odor_present_threshold = arguments.get('odor_present_threshold')
             loaded_env.start_type            = arguments.get('start_type')
 
             # Arrays
@@ -542,7 +542,7 @@ class Environment:
                 margins               = np.array(arguments['margins']),
                 boundary_condition    = arguments['boundary_condition'],
                 start_zone            = arguments.get('start_type'),
-                odor_present_treshold = arguments.get('odor_present_treshold'),
+                odor_present_threshold = arguments.get('odor_present_threshold'),
                 name                  = arguments['name']
             )
 

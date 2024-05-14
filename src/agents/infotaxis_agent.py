@@ -1,3 +1,4 @@
+import warnings
 from ..environment import Environment
 from ..agent import Agent
 from .model_based_util.pomdp import Model
@@ -13,22 +14,57 @@ except:
 
 
 class Infotaxis_Agent(Agent):
+    '''
+    An agent following the Infotaxis principle.
+    It is a Model-Based approach that aims to make steps towards where the agent has the greatest likelihood to minimize the entropy of the belief.
+    The belief is (as for the PBVI agent) a probability distribution over the state space of how much the agent is to be confident in each state.
+    The technique was developped and described in the following article: Vergassola, M., Villermaux, E., & Shraiman, B. I. (2007). 'Infotaxis' as a strategy for searching without gradients.
+
+    It does not need to be trained to the train(), save() and load() function are not implemented.
+
+    ...
+
+    Parameters
+    ----------
+    environment : Environment
+        The olfactory environment to train the agent with.
+    threshold : float, optional, default=3e-6
+        The olfactory sensitivity of the agent. Odor cues under this threshold will not be detected by the agent.
+    name : str, optional
+        A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+
+    Attributes
+    ---------
+    environment : Environment
+    threshold : float
+    name : str
+    model : pomdp.Model
+        The environment converted to a POMDP model using the "from_environment" constructor of the pomdp.Model class.
+    saved_at : str
+        The place on disk where the agent has been saved (None if not saved yet).
+    on_gpu : bool
+        Whether the agent has been sent to the gpu or not.
+    belief : BeliefSet
+        Used only during simulations.
+        Part of the Agent's status. Where the agent believes he is over the state space.
+        It is a list of n belief points based on how many simulations are running at once.
+    action_played : list[int]
+        Used only during simulations.
+        Part of the Agent's status. Records what action was last played by the agent.
+        A list of n actions played based on how many simulations are running at once.
+    '''
     def __init__(self,
                  environment:Environment,
-                 treshold:float|None=3e-6,
+                 threshold:float|None=3e-6,
                  name:str|None=None
                  ) -> None:
-        super().__init__(environment)
+        super().__init__(
+            environment = environment,
+            threshold = threshold,
+            name = name
+        )
 
-        self.model = Model.from_environment(environment, treshold)
-        self.treshold = treshold
-
-        # setup name
-        if name is None:
-            self.name = self.class_name
-            self.name += f'-tresh_{self.treshold}'
-        else:
-            self.name = name
+        self.model = Model.from_environment(environment, threshold)
 
         # Status variables
         self.beliefs = None
@@ -86,64 +122,13 @@ class Infotaxis_Agent(Agent):
     def choose_action(self) -> np.ndarray:
         '''
         Function to let the agent or set of agents choose an action based on their current belief.
-        As for the Infotaxis principle, it will choose an action that will minimize the sum of next entropies.
+        Following the Infotaxis principle, it will choose an action that will minimize the sum of next entropies.
 
         Returns
         -------
         movement_vector : np.ndarray
             A single or a list of actions chosen by the agent(s) based on their belief.
         '''
-        return self.choose_action_par()
-    
-        # TODO Check if can be improved with beliefset update
-        xp = np if not self.on_gpu else cp
-        
-        chosen_actions = []
-        for b in self.beliefs.belief_list:
-            best_entropy = None
-            best_action = None
-
-            current_entropy = b.entropy
-
-            for a in self.model.actions:
-                total_entropy = 0.0
-
-                for o in self.model.observations:
-                    b_ao = b.update(a,o, throw_error=False)
-
-                    # Computing entropy
-                    b_ao_entropy = b_ao.entropy
-
-                    b_prob = xp.dot(xp.sum(self.model.reachable_transitional_observation_table[:,a,o,:], axis=1), b.values)
-                    total_entropy += (b_prob * (current_entropy - b_ao_entropy))
-                
-                # Checking if action is superior to previous best
-                if (best_entropy is None) or (total_entropy > best_entropy):
-                    best_entropy = total_entropy
-                    best_action = a
-
-            chosen_actions.append(best_action)
-        
-        # Recording the action played
-        self.action_played = chosen_actions
-
-        # Converting action indexes to movement vectors
-        movemement_vector = self.model.movement_vector[chosen_actions,:]
-
-        return movemement_vector
-
-
-    def choose_action_par(self) -> np.ndarray:
-        '''
-        Function to let the agent or set of agents choose an action based on their current belief.
-        As for the Infotaxis principle, it will choose an action that will minimize the sum of next entropies.
-
-        Returns
-        -------
-        movement_vector : np.ndarray
-            A single or a list of actions chosen by the agent(s) based on their belief.
-        '''
-        # TODO Check if can be improved with beliefset update
         xp = np if not self.on_gpu else cp
 
         n = len(self.beliefs)
@@ -162,7 +147,10 @@ class Infotaxis_Agent(Agent):
                                            throw_error=False)
 
                 # Computing entropy
-                b_ao_entropy = b_ao.entropies
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    b_ao_entropy = b_ao.entropies
+
                 b_prob = xp.dot(self.beliefs.belief_array, xp.sum(self.model.reachable_transitional_observation_table[:,a,o,:], axis=1))
 
                 total_entropy += (b_prob * (current_entropy - b_ao_entropy))
@@ -198,7 +186,7 @@ class Infotaxis_Agent(Agent):
         assert self.beliefs is not None, "Agent was not initialized yet, run the initialize_state function first"
 
         # Binarize observations
-        observation_ids = np.where(observation > self.treshold, 1, 0).astype(int)
+        observation_ids = np.where(observation > self.threshold, 1, 0).astype(int)
         observation_ids[source_reached] = 2 # Observe source
 
         # Update the set of beliefs

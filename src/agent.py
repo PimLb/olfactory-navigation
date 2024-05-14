@@ -15,12 +15,18 @@ class Agent:
     '''
     def __init__(self,
                  environment:Environment,
-                 treshold:float|None=3e-6,
+                 threshold:float|None=3e-6,
                  name:str|None=None
                  ) -> None:
         self.environment = environment
-        self.treshold = treshold
-        self.name = name
+        self.threshold = threshold
+
+        # setup name
+        if name is None:
+            self.name = self.class_name
+            self.name += f'-tresh_{self.threshold}'
+        else:
+            self.name = name
 
         self.saved_at = None
 
