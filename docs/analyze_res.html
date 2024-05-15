@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <meta charset="UTF-8">
+   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <script src="https://d3js.org/d3.v6.js"></script>
+   <script src="analyze_results.js"></script>
+</head>
+<body>
+    <form id="fileSubmissionForm">
+        <input type="file" id="csvFileInput" accept=".csv">
+        <br/>
+        <input type="submit" value="Analyse">
+    </form>
+    <script>document.getElementById("fileSubmissionForm").addEventListener("submit", analyze_csv)</script>
+</body>
+</html>

@@ -27,6 +27,9 @@ theme:
     - navigation.top
     - navigation.tabs
 
+extra_javascript:
+  - analyze_results.js
+
 plugins:
   - search
   - mkdocstrings:
@@ -48,3 +51,5 @@ nav:
   - Code Reference: reference/
   - Tutorials:
     - 'How to Create an Agent?': 'agent_creation.md'
+  - Tools:
+    - 'Result Analysis': 'res_analysis.md'
