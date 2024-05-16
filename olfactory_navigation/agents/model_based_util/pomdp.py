@@ -240,8 +240,8 @@ class Model(MDP_Model):
 
     @classmethod
     def from_environment(cls,
-                         environment:Environment,
-                         threshold:float|list
+                         environment: Environment,
+                         threshold: float | list
                          ) -> 'Model':
         '''
         Method to create a POMDP model based on an olfactory environment object.
@@ -274,9 +274,13 @@ class Model(MDP_Model):
             threshold = threshold + [np.inf]
 
         # Computing odor probabilities
-        grid = environment.grid[:,:,:,None]
+        data_grid = environment.data[:,:,:,None]
         threshs = np.array(threshold)
-        odor_fields = np.average(((grid >= threshs[:-1][None,None,None,:]) & (grid < threshs[1:][None,None,None,:])), axis=0)
+        data_odor_fields = np.average(((data_grid >= threshs[:-1][None,None,None,:]) & (data_grid < threshs[1:][None,None,None,:])), axis=0)
+
+        # Increasing it to the full environment
+        odor_fields = np.zeros(environment.shape + ((len(threshold)-1),))
+        odor_fields[environment.data_bounds[0,0]:environment.data_bounds[0,1], environment.data_bounds[1,0]:environment.data_bounds[1,1], :] = data_odor_fields 
 
         # Building observation matrix
         observations = np.empty((state_count, 4, len(threshold)), dtype=float) # 4-actions, observations: |thresholds|-1 + goal 

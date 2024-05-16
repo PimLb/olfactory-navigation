@@ -1,6 +1,6 @@
 {
     "name": "55_247-edge_wrap_vertical-start_odor_present-source_27_62_radius2",
-    "source_data_file": "G:\\My Drive\\Documents\\Universita di Genova\\Pimlb work\\nose_data_27_123.npy",
+    "data_file_path": "G:\\My Drive\\Documents\\Universita di Genova\\Pimlb work\\nose_data_27_123.npy",
     "width": 123,
     "height": 27,
     "margins": [
@@ -30,6 +30,6 @@
     ],
     "source_radius": 2,
     "boundary_condition": "wrap_vertical",
-    "odor_present_treshold": 3e-06,
+    "odor_present_threshold": 3e-06,
     "start_type": "odor_present"
 }
