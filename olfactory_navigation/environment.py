@@ -1,8 +1,10 @@
+import cv2
 import json
 import os
 import shutil
 
 from matplotlib import pyplot as plt
+from scipy import interpolate
 from typing import Literal
 
 import numpy as np
@@ -32,12 +34,20 @@ class Environment:
         The dataset containing the olfactory data. It can be provided as a path to a file containing said array.
     source_position : list or np.ndarray
         The center point of the source provided as a list or a 1D array with the components being x,y.
+        This position is computed in the olfactory data zone (so excluding the margins).
     source_radius : int, default=1
         The radius from the center point of the source in which we consider the agent has reached the source.
-    discretization : int, default=1
-        How many units should be kept in the final array (a discretization of 2 will retain every other point of the original array).
+    discretization : np.ndarray, optional
+        A 2D array of how many units should be kept in the final array (including the margins).
+        As it should include the margins, the discretization amounts should be strictly larger than the sum of the margins in each direction.
+        By default, the shape of the olfactory data will be maintained.
+    multiplier : np.ndarray, optional
+        A 1D array of how much the odor field should be streched in each direction.
+        If a value > 1 is provided, the margins will be reduced to accomodate for the larger size of the olfactory data size.
+        And inversly, < 1 will increase the margins.
+        By default, the multipliers will be set to 1.0.
     margins : int or list or np.ndarray, default=0
-        How many discretized units have to be added to the data as margins.
+        How many discretized units have to be added to the data as margins. (Before the multiplier is applied)
         If a unique element is provided, the margin will be this same value on each side.
         If a list or array of 2 elements is provided, the first number will be vertical margins (y-axis), while the other will be on the x-axis (horizontal).
     boundary_condition : 'stop' or 'wrap' or 'wrap_vertical' or 'wrap_horizontal' or 'clip', default='stop'
@@ -108,9 +118,11 @@ class Environment:
     '''
     def __init__(self,
                  data_file: str | np.ndarray,
-                 source_position: list | np.ndarray,
+                 data_source_position: list | np.ndarray,
                  source_radius: int = 1,
-                 discretization: int = 1,
+                 discretization: np.ndarray | None = None,
+                 multiplier: np.ndarray | None = None,
+                 interpolation_method: Literal['Nearest', 'Linear', 'Cubic'] = 'Linear',
                  margins: int | list | np.ndarray = 0,
                  boundary_condition: Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip', 'no'] = 'stop',
                  start_zone: Literal['odor_present', 'data_zone'] | np.ndarray = 'data_zone',
@@ -145,8 +157,62 @@ class Environment:
             raise ValueError('margins argument should be either an integer or a 1D or 2D array with either shape (2) or (2,2)')
         assert self.margins.dtype == int, 'margins should be integers'
 
-        # Reading shape of data array
+        # Unmodified sizes
+        data_shape = self.data.shape[1:]
         timesteps, self.height, self.width = self.data.shape
+        self.data_source_position = np.array(data_source_position)
+
+        # Process discretization parameter
+        new_data_shape = None
+        if discretization is not None:
+            assert np.all(discretization > np.sum(self.margins, axis=1)), "The discretization must be strictly larger than the sum of margins."
+
+            # Computing the new shape of the data
+            new_data_shape = discretization - np.sum(self.margins, axis=1)
+            
+            # New source position
+            new_source_position = (self.data_source_position * (data_shape / new_data_shape)).astype(int)
+        else:
+            discretization = data_shape + np.sum(self.margins, axis=1)
+
+        self.discretization = discretization
+
+        # Process multiplier
+        if multiplier is not None:
+            if new_data_shape is None:
+                new_data_shape = data_shape
+            new_data_shape = (new_data_shape * multiplier).astype(int)
+
+            assert np.all(new_data_shape < self.discretization), f"Multiplier goes out of bounds (Maximum allowed: {self.discretization / data_shape})"
+
+            # New source position
+            new_source_position = (self.data_source_position * multiplier).astype(int)
+
+            # Recomputing margins
+            self.margins[:,0] -= (new_source_position - self.data_source_position)
+            self.margins[:,1] = (self.discretization - (self.margins[:,0] + new_data_shape))
+
+            # Setting new source position
+            self.data_source_position = new_source_position
+
+        # Reshape data is a new_shape if set by custom discretization or multiplier
+        if new_data_shape is not None:
+            # Interpolation of new data
+            interpolation_options = {
+                'Nearest': cv2.INTER_NEAREST,
+                'Linear': cv2.INTER_LINEAR,
+                'Cubic': cv2.INTER_CUBIC
+            }
+            interpolation_choice = interpolation_options[interpolation_method]
+
+            new_data = np.zeros((timesteps, *new_data_shape))
+            for i in range(timesteps):
+                new_data[i] = cv2.resize(self.data[i], dsize=new_data_shape[::-1], interpolation=interpolation_choice)
+
+            self.data = new_data
+            self.height, self.width = new_data_shape
+
+        # Reading shape of data array
         self.padded_height:int = self.height + np.sum(self.margins[0])
         self.padded_width:int = self.width + np.sum(self.margins[1])
         self.shape:tuple[int, int] = (self.padded_height, self.padded_width)
@@ -154,13 +220,7 @@ class Environment:
         # Building a data bounds
         self.data_bounds = np.array([[self.margins[0,0], self.margins[0,0]+self.height], [self.margins[1,0], self.margins[1,0]+self.width]])
 
-        # Preprocess data with discretization
-        self.discretization = discretization
-        if discretization != 1:
-            raise NotImplementedError('Different discretizations have not been implemented yet') # TODO
-
         # Saving arguments
-        self.data_source_position = np.array(source_position)
         self.source_position = self.data_source_position + self.margins[:,0]
         self.source_radius = source_radius
         self.boundary_condition = boundary_condition
@@ -597,7 +657,7 @@ class Environment:
 
             loaded_env = Environment(
                 data_file              = arguments['data_file_path'],
-                source_position        = np.array(arguments['data_source_position']),
+                data_source_position        = np.array(arguments['data_source_position']),
                 source_radius          = arguments['source_radius'],
                 discretization         = arguments['discretization'],
                 margins                = np.array(arguments['margins']),
