@@ -37,14 +37,14 @@ class Environment:
         This position is computed in the olfactory data zone (so excluding the margins).
     source_radius : int, default=1
         The radius from the center point of the source in which we consider the agent has reached the source.
-    discretization : np.ndarray, optional
-        A 2D array of how many units should be kept in the final array (including the margins).
+    discretization : list or np.ndarray, optional
+        A 2-element array or list of how many units should be kept in the final array (including the margins).
         As it should include the margins, the discretization amounts should be strictly larger than the sum of the margins in each direction.
         By default, the shape of the olfactory data will be maintained.
-    multiplier : np.ndarray, optional
-        A 1D array of how much the odor field should be streched in each direction.
-        If a value > 1 is provided, the margins will be reduced to accomodate for the larger size of the olfactory data size.
-        And inversly, < 1 will increase the margins.
+    multiplier : int or list or np.ndarray, optional
+        A single multiplier or a 2-element array or list of how much the odor field should be streched in each direction.
+        If a value larger than 1 is provided, the margins will be reduced to accomodate for the larger size of the olfactory data size.
+        And inversly, less than 1 will increase the margins.
         By default, the multipliers will be set to 1.0.
     margins : int or list or np.ndarray, default=0
         How many discretized units have to be added to the data as margins. (Before the multiplier is applied)
@@ -171,7 +171,7 @@ class Environment:
             new_data_shape = discretization - np.sum(self.margins, axis=1)
             
             # New source position
-            new_source_position = (self.data_source_position * (data_shape / new_data_shape)).astype(int)
+            self.data_source_position = (self.data_source_position * (new_data_shape / data_shape)).astype(int)
         else:
             discretization = data_shape + np.sum(self.margins, axis=1)
 
