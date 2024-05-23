@@ -13,8 +13,8 @@ from olfactory_navigation import Environment
 
 data_path = "/storage/rando/data/nose_data_27_123.npy" # INSERT YOUR PATH
 
-env = Environment(data=data_path,
-                  source_position=[13, 0],
+env = Environment(data_file=data_path,
+                  data_source_position=[13, 0],
                   source_radius=2,
                   margins=[14, 62],
                   boundary_condition='stop',
