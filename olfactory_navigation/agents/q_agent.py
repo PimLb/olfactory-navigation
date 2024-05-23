@@ -20,14 +20,13 @@ class QAgent(Agent):
     def __init__(self, environment: Environment, 
                  threshold: float  = 0.000003, 
                  memory_size : int = 1,
-                 horizon : int = 100, # horizon
+                 horizon : int = 100,
                  num_episodes : int = 1000,
                  learning_rate  = lambda t : 1/sqrt(t + 1),
                  eps_greedy = lambda t : 0.3,
                  gamma : float = 1.0,
                  delta : int = 100,
                  seed : int = 121314,
-                 q_init_value : float = 0.0,
                  checkpoint_folder : str | None = None,
                  checkpoint_frequency : int | None = None
                  ) -> None:
@@ -43,9 +42,9 @@ class QAgent(Agent):
         self.gamma = gamma
         self.delta = delta
         self.deterministic = True
-        self.MAX_T = environment.grid.data.shape[0] # type: ignore
+        self.MAX_T = environment.data.shape[0] 
         self.num_episodes = num_episodes
-        self.Q = np.full((2, 4), q_init_value)
+        self.Q = np.zeros((2, 4))
         self.action_set = self.xp.array([
             [ 0, -1],
             [ 1,  0],
@@ -94,7 +93,6 @@ class QAgent(Agent):
         self.memory = np.zeros_like(self.memory)
         self.memory[:, :-1] = prev_memory
         self.memory[:, -1] = filtered_observations
-#        self.memory = np.concatenate((self.memory[:, 1:], filtered_observations), axis=1)
         mask = np.all(self.memory == 0, axis=1)
         self.current_state[mask] += 1
         self.current_state[self.current_state >= self.Q.shape[0]] = 1
@@ -122,7 +120,7 @@ class QAgent(Agent):
         return self.action_set[self.Q[self.current_state, :].argmax(axis=1)]
     
     def _get_agent_state(self):
-        return dict(threshold=self.treshold, 
+        return dict(threshold=self.threshold, 
                     memory_size=self.memory_size, 
                     horizon = self.horizon, 
                     gamma=self.gamma,
@@ -180,7 +178,7 @@ class QAgent(Agent):
             # Initialization
             self.initialize_state(1)
             
-            init_time_idx = self.rnd_state.randint(0, self.environment.grid.shape[0])
+            init_time_idx = self.rnd_state.randint(0, self.environment.data.shape[0])
             time_idx = init_time_idx
             init_pos = self.environment.random_start_points(1)
             pos = init_pos.copy()
