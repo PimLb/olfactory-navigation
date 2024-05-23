@@ -1,0 +1,213 @@
+import warnings
+from ..environment import Environment
+from ..agent import Agent
+from .model_based_util.pomdp import Model
+from .model_based_util.belief import Belief, BeliefSet
+
+import numpy as np
+gpu_support = False
+try:
+    import cupy as cp
+    gpu_support = True
+except:
+    print('[Warning] Cupy could not be loaded: GPU support is not available.')
+
+
+class Infotaxis_Agent(Agent):
+    '''
+    An agent following the Infotaxis principle.
+    It is a Model-Based approach that aims to make steps towards where the agent has the greatest likelihood to minimize the entropy of the belief.
+    The belief is (as for the PBVI agent) a probability distribution over the state space of how much the agent is to be confident in each state.
+    The technique was developped and described in the following article: Vergassola, M., Villermaux, E., & Shraiman, B. I. (2007). 'Infotaxis' as a strategy for searching without gradients.
+
+    It does not need to be trained to the train(), save() and load() function are not implemented.
+
+    ...
+
+    Parameters
+    ----------
+    environment : Environment
+        The olfactory environment to train the agent with.
+    threshold : float, optional, default=3e-6
+        The olfactory sensitivity of the agent. Odor cues under this threshold will not be detected by the agent.
+    name : str, optional
+        A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+
+    Attributes
+    ---------
+    environment : Environment
+    threshold : float
+    name : str
+    model : pomdp.Model
+        The environment converted to a POMDP model using the "from_environment" constructor of the pomdp.Model class.
+    saved_at : str
+        The place on disk where the agent has been saved (None if not saved yet).
+    on_gpu : bool
+        Whether the agent has been sent to the gpu or not.
+    belief : BeliefSet
+        Used only during simulations.
+        Part of the Agent's status. Where the agent believes he is over the state space.
+        It is a list of n belief points based on how many simulations are running at once.
+    action_played : list[int]
+        Used only during simulations.
+        Part of the Agent's status. Records what action was last played by the agent.
+        A list of n actions played based on how many simulations are running at once.
+    '''
+    def __init__(self,
+                 environment:Environment,
+                 threshold:float|None=3e-6,
+                 name:str|None=None
+                 ) -> None:
+        super().__init__(
+            environment = environment,
+            threshold = threshold,
+            name = name
+        )
+
+        self.model = Model.from_environment(environment, threshold)
+
+        # Status variables
+        self.beliefs = None
+        self.action_played = None
+
+
+    def to_gpu(self) -> Agent:
+        '''
+        Function to send the numpy arrays of the agent to the gpu.
+        It returns a new instance of the Agent class with the arrays on the gpu
+
+        Returns
+        -------
+        gpu_agent
+        '''
+        # Generating a new instance
+        cls = self.__class__
+        gpu_agent = cls.__new__(cls)
+
+        # Copying arguments to gpu
+        for arg, val in self.__dict__.items():
+            if isinstance(val, np.ndarray):
+                setattr(gpu_agent, arg, cp.array(val))
+            elif isinstance(val, Model):
+                gpu_agent.model = self.model.gpu_model
+            elif isinstance(val, BeliefSet):
+                gpu_agent.beliefs = self.beliefs.to_gpu()
+            else:
+                setattr(gpu_agent, arg, val)
+
+        # Self reference instances
+        self._alternate_version = gpu_agent
+        gpu_agent._alternate_version = self
+
+        gpu_agent.on_gpu = True
+        return gpu_agent
+
+
+    def initialize_state(self,
+                         n:int=1
+                         ) -> None:
+        '''
+        To use an agent within a simulation, the agent's state needs to be initialized.
+        The initialization consists of setting the agent's initial belief.
+        Multiple agents can be used at once for simulations, for this reason, the belief parameter is a BeliefSet by default.
+        
+        Parameters
+        ----------
+        n : int, default=1
+            How many agents are to be used during the simulation.
+        '''
+        self.beliefs = BeliefSet(self.model, [Belief(self.model) for _ in range(n)])
+
+
+    def choose_action(self) -> np.ndarray:
+        '''
+        Function to let the agent or set of agents choose an action based on their current belief.
+        Following the Infotaxis principle, it will choose an action that will minimize the sum of next entropies.
+
+        Returns
+        -------
+        movement_vector : np.ndarray
+            A single or a list of actions chosen by the agent(s) based on their belief.
+        '''
+        xp = np if not self.on_gpu else cp
+
+        n = len(self.beliefs)
+        
+        best_entropy = xp.ones(n) * -1
+        best_action = xp.ones(n, dtype=int) * -1
+
+        current_entropy = self.beliefs.entropies
+
+        for a in self.model.actions:
+            total_entropy = xp.zeros(n)
+
+            for o in self.model.observations:
+                b_ao = self.beliefs.update(actions=np.ones(n, dtype=int)*a,
+                                           observations=np.ones(n, dtype=int)*o,
+                                           throw_error=False)
+
+                # Computing entropy
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    b_ao_entropy = b_ao.entropies
+
+                b_prob = xp.dot(self.beliefs.belief_array, xp.sum(self.model.reachable_transitional_observation_table[:,a,o,:], axis=1))
+
+                total_entropy += (b_prob * (current_entropy - b_ao_entropy))
+            
+            # Checking if action is superior to previous best
+            superiority_mask = best_entropy < total_entropy
+            best_action[superiority_mask] = a
+            best_entropy[superiority_mask] = total_entropy[superiority_mask]
+        
+        # Recording the action played
+        self.action_played = best_action
+
+        # Converting action indexes to movement vectors
+        movemement_vector = self.model.movement_vector[best_action,:]
+
+        return movemement_vector
+
+
+    def update_state(self,
+                     observation:int|np.ndarray,
+                     source_reached:bool|np.ndarray
+                     ) -> None:
+        '''
+        Function to update the internal state(s) of the agent(s) based on the previous action(s) taken and the observation(s) received.
+
+        Parameters
+        ----------
+        observation : np.ndarray
+            The observation(s) the agent(s) made.
+        source_reached : np.ndarray
+            A boolean array of whether the agent(s) have reached the source or not.
+        '''
+        assert self.beliefs is not None, "Agent was not initialized yet, run the initialize_state function first"
+
+        # Binarize observations
+        observation_ids = np.where(observation > self.threshold, 1, 0).astype(int)
+        observation_ids[source_reached] = 2 # Observe source
+
+        # Update the set of beliefs
+        self.beliefs = self.beliefs.update(actions=self.action_played, observations=observation_ids)
+
+        # Remove the beliefs of the agents having reached the source
+        self.beliefs = BeliefSet(self.model, self.beliefs.belief_array[~source_reached])
+
+
+    def kill(self,
+             simulations_to_kill:np.ndarray
+             ) -> None:
+        '''
+        Function to kill any simulations that have not reached the source but can't continue further
+
+        Parameters
+        ----------
+        simulations_to_kill : np.ndarray
+            A boolean array of the simulations to kill.
+        '''
+        if all(simulations_to_kill):
+            self.beliefs = None
+        else:
+            self.beliefs = BeliefSet(self.beliefs.model, self.beliefs.belief_array[~simulations_to_kill])
