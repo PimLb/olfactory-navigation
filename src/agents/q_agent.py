@@ -4,6 +4,9 @@ from ..agent import Agent
 
 from math import sqrt
 from tqdm import tqdm
+import json
+
+from typing import Tuple
 
 import numpy as np
 gpu_support = False
@@ -17,7 +20,6 @@ class QAgent(Agent):
     def __init__(self, environment: Environment, 
                  treshold: float  = 0.000003, 
                  memory_size : int = 1,
-                 time_disc : int = 100,
                  horizon : int = 100, # horizon
                  num_episodes : int = 1000,
                  learning_rate  = lambda t : 1/sqrt(t + 1),
@@ -43,7 +45,7 @@ class QAgent(Agent):
         self.deterministic = True
         self.MAX_T = environment.grid.data.shape[0] # type: ignore
         self.num_episodes = num_episodes
-        self.Q = np.full((time_disc + 1, 4), q_init_value)
+        self.Q = np.full((2, 4), q_init_value)
         self.action_set = self.xp.array([
             [ 0, -1],
             [ 1,  0],
@@ -54,10 +56,7 @@ class QAgent(Agent):
         self.checkpoint_folder = checkpoint_folder
         self.checkpoint_frequency = checkpoint_frequency
         if checkpoint_folder is not None:
-            os.makedirs(checkpoint_folder, exist_ok=True)
-
-
-        
+            os.makedirs(checkpoint_folder, exist_ok=True)        
 
 
     def initialize_state(self, n:int=1) -> None:
@@ -102,8 +101,7 @@ class QAgent(Agent):
         self.current_state[~mask] = 0
         if self.deterministic:
             self.memory = self.memory[~source_reached]
-            self.current_state= self.current_state[~source_reached]
-
+            self.current_state = self.current_state[~source_reached]
 
     def _update_q(self, s, a, s_prime, r):
         alpha = self.learning_rate(self.episode)
@@ -122,10 +120,19 @@ class QAgent(Agent):
             return self.action_set[action_indices]
 
         return self.action_set[self.Q[self.current_state, :].argmax(axis=1)]
+    
+    def _get_agent_state(self):
+        return dict(threshold=self.treshold, 
+                    memory_size=self.memory_size, 
+                    horizon = self.horizon, 
+                    gamma=self.gamma,
+                    episode = self.episode,
+                    num_episodes = self.num_episodes)
 
     def _save_checkpoint(self):
         np.save(f"{self.checkpoint_folder}/QFunction_{self.episode}", self.Q)
-
+        with open(f"{self.checkpoint_folder}/agent_state_{self.episode}.json", 'w') as f:
+            json.dump(self._get_agent_state(), f)
 
     def _perform_single_step(self, pos : np.ndarray, time_idx : int):
         if self.current_state[0] == 0:
@@ -136,19 +143,33 @@ class QAgent(Agent):
             a = self.Q[self.current_state[0], :].argmax()
         new_pos = self.environment.move(pos, self.action_set[a])
         terminated = self.environment.source_reached(new_pos)
-        r = 1.0 if terminated else 0.0
+        r = 1.0 if terminated else -0.01
         time_idx = (time_idx + 1) % self.MAX_T
         obs = self.environment.get_observation(new_pos, time_idx)
         self.update_state(obs, terminated)
         s_prime = self.current_state[0]
+        if s_prime >= self.Q.shape[0]:
+            self.Q = np.vstack((self.Q, np.zeros(4, dtype=np.float32)))
+
         return new_pos, a, r, terminated, s_prime, time_idx
+
+
 
 
     def save(self, folder: str | None = None, force: bool = False) -> None:
         np.save(f"{folder}/QFunction", self.Q)
+        with open(f"{folder}/agent_state.json", 'w') as f:
+            json.dump(self._get_agent_state(), f)
+
 
     def load(self, folder:str):
         self.Q = np.load(f"{folder}/QFunction.npy")
+        if os.path.isfile(f"{folder}/agent_state.json"):
+            with open(f"{folder}/agent_state.json", 'r') as f:
+                agent_state = json.load(f)
+            for (k, v) in agent_state.items():
+                setattr(self, k, v)
+
 
     def train(self):
         cumulative_rewards = []
@@ -192,4 +213,5 @@ class QAgent(Agent):
 
     def kill(self, simulations_to_kill: np.ndarray) -> None:
         self.memory = self.memory[~simulations_to_kill]
-        self.current_state= self.current_state[~simulations_to_kill]
+        self.current_state = self.current_state[~simulations_to_kill]
+#        self.current_memory_len = self.current_memory_len[~simulations_to_kill]
