@@ -19,7 +19,6 @@ except:
 class QAgent(Agent):
     def __init__(self, environment: Environment, 
                  threshold: float  = 0.000003, 
-                 memory_size : int = 1,
                  horizon : int = 100,
                  num_episodes : int = 1000,
                  learning_rate  = lambda t : 1/sqrt(t + 1),
@@ -33,7 +32,6 @@ class QAgent(Agent):
         assert checkpoint_folder is None or (checkpoint_folder is not None and checkpoint_frequency is not None and checkpoint_frequency > 0)
         super().__init__(environment, threshold, "QAgent")
         self.xp = cp if self.on_gpu else np
-        self.memory_size = memory_size
         self.learning_rate = learning_rate
         self.horizon = horizon
         self.seed = seed
@@ -59,8 +57,7 @@ class QAgent(Agent):
 
 
     def initialize_state(self, n:int=1) -> None:
-        self.memory = self.xp.zeros((n, self.memory_size))
-        self.current_state = self.xp.ones((n, ), dtype=np.int32)
+        self.current_state = self.xp.zeros((n, ), dtype=np.int32)
 
 
     def to_gpu(self) -> Agent:
@@ -88,17 +85,10 @@ class QAgent(Agent):
                      observation : float|np.ndarray,
                      source_reached : bool|np.ndarray
                      ) -> None:
-        filtered_observations = (observation > self.threshold).astype(np.int32).reshape(self.memory.shape[0]) # type: ignore
-        prev_memory = self.memory[:, 1:].copy()
-        self.memory = np.zeros_like(self.memory)
-        self.memory[:, :-1] = prev_memory
-        self.memory[:, -1] = filtered_observations
-        mask = np.all(self.memory == 0, axis=1)
-        self.current_state[mask] += 1
-        self.current_state[self.current_state >= self.Q.shape[0]] = 1
-        self.current_state[~mask] = 0
+        filtered_observations = (observation >= self.threshold).astype(bool)#.reshape(self.memory.shape[0]) # type: ignore
+        self.current_state[filtered_observations] += 1
+        self.current_state[~filtered_observations] = 0
         if self.deterministic:
-            self.memory = self.memory[~source_reached]
             self.current_state = self.current_state[~source_reached]
 
     def _update_q(self, s, a, s_prime, r):
@@ -121,7 +111,6 @@ class QAgent(Agent):
     
     def _get_agent_state(self):
         return dict(threshold=self.threshold, 
-                    memory_size=self.memory_size, 
                     horizon = self.horizon, 
                     gamma=self.gamma,
                     episode = self.episode,
@@ -141,7 +130,7 @@ class QAgent(Agent):
             a = self.Q[self.current_state[0], :].argmax()
         new_pos = self.environment.move(pos, self.action_set[a])
         terminated = self.environment.source_reached(new_pos)
-        r = 1.0 if terminated else -0.01
+        r = 1.0 if terminated else 0.0
         time_idx = (time_idx + 1) % self.MAX_T
         obs = self.environment.get_observation(new_pos, time_idx)
         self.update_state(obs, terminated)
