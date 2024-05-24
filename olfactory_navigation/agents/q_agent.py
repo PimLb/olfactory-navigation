@@ -4,6 +4,9 @@ from ..agent import Agent
 
 from math import sqrt
 from tqdm import tqdm
+import json
+
+from typing import Tuple
 
 import numpy as np
 gpu_support = False
@@ -16,23 +19,19 @@ except:
 class QAgent(Agent):
     def __init__(self, environment: Environment, 
                  threshold: float  = 0.000003, 
-                 memory_size : int = 1,
-                 time_disc : int = 100,
-                 horizon : int = 100, # horizon
+                 horizon : int = 100,
                  num_episodes : int = 1000,
                  learning_rate  = lambda t : 1/sqrt(t + 1),
                  eps_greedy = lambda t : 0.3,
                  gamma : float = 1.0,
                  delta : int = 100,
                  seed : int = 121314,
-                 q_init_value : float = 0.0,
                  checkpoint_folder : str | None = None,
                  checkpoint_frequency : int | None = None
                  ) -> None:
         assert checkpoint_folder is None or (checkpoint_folder is not None and checkpoint_frequency is not None and checkpoint_frequency > 0)
         super().__init__(environment, threshold, "QAgent")
         self.xp = cp if self.on_gpu else np
-        self.memory_size = memory_size
         self.learning_rate = learning_rate
         self.horizon = horizon
         self.seed = seed
@@ -41,9 +40,9 @@ class QAgent(Agent):
         self.gamma = gamma
         self.delta = delta
         self.deterministic = True
-        self.MAX_T = environment.grid.data.shape[0] # type: ignore
+        self.MAX_T = environment.data.shape[0] 
         self.num_episodes = num_episodes
-        self.Q = np.full((time_disc + 1, 4), q_init_value)
+        self.Q = np.zeros((2, 4))
         self.action_set = self.xp.array([
             [ 0, -1],
             [ 1,  0],
@@ -54,15 +53,11 @@ class QAgent(Agent):
         self.checkpoint_folder = checkpoint_folder
         self.checkpoint_frequency = checkpoint_frequency
         if checkpoint_folder is not None:
-            os.makedirs(checkpoint_folder, exist_ok=True)
-
-
-        
+            os.makedirs(checkpoint_folder, exist_ok=True)        
 
 
     def initialize_state(self, n:int=1) -> None:
-        self.memory = self.xp.zeros((n, self.memory_size))
-        self.current_state = self.xp.ones((n, ), dtype=np.int32)
+        self.current_state = self.xp.zeros((n, ), dtype=np.int32)
 
 
     def to_gpu(self) -> Agent:
@@ -90,20 +85,11 @@ class QAgent(Agent):
                      observation : float|np.ndarray,
                      source_reached : bool|np.ndarray
                      ) -> None:
-        filtered_observations = (observation > self.threshold).astype(np.int32).reshape(self.memory.shape[0]) # type: ignore
-        prev_memory = self.memory[:, 1:].copy()
-        self.memory = np.zeros_like(self.memory)
-        self.memory[:, :-1] = prev_memory
-        self.memory[:, -1] = filtered_observations
-#        self.memory = np.concatenate((self.memory[:, 1:], filtered_observations), axis=1)
-        mask = np.all(self.memory == 0, axis=1)
-        self.current_state[mask] += 1
-        self.current_state[self.current_state >= self.Q.shape[0]] = 1
-        self.current_state[~mask] = 0
+        filtered_observations = (observation >= self.threshold).astype(bool)#.reshape(self.memory.shape[0]) # type: ignore
+        self.current_state[filtered_observations] += 1
+        self.current_state[~filtered_observations] = 0
         if self.deterministic:
-            self.memory = self.memory[~source_reached]
-            self.current_state= self.current_state[~source_reached]
-
+            self.current_state = self.current_state[~source_reached]
 
     def _update_q(self, s, a, s_prime, r):
         alpha = self.learning_rate(self.episode)
@@ -122,10 +108,18 @@ class QAgent(Agent):
             return self.action_set[action_indices]
 
         return self.action_set[self.Q[self.current_state, :].argmax(axis=1)]
+    
+    def _get_agent_state(self):
+        return dict(threshold=self.threshold, 
+                    horizon = self.horizon, 
+                    gamma=self.gamma,
+                    episode = self.episode,
+                    num_episodes = self.num_episodes)
 
     def _save_checkpoint(self):
         np.save(f"{self.checkpoint_folder}/QFunction_{self.episode}", self.Q)
-
+        with open(f"{self.checkpoint_folder}/agent_state_{self.episode}.json", 'w') as f:
+            json.dump(self._get_agent_state(), f)
 
     def _perform_single_step(self, pos : np.ndarray, time_idx : int):
         if self.current_state[0] == 0:
@@ -141,14 +135,28 @@ class QAgent(Agent):
         obs = self.environment.get_observation(new_pos, time_idx)
         self.update_state(obs, terminated)
         s_prime = self.current_state[0]
+        if s_prime >= self.Q.shape[0]:
+            self.Q = np.vstack((self.Q, np.zeros(4, dtype=np.float32)))
+
         return new_pos, a, r, terminated, s_prime, time_idx
+
+
 
 
     def save(self, folder: str | None = None, force: bool = False) -> None:
         np.save(f"{folder}/QFunction", self.Q)
+        with open(f"{folder}/agent_state.json", 'w') as f:
+            json.dump(self._get_agent_state(), f)
+
 
     def load(self, folder:str):
         self.Q = np.load(f"{folder}/QFunction.npy")
+        if os.path.isfile(f"{folder}/agent_state.json"):
+            with open(f"{folder}/agent_state.json", 'r') as f:
+                agent_state = json.load(f)
+            for (k, v) in agent_state.items():
+                setattr(self, k, v)
+
 
     def train(self):
         cumulative_rewards = []
@@ -159,7 +167,7 @@ class QAgent(Agent):
             # Initialization
             self.initialize_state(1)
             
-            init_time_idx = self.rnd_state.randint(0, self.environment.grid.shape[0])
+            init_time_idx = self.rnd_state.randint(0, self.environment.data.shape[0])
             time_idx = init_time_idx
             init_pos = self.environment.random_start_points(1)
             pos = init_pos.copy()
@@ -192,4 +200,5 @@ class QAgent(Agent):
 
     def kill(self, simulations_to_kill: np.ndarray) -> None:
         self.memory = self.memory[~simulations_to_kill]
-        self.current_state= self.current_state[~simulations_to_kill]
+        self.current_state = self.current_state[~simulations_to_kill]
+#        self.current_memory_len = self.current_memory_len[~simulations_to_kill]

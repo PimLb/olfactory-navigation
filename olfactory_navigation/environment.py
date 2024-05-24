@@ -348,7 +348,9 @@ class Environment:
         # Return 0.0 if outside of data zone
         data_pos = pos - self.margins[:,0][None,:]
         data_pos_valid = xp.all((data_pos >= 0) & (data_pos < self.data.shape[1:]), axis=1)
-        observation = xp.where(data_pos_valid, self.data[time, data_pos[:,0], data_pos[:,1]], 0.0)
+        observation = xp.zeros(data_pos.shape[0])
+        observation[data_pos_valid] = self.data[time, data_pos[data_pos_valid,0], data_pos[data_pos_valid,1]]
+#        observation = xp.where(data_pos_valid, self.data[time, data_pos[data_pos_valid,0], data_pos[data_pos_valid,1]], 0.0)
 
         return float(observation[0]) if is_single_point else observation
 
