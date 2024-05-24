@@ -89,10 +89,42 @@ def buildWindow():
             ax = self.mpl_frame.get_axes()[0]
             ax.clear()
 
+            # Basics
             shape = np.array([int(self.config['discretization_y']), int(self.config['discretization_x'])])
+            margins = np.array([
+                [int(self.config['margin_up']), int(self.config['margin_down'])],
+                [int(self.config['margin_left']), int(self.config['margin_right'])]
+            ])
+            data_source_position = np.array([int(self.config['data_source_y']), int(self.config['data_source_x'])])
+
+
+            # Computing bounds
             data_bounds = np.array([
-                [int(self.config['margin_up']), shape[0] - int(self.config['margin_down'])],
-                [int(self.config['margin_left']), shape[1] - int(self.config['margin_right'])]
+                [margins[0,0], shape[0] - margins[0,1]],
+                [margins[1,0], shape[1] - margins[1,1]]
+            ])
+            new_data_shape = np.diff(data_bounds, axis=1)[:,0].astype(int)
+
+            # Multiplier
+            multiplier = np.array([int(self.config['multiplier_y'])/100, int(self.config['multiplier_x'])/100])
+            new_data_shape = (new_data_shape * multiplier).astype(int)
+
+            # New source position and margins based on multiplier
+            new_source_position = (data_source_position * multiplier).astype(int)
+
+            margins[:,0] -= (new_source_position - data_source_position)
+            margins[:,1] = (shape - (margins[:,0] + new_data_shape))
+
+            data_source_position = new_source_position
+
+            # Source position
+            source_position = data_source_position + margins[:,0]
+            source_radius = int(self.config['source_radius'])
+
+            # Recomputing bounds
+            data_bounds = np.array([
+                [margins[0,0], shape[0] - margins[0,1]],
+                [margins[1,0], shape[1] - margins[1,1]]
             ])
 
             # Interpolation of new data
@@ -102,20 +134,16 @@ def buildWindow():
                 'Cubic': cv2.INTER_CUBIC
             }
 
-            new_data_shape = np.diff(data_bounds, axis=1)[:,0].astype(int).tolist()
-            new_data = np.zeros((len(self.data), *new_data_shape))
-            for i in range(len(self.data)):
-                new_data[i] = cv2.resize(self.data[i], new_data_shape[::-1], interpolation=interpolation_options[self.config['interpolation']])
-
-            # Source position
-            source_position = np.array([(int(self.config['data_source_y']) + int(self.config['margin_up'])), 
-                                        (int(self.config['data_source_x']) + int(self.config['margin_left']))])
-            source_radius = int(self.config['source_radius'])
+            new_data_frame = np.zeros(new_data_shape)
+            new_data_frame = cv2.resize(self.data_frame, new_data_shape[::-1], interpolation=interpolation_options[self.config['interpolation']])
 
             # Computing start zone
             start_probabilities = np.zeros(shape, dtype=float)
             if self.config['start_zone'] == 'odor_present':
-                start_probabilities[data_bounds[0,0]:data_bounds[0,1], data_bounds[1,0]:data_bounds[1,1]] = np.where(np.sum((new_data > float(self.config['threshold'])).astype(float), axis=0) > 0, 1.0, 0.0)
+                non_zero_obs = np.where(np.sum((self.data > float(self.config['threshold'])).astype(float), axis=0) > 0, 1.0, 0.0)
+                new_shape_non_zero_obs = cv2.resize(non_zero_obs, new_data_shape[::-1], interpolation=interpolation_options[self.config['interpolation']])
+
+                start_probabilities[data_bounds[0,0]:data_bounds[0,1], data_bounds[1,0]:data_bounds[1,1]] = new_shape_non_zero_obs
             else:
                 start_probabilities[data_bounds[0,0]:data_bounds[0,1], data_bounds[1,0]:data_bounds[1,1]] = 1.0
 
@@ -126,7 +154,7 @@ def buildWindow():
 
             # Odor grid
             odor = plt.Rectangle([0,0], 1, 1, color='black', fill=True)
-            frame_data = (new_data[0] > float(self.config['threshold'])).astype(float)
+            frame_data = (new_data_frame > float(self.config['threshold'])).astype(float)
             environment_frame = np.zeros(shape, dtype=float)
             environment_frame[data_bounds[0,0]:data_bounds[0,1], data_bounds[1,0]:data_bounds[1,1]] = frame_data
             ax.imshow(environment_frame, cmap='Greys')
