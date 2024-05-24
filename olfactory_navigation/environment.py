@@ -4,7 +4,6 @@ import os
 import shutil
 
 from matplotlib import pyplot as plt
-from scipy import interpolate
 from typing import Literal
 
 import numpy as np
@@ -20,19 +19,28 @@ class Environment:
     '''
     Class to represent an olfactory environment.
 
-    It is defined based on an olfactory data set.
+    It is defined based on an olfactory data set provided as either a numpy file or an array directly with shape time, y, x.
+    From this environment, the various parameters are applied in the following order:
 
-    margins can be provided as:
+    0. The source position is set
+    1. The margins are added and the discretization (total size of the final environment are set). 
+    2. The data file's x and y components are squished and streched the to fit the inter-marginal shape of the environment.
+    3. The source's position is also moved to stay at the same position within the data.
+    4. The multiplier is finally applied to modify the data file's x and y components a final time by growing or shrinking the margins to account for the multiplier. (The multiplication applies with the source position as a center point)
     
-    - An equal margin on each side
-    - A array of 2 elements for x and y margins
-    - A 2D array for each element being [axis, side] where axis is [vertical, horizontal] and side is [L,R]
+    Note: to modify the shape of the data file's x and y components the OpenCV library's resize function is used. And the interpolation method is controlled by the interpolation_method parameter. 
+
+
+    Then, the starting probability map is built. Either an array can be provided directly or preset option can be chosen:
+    
+    - 'data_zone': The agent can start at any point in the data_zone (after all the modification parameters have been applied)
+    - 'odor_present': The agent can start at any point where an odor cue above the odor_present_threshold can be found at any timestep during the simulation
 
     Parameters
     ----------
     data_file : str or np.ndarray
         The dataset containing the olfactory data. It can be provided as a path to a file containing said array.
-    source_position : list or np.ndarray
+    data_source_position : list or np.ndarray
         The center point of the source provided as a list or a 1D array with the components being x,y.
         This position is computed in the olfactory data zone (so excluding the margins).
     source_radius : int, default=1
@@ -41,15 +49,18 @@ class Environment:
         A 2-element array or list of how many units should be kept in the final array (including the margins).
         As it should include the margins, the discretization amounts should be strictly larger than the sum of the margins in each direction.
         By default, the shape of the olfactory data will be maintained.
-    multiplier : int or list or np.ndarray, optional
-        A single multiplier or a 2-element array or list of how much the odor field should be streched in each direction.
-        If a value larger than 1 is provided, the margins will be reduced to accomodate for the larger size of the olfactory data size.
-        And inversly, less than 1 will increase the margins.
-        By default, the multipliers will be set to 1.0.
     margins : int or list or np.ndarray, default=0
         How many discretized units have to be added to the data as margins. (Before the multiplier is applied)
         If a unique element is provided, the margin will be this same value on each side.
         If a list or array of 2 elements is provided, the first number will be vertical margins (y-axis), while the other will be on the x-axis (horizontal).
+    multiplier : list or np.ndarray, default=[1.0,1.0]
+        A 2-element array or list of how much the odor field should be streched in each direction.
+        If a value larger than 1 is provided, the margins will be reduced to accomodate for the larger size of the olfactory data size.
+        And inversly, less than 1 will increase the margins.
+        By default, the multipliers will be set to 1.0.
+    interpolation_method : 'Nearest' or 'Linear' or 'Cubic', default='Linear'
+        The interpolation method to be used in the case the data needs to be reshaped to fit the discretization, margins and multiplier parameters.
+        By default, it uses Bi-linear interpolation. The interpolation is performed using the OpenCV library.
     boundary_condition : 'stop' or 'wrap' or 'wrap_vertical' or 'wrap_horizontal' or 'clip', default='stop'
         How the agent should behave at the boundary.
         Stop means for the agent to stop at the boundary, if the agent tries to move north while being on the top edge, it will stay in the same state.
@@ -73,31 +84,31 @@ class Environment:
     Attributes
     ----------
     data : np.ndarray
-        An array containing the olfactory data.
+        An array containing the olfactory data after the modification parameters have been applied.
     data_file_path : str
         If the data is loaded from a path, the path will be recorded here.
-    margins : np.ndarray
-        An array of the margins vertically and horizontally.
-    height : int
-        The height of the data's odor field.
-    width : int
-        The width of the data's odor field.
-    padded_height : int
-        The height of the environment padded with the vertical margins.
-    padded_width : int
-        The width of the environment passed with the horizontal margins.
-    shape : tuple[int, int]
-        The shape of the environment. It is a tuple of <padded_height, padded_width>.
-    data_bounds : np.ndarray
-        The bounds between which the original olfactory data stands in the coordinate system of the environment.
-    discretization : int
-        The discretization of the source data. If set to 2, the source data will be sampled every two units. (NOT IMPLEMENTED)
     data_source_position : np.ndarray
-        The position of the source in the original data file.
+        The position of the source in the original data file (after modifications have been applied).
+    margins : np.ndarray
+        An array of the margins vertically and horizontally (after multiplier is applied).
+    data_height : int
+        The height of the data's odor field (after modifications have been applied).
+    data_width : int
+        The width of the data's odor field (after modifications have been applied).
+    total_height : int
+        The height of the environment padded with the vertical margins (the discretization 0's component).
+    total_width : int
+        The width of the environment passed with the horizontal margins (the discretization 1's component).
+    shape : tuple[int, int]
+        The shape of the environment. It is a tuple of <total_height, total_width>. (Equal to the discretization).
+    data_bounds : np.ndarray
+        The bounds between which the original olfactory data stands in the coordinate system of the environment (after modifications have been applied).
     source_position : np.ndarray
-        The position of the source in the padded grid.
+        The position of the source in the padded grid (after modifications have been applied).
     source_radius : int
         The radius of the source.
+    interpolation_method : str
+        The interpolation used to modify the shape of the original data.
     boundary_condition : str
         How the agent should behave when reaching the boundary.
     start_probabilities : np.ndarray
@@ -109,6 +120,8 @@ class Environment:
         The threshold used to uild the start probabilities if the option 'odor_present' is used.
     name : str
         The name set to the agent as defined in the parameters.
+    saved_at : str
+        If the environment is saved, the path at which it is saved will be recorded here.
     on_gpu : bool
         Whether the environment's arrays are on the gpu's memory or not.
     seed : int
@@ -120,10 +133,10 @@ class Environment:
                  data_file: str | np.ndarray,
                  data_source_position: list | np.ndarray,
                  source_radius: int = 1,
-                 discretization: np.ndarray | None = None,
-                 multiplier: np.ndarray | None = None,
-                 interpolation_method: Literal['Nearest', 'Linear', 'Cubic'] = 'Linear',
+                 discretization: list | np.ndarray | None = None,
                  margins: int | list | np.ndarray = 0,
+                 multiplier: list| np.ndarray = [1.0, 1.0],
+                 interpolation_method: Literal['Nearest', 'Linear', 'Cubic'] = 'Linear',
                  boundary_condition: Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip', 'no'] = 'stop',
                  start_zone: Literal['odor_present', 'data_zone'] | np.ndarray = 'data_zone',
                  odor_present_threshold: float | None = None,
@@ -144,27 +157,31 @@ class Environment:
         
         self.data: np.ndarray = data_file if isinstance(data_file, np.ndarray) else loaded_data
 
-        # Making margins a 2x2 array 
+        # Making margins a 2x2 array
         if isinstance(margins, int):
             self.margins = np.ones((2,2), dtype=int) * margins
-        elif isinstance(margins, list) or (margins.shape == (2,)):
-            assert len(margins) == 2, 'Margins, if provided as a list must contain only two elements.'
+        elif isinstance(margins, list) or isinstance(margins, np.ndarray):
             margins = np.array(margins)
-            self.margins = np.hstack((margins[:,None], margins[:,None]))
-        elif margins.shape == (2,2):
-            self.margins = margins
+            if margins.shape == (2,):
+                self.margins = np.hstack((margins[:,None], margins[:,None]))
+            elif margins.shape == (2,2):
+                self.margins = margins
+            else:
+                raise ValueError('The array or lists of Margins provided have a shape not supported. (Supported formats (2,) or (2,2))')
         else:
             raise ValueError('margins argument should be either an integer or a 1D or 2D array with either shape (2) or (2,2)')
         assert self.margins.dtype == int, 'margins should be integers'
 
         # Unmodified sizes
         data_shape = self.data.shape[1:]
-        timesteps, self.height, self.width = self.data.shape
+        timesteps, self.data_height, self.data_width = self.data.shape
         self.data_source_position = np.array(data_source_position)
 
         # Process discretization parameter
         new_data_shape = None
         if discretization is not None:
+            discretization = np.array(discretization)
+
             assert np.all(discretization > np.sum(self.margins, axis=1)), "The discretization must be strictly larger than the sum of margins."
 
             # Computing the new shape of the data
@@ -175,27 +192,28 @@ class Environment:
         else:
             discretization = data_shape + np.sum(self.margins, axis=1)
 
-        self.discretization = discretization
-
         # Process multiplier
         if multiplier is not None:
+            multiplier = np.array(multiplier)
+
             if new_data_shape is None:
                 new_data_shape = data_shape
             new_data_shape = (new_data_shape * multiplier).astype(int)
 
-            assert np.all(new_data_shape < self.discretization), f"Multiplier goes out of bounds (Maximum allowed: {self.discretization / data_shape})"
+            assert np.all(new_data_shape <= discretization), f"Multiplier goes out of bounds (Maximum allowed: {discretization / data_shape})"
 
             # New source position
             new_source_position = (self.data_source_position * multiplier).astype(int)
 
             # Recomputing margins
             self.margins[:,0] -= (new_source_position - self.data_source_position)
-            self.margins[:,1] = (self.discretization - (self.margins[:,0] + new_data_shape))
+            self.margins[:,1] = (discretization - (self.margins[:,0] + new_data_shape))
 
             # Setting new source position
             self.data_source_position = new_source_position
 
         # Reshape data is a new_shape if set by custom discretization or multiplier
+        self.interpolation_method = interpolation_method
         if new_data_shape is not None:
             # Interpolation of new data
             interpolation_options = {
@@ -210,15 +228,15 @@ class Environment:
                 new_data[i] = cv2.resize(self.data[i], dsize=new_data_shape[::-1], interpolation=interpolation_choice)
 
             self.data = new_data
-            self.height, self.width = new_data_shape
+            self.data_height, self.data_width = new_data_shape
 
         # Reading shape of data array
-        self.padded_height:int = self.height + np.sum(self.margins[0])
-        self.padded_width:int = self.width + np.sum(self.margins[1])
-        self.shape:tuple[int, int] = (self.padded_height, self.padded_width)
+        self.total_height:int = self.data_height + np.sum(self.margins[0])
+        self.total_width:int = self.data_width + np.sum(self.margins[1])
+        self.shape:tuple[int, int] = (self.total_height, self.total_width)
         
         # Building a data bounds
-        self.data_bounds = np.array([[self.margins[0,0], self.margins[0,0]+self.height], [self.margins[1,0], self.margins[1,0]+self.width]])
+        self.data_bounds = np.array([[self.margins[0,0], self.margins[0,0]+self.data_height], [self.margins[1,0], self.margins[1,0]+self.data_width]])
 
         # Saving arguments
         self.source_position = self.data_source_position + self.margins[:,0]
@@ -257,7 +275,8 @@ class Environment:
         # Name
         self.name = name
         if self.name is None:
-            self.name =  f'{self.padded_height}_{self.padded_width}' # Size of env
+            self.name =  f'{self.total_height}_{self.total_width}' # Size of env
+            self.name += f'-marg_{self.margins[0,0]}_{self.margins[0,1]}_{self.margins[1,0]}_{self.margins[1,1]}' # Boundary condition
             self.name += f'-edge_{self.boundary_condition}' # Boundary condition
             self.name += f'-start_{self.start_type}' # Start zone
             self.name += f'-source_{self.source_position[0]}_{self.source_position[1]}_radius{self.source_radius}' # Source
@@ -401,8 +420,8 @@ class Environment:
 
         assert n>0, "n has to be a strictly positive number (>0)"
 
-        random_states = self.rnd_state.choice(xp.arange(self.padded_height * self.padded_width), size=n, replace=True, p=self.start_probabilities.ravel())
-        random_states_2d = xp.array(xp.unravel_index(random_states, (self.padded_height, self.padded_width))).T
+        random_states = self.rnd_state.choice(xp.arange(self.total_height * self.total_width), size=n, replace=True, p=self.start_probabilities.ravel())
+        random_states_2d = xp.array(xp.unravel_index(random_states, (self.total_height, self.total_width))).T
         return random_states_2d
 
 
@@ -437,20 +456,20 @@ class Environment:
 
         # Wrap condition for vertical axis
         if self.boundary_condition in ['wrap', 'wrap_vertical']:
-            new_pos[new_pos[:,0] < 0, 0] += self.padded_height
-            new_pos[new_pos[:,0] >= self.padded_height, 0] -= self.padded_height
+            new_pos[new_pos[:,0] < 0, 0] += self.total_height
+            new_pos[new_pos[:,0] >= self.total_height, 0] -= self.total_height
 
         # Wrap condition for horizontal axis
         if self.boundary_condition in ['wrap', 'wrap_horizontal']:
-            new_pos[new_pos[:,1] < 0, 1] += self.padded_width
-            new_pos[new_pos[:,1] >= self.padded_width, 1] -= self.padded_width
+            new_pos[new_pos[:,1] < 0, 1] += self.total_width
+            new_pos[new_pos[:,1] >= self.total_width, 1] -= self.total_width
 
         # Stop condition
         if (self.boundary_condition == 'stop') or (self.boundary_condition == 'wrap_horizontal'):
-            new_pos[:,0] = xp.clip(new_pos[:,0], 0, (self.padded_height-1))
+            new_pos[:,0] = xp.clip(new_pos[:,0], 0, (self.total_height-1))
 
         if (self.boundary_condition == 'stop') or (self.boundary_condition == 'wrap_vertical'):
-            new_pos[:,1] = xp.clip(new_pos[:,1], 0, (self.padded_width-1))
+            new_pos[:,1] = xp.clip(new_pos[:,1], 0, (self.total_width-1))
 
         if is_single_point:
             new_pos = new_pos[0]
@@ -554,17 +573,17 @@ class Environment:
         if self.data_file_path is not None:
             arguments['data_file_path'] = self.data_file_path
 
-        arguments['width']                 = self.width
-        arguments['height']                = self.height
+        arguments['data_width']            = int(self.data_width)
+        arguments['data_height']           = int(self.data_height)
         arguments['margins']               = self.margins.tolist()
-        arguments['padded_width']          = int(self.padded_width)
-        arguments['padded_height']         = int(self.padded_height)
+        arguments['total_width']           = int(self.total_width)
+        arguments['total_height']          = int(self.total_height)
         arguments['shape']                 = [int(s) for s in self.shape]
         arguments['data_bounds']           = self.data_bounds.tolist()
-        arguments['discretization']        = self.discretization
         arguments['data_source_position']  = self.data_source_position.tolist()
         arguments['source_position']       = self.source_position.tolist()
         arguments['source_radius']         = self.source_radius
+        arguments['interpolation_method']  = self.interpolation_method
         arguments['boundary_condition']    = self.boundary_condition
         arguments['start_type']            = self.start_type
         arguments['seed']                  = self.seed
@@ -624,17 +643,17 @@ class Environment:
 
             # Set the arguments
             loaded_env.name                   = arguments['name']
-            loaded_env.width                  = arguments['width']
-            loaded_env.height                 = arguments['height']
+            loaded_env.data_width             = arguments['data_width']
+            loaded_env.data_height            = arguments['data_height']
             loaded_env.margins                = np.array(arguments['margins'])
-            loaded_env.padded_width           = arguments['padded_width']
-            loaded_env.padded_height          = arguments['padded_height']
+            loaded_env.total_width            = arguments['total_width']
+            loaded_env.total_height           = arguments['total_height']
             loaded_env.shape                  = set(arguments['shape'])
             loaded_env.data_bounds            = np.array(arguments['data_bounds'])
-            loaded_env.discretization         = arguments['discretization']
             loaded_env.data_source_position   = np.array(arguments['data_source_position'])
             loaded_env.source_position        = np.array(arguments['source_position'])
             loaded_env.source_radius          = arguments['source_radius']
+            loaded_env.interpolation_method   = arguments['interpolation_method']
             loaded_env.boundary_condition     = arguments['boundary_condition']
             loaded_env.on_gpu                 = False
             loaded_env.seed                   = arguments['seed']
@@ -657,10 +676,11 @@ class Environment:
 
             loaded_env = Environment(
                 data_file              = arguments['data_file_path'],
-                data_source_position        = np.array(arguments['data_source_position']),
+                data_source_position   = arguments['data_source_position'],
                 source_radius          = arguments['source_radius'],
-                discretization         = arguments['discretization'],
-                margins                = np.array(arguments['margins']),
+                discretization         = arguments['shape'],
+                margins                = arguments['margins'],
+                interpolation_method   = arguments['interpolation_method'],
                 boundary_condition     = arguments['boundary_condition'],
                 start_zone             = start_zone,
                 odor_present_threshold = arguments.get('odor_present_threshold'),
