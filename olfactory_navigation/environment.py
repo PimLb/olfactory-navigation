@@ -745,3 +745,65 @@ class Environment:
             return self._alternate_version
 
         return self
+
+
+    def modify(self,
+               data_source_position: list | np.ndarray | None = None,
+               source_radius: int | None = None,
+               discretization: list | np.ndarray | None = None,
+               margins: int | list | np.ndarray | None = None,
+               multiplier: list | np.ndarray | None = None,
+               interpolation_method: str | None = None,
+               boundary_condition: str | None = None
+               ) -> 'Environment':
+        '''
+        Returns a copy of the environment with one or more parameters modified.
+
+        Parameters
+        ----------
+        data_source_position: list or np.ndarray, optional
+            A new position for the source relative to the data file.
+        source_radius: int, optional
+            A new source radius.
+        discretization: list or np.ndarray, optional
+            A new shape of environment.
+        margins: int or list or np.ndarray, optional
+            A new set of margins.
+        multiplier: list or np.ndarray, optional
+            A new multiplier to be applied to the data file (this will in turn increase or reduce the margins).
+        interpolation_method: str, optional
+            A new interpolation method to be used.
+        boundary_condition: str, optional
+            New boundary conditions for how the agent should behave at the edges.
+
+        Returns
+        -------
+        modified_environment
+            A copy of the environment where the modified parameters have been applied.
+        '''
+        if self.on_gpu:
+            return self.to_cpu().modify(
+                data_source_position = data_source_position,
+                source_radius        = source_radius,
+                discretization       = discretization,
+                margins              = margins,
+                multiplier           = multiplier,
+                interpolation_method = interpolation_method,
+                boundary_condition   = boundary_condition
+            )
+
+        modified_environment = Environment(
+            data_file              = (self.data_file_path if (self.data_file_path is not None) else self.data),
+            data_source_position   = (data_source_position if (data_source_position is not None) else self.original_data_source_position),
+            source_radius          = (source_radius if (source_radius is not None) else self.source_radius),
+            discretization         = (discretization if (discretization is not None) else self.shape),
+            margins                = (margins if (margins is not None) else self.margins),
+            multiplier             = (multiplier if (multiplier is not None) else [1.0,1.0]),
+            interpolation_method   = (interpolation_method if (interpolation_method is not None) else self.interpolation_method),
+            boundary_condition     = (boundary_condition if (boundary_condition is not None) else self.boundary_condition),
+            start_zone             = self.start_type,
+            odor_present_threshold = self.odor_present_threshold,
+            name                   = self.name,
+            seed                   = self.seed
+        )
+        return modified_environment
