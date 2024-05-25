@@ -23,7 +23,7 @@ class Environment:
     From this environment, the various parameters are applied in the following order:
 
     0. The source position is set
-    1. The margins are added and the discretization (total size of the final environment are set). 
+    1. The margins are added and the shape (total size) of the environment are set. 
     2. The data file's x and y components are squished and streched the to fit the inter-marginal shape of the environment.
     3. The source's position is also moved to stay at the same position within the data.
     4. The multiplier is finally applied to modify the data file's x and y components a final time by growing or shrinking the margins to account for the multiplier. (The multiplication applies with the source position as a center point)
@@ -45,12 +45,12 @@ class Environment:
         This position is computed in the olfactory data zone (so excluding the margins).
     source_radius : int, default=1
         The radius from the center point of the source in which we consider the agent has reached the source.
-    discretization : list or np.ndarray, optional
+    shape : list or np.ndarray, optional
         A 2-element array or list of how many units should be kept in the final array (including the margins).
-        As it should include the margins, the discretization amounts should be strictly larger than the sum of the margins in each direction.
+        As it should include the margins, the shape should be strictly larger than the sum of the margins in each direction.
         By default, the shape of the olfactory data will be maintained.
     margins : int or list or np.ndarray, default=0
-        How many discretized units have to be added to the data as margins. (Before the multiplier is applied)
+        How many units have to be added to the data as margins. (Before the multiplier is applied)
         If a unique element is provided, the margin will be this same value on each side.
         If a list or array of 2 elements is provided, the first number will be vertical margins (y-axis), while the other will be on the x-axis (horizontal).
     multiplier : list or np.ndarray, default=[1.0,1.0]
@@ -59,7 +59,7 @@ class Environment:
         And inversly, less than 1 will increase the margins.
         By default, the multipliers will be set to 1.0.
     interpolation_method : 'Nearest' or 'Linear' or 'Cubic', default='Linear'
-        The interpolation method to be used in the case the data needs to be reshaped to fit the discretization, margins and multiplier parameters.
+        The interpolation method to be used in the case the data needs to be reshaped to fit the shape, margins and multiplier parameters.
         By default, it uses Bi-linear interpolation. The interpolation is performed using the OpenCV library.
     boundary_condition : 'stop' or 'wrap' or 'wrap_vertical' or 'wrap_horizontal' or 'clip', default='stop'
         How the agent should behave at the boundary.
@@ -91,16 +91,18 @@ class Environment:
         The position of the source in the original data file (after modifications have been applied).
     margins : np.ndarray
         An array of the margins vertically and horizontally (after multiplier is applied).
+    data_shape : tuple[int, int]
+        The shape of the data's odor field (after modifications have been applied).
     data_height : int
         The height of the data's odor field (after modifications have been applied).
     data_width : int
         The width of the data's odor field (after modifications have been applied).
-    total_height : int
-        The height of the environment padded with the vertical margins (the discretization 0's component).
-    total_width : int
-        The width of the environment passed with the horizontal margins (the discretization 1's component).
     shape : tuple[int, int]
-        The shape of the environment. It is a tuple of <total_height, total_width>. (Equal to the discretization).
+        The shape of the environment. It is a tuple of <total_height, total_width>.
+    total_height : int
+        The height of the environment padded with the vertical margins (the shape's 0's component).
+    total_width : int
+        The width of the environment passed with the horizontal margins (the shape's 1's component).
     data_bounds : np.ndarray
         The bounds between which the original olfactory data stands in the coordinate system of the environment (after modifications have been applied).
     source_position : np.ndarray
@@ -133,7 +135,7 @@ class Environment:
                  data_file: str | np.ndarray,
                  data_source_position: list | np.ndarray,
                  source_radius: int = 1,
-                 discretization: list | np.ndarray | None = None,
+                 shape: list | np.ndarray | None = None,
                  margins: int | list | np.ndarray = 0,
                  multiplier: list| np.ndarray = [1.0, 1.0],
                  interpolation_method: Literal['Nearest', 'Linear', 'Cubic'] = 'Linear',
@@ -173,47 +175,53 @@ class Environment:
         assert self.margins.dtype == int, 'margins should be integers'
 
         # Unmodified sizes
-        data_shape = self.data.shape[1:]
+        self.data_shape = self.data.shape[1:]
         timesteps, self.data_height, self.data_width = self.data.shape
         self.data_source_position = np.array(data_source_position)
         self.original_data_source_position = self.data_source_position
 
-        # Process discretization parameter
+        # Process shape parameter
         new_data_shape = None
-        if discretization is not None:
-            discretization = np.array(discretization)
+        if shape is not None:
+            shape = np.array(shape)
 
-            assert np.all(discretization > np.sum(self.margins, axis=1)), "The discretization must be strictly larger than the sum of margins."
+            assert np.all(shape > np.sum(self.margins, axis=1)), "The shape of the environment must be strictly larger than the sum of margins."
 
             # Computing the new shape of the data
-            new_data_shape = discretization - np.sum(self.margins, axis=1)
+            new_data_shape = shape - np.sum(self.margins, axis=1)
             
             # New source position
-            self.data_source_position = (self.data_source_position * (new_data_shape / data_shape)).astype(int)
+            self.data_source_position = (self.data_source_position * (new_data_shape / self.data_shape)).astype(int)
         else:
-            discretization = data_shape + np.sum(self.margins, axis=1)
+            shape = self.data_shape + np.sum(self.margins, axis=1)
 
         # Process multiplier
-        if multiplier is not None:
-            multiplier = np.array(multiplier)
+        multiplier = np.array(multiplier)
 
-            if new_data_shape is None:
-                new_data_shape = data_shape
-            new_data_shape = (new_data_shape * multiplier).astype(int)
+        # Assert multiplier value is correct
+        with np.seterr(divide='ignore'):
+            low_max_mult = ((self.margins[:,0] / self.data_source_position) + 1)
+            high_max_mult = (1 + (self.margins[:,1] / (self.data_shape - self.data_source_position)))
+            max_mult = np.min(np.vstack([low_max_mult, high_max_mult]), axis=0)
 
-            assert np.all(new_data_shape <= discretization), f"Multiplier goes out of bounds (Maximum allowed: {discretization / data_shape})"
+            assert np.all(multiplier <= max_mult), f"The multiplier given is larger than allowed (the values should be lower than {max_mult})"
 
-            # New source position
-            new_source_position = (self.data_source_position * multiplier).astype(int)
+        # Compute new data shape with the multiplier
+        if new_data_shape is None:
+            new_data_shape = self.data_shape
+        new_data_shape = (new_data_shape * multiplier).astype(int)
 
-            # Recomputing margins
-            self.margins[:,0] -= (new_source_position - self.data_source_position)
-            self.margins[:,1] = (discretization - (self.margins[:,0] + new_data_shape))
+        # New source position based on multiplier
+        new_source_position = (self.data_source_position * multiplier).astype(int)
 
-            # Setting new source position
-            self.data_source_position = new_source_position
+        # Recomputing margins with new source position
+        self.margins[:,0] -= (new_source_position - self.data_source_position)
+        self.margins[:,1] = (shape - (self.margins[:,0] + new_data_shape))
 
-        # Reshape data is a new_shape if set by custom discretization or multiplier
+        # Re-Setting new source position
+        self.data_source_position = new_source_position
+
+        # Reshape data is a new_shape if set by custom shape or multiplier
         self.interpolation_method = interpolation_method
         if new_data_shape is not None:
             # Interpolation of new data
@@ -645,6 +653,7 @@ class Environment:
 
             # Set the arguments
             loaded_env.name                          = arguments['name']
+            loaded_env.data_shape                    = {arguments['data_height'], arguments['data_width']}
             loaded_env.data_width                    = arguments['data_width']
             loaded_env.data_height                   = arguments['data_height']
             loaded_env.margins                       = np.array(arguments['margins'])
@@ -681,7 +690,7 @@ class Environment:
                 data_file              = arguments['data_file_path'],
                 data_source_position   = arguments['original_data_source_position'],
                 source_radius          = arguments['source_radius'],
-                discretization         = arguments['shape'],
+                shape         = arguments['shape'],
                 margins                = arguments['margins'],
                 interpolation_method   = arguments['interpolation_method'],
                 boundary_condition     = arguments['boundary_condition'],
@@ -750,7 +759,7 @@ class Environment:
     def modify(self,
                data_source_position: list | np.ndarray | None = None,
                source_radius: int | None = None,
-               discretization: list | np.ndarray | None = None,
+               shape: list | np.ndarray | None = None,
                margins: int | list | np.ndarray | None = None,
                multiplier: list | np.ndarray | None = None,
                interpolation_method: str | None = None,
@@ -765,7 +774,7 @@ class Environment:
             A new position for the source relative to the data file.
         source_radius: int, optional
             A new source radius.
-        discretization: list or np.ndarray, optional
+        shape: list or np.ndarray, optional
             A new shape of environment.
         margins: int or list or np.ndarray, optional
             A new set of margins.
@@ -785,7 +794,7 @@ class Environment:
             return self.to_cpu().modify(
                 data_source_position = data_source_position,
                 source_radius        = source_radius,
-                discretization       = discretization,
+                shape                = shape,
                 margins              = margins,
                 multiplier           = multiplier,
                 interpolation_method = interpolation_method,
@@ -796,7 +805,7 @@ class Environment:
             data_file              = (self.data_file_path if (self.data_file_path is not None) else self.data),
             data_source_position   = (data_source_position if (data_source_position is not None) else self.original_data_source_position),
             source_radius          = (source_radius if (source_radius is not None) else self.source_radius),
-            discretization         = (discretization if (discretization is not None) else self.shape),
+            shape                  = (shape if (shape is not None) else self.shape),
             margins                = (margins if (margins is not None) else self.margins),
             multiplier             = (multiplier if (multiplier is not None) else [1.0,1.0]),
             interpolation_method   = (interpolation_method if (interpolation_method is not None) else self.interpolation_method),

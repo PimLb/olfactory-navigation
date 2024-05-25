@@ -504,7 +504,7 @@ def buildWindow():
             environment = Environment(data_file=data_config.data_file,
                                       data_source_position=[int(data_config.config['data_source_y']), int(data_config.config['data_source_x'])],
                                       source_radius=int(data_config.config['source_radius']),
-                                      discretization=[int(data_config.config['discretization_y']), int(data_config.config['discretization_x'])],
+                                      shape=[int(data_config.config['discretization_y']), int(data_config.config['discretization_x'])],
                                       multiplier=[int(data_config.config['multiplier_y'])/100, int(data_config.config['multiplier_x'])/100],
                                       interpolation_method=data_config.config['interpolation'],
                                       margins=[[int(data_config.config['margin_up']), int(data_config.config['margin_down'])], [int(data_config.config['margin_left']), int(data_config.config['margin_right'])]],
