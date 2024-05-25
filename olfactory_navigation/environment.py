@@ -176,6 +176,7 @@ class Environment:
         data_shape = self.data.shape[1:]
         timesteps, self.data_height, self.data_width = self.data.shape
         self.data_source_position = np.array(data_source_position)
+        self.original_data_source_position = self.data_source_position
 
         # Process discretization parameter
         new_data_shape = None
@@ -573,20 +574,21 @@ class Environment:
         if self.data_file_path is not None:
             arguments['data_file_path'] = self.data_file_path
 
-        arguments['data_width']            = int(self.data_width)
-        arguments['data_height']           = int(self.data_height)
-        arguments['margins']               = self.margins.tolist()
-        arguments['total_width']           = int(self.total_width)
-        arguments['total_height']          = int(self.total_height)
-        arguments['shape']                 = [int(s) for s in self.shape]
-        arguments['data_bounds']           = self.data_bounds.tolist()
-        arguments['data_source_position']  = self.data_source_position.tolist()
-        arguments['source_position']       = self.source_position.tolist()
-        arguments['source_radius']         = self.source_radius
-        arguments['interpolation_method']  = self.interpolation_method
-        arguments['boundary_condition']    = self.boundary_condition
-        arguments['start_type']            = self.start_type
-        arguments['seed']                  = self.seed
+        arguments['data_width']                    = int(self.data_width)
+        arguments['data_height']                   = int(self.data_height)
+        arguments['margins']                       = self.margins.tolist()
+        arguments['total_width']                   = int(self.total_width)
+        arguments['total_height']                  = int(self.total_height)
+        arguments['shape']                         = [int(s) for s in self.shape]
+        arguments['data_bounds']                   = self.data_bounds.tolist()
+        arguments['original_data_source_position'] = self.original_data_source_position.tolist()
+        arguments['data_source_position']          = self.data_source_position.tolist()
+        arguments['source_position']               = self.source_position.tolist()
+        arguments['source_radius']                 = self.source_radius
+        arguments['interpolation_method']          = self.interpolation_method
+        arguments['boundary_condition']            = self.boundary_condition
+        arguments['start_type']                    = self.start_type
+        arguments['seed']                          = self.seed
 
         # Check how the start probabilities were built
         if self.start_type.startswith('custom') and len(self.start_type.split('_')) == 1 and not save_arrays:
@@ -642,27 +644,28 @@ class Environment:
             loaded_env = cls.__new__(cls)
 
             # Set the arguments
-            loaded_env.name                   = arguments['name']
-            loaded_env.data_width             = arguments['data_width']
-            loaded_env.data_height            = arguments['data_height']
-            loaded_env.margins                = np.array(arguments['margins'])
-            loaded_env.total_width            = arguments['total_width']
-            loaded_env.total_height           = arguments['total_height']
-            loaded_env.shape                  = set(arguments['shape'])
-            loaded_env.data_bounds            = np.array(arguments['data_bounds'])
-            loaded_env.data_source_position   = np.array(arguments['data_source_position'])
-            loaded_env.source_position        = np.array(arguments['source_position'])
-            loaded_env.source_radius          = arguments['source_radius']
-            loaded_env.interpolation_method   = arguments['interpolation_method']
-            loaded_env.boundary_condition     = arguments['boundary_condition']
-            loaded_env.on_gpu                 = False
-            loaded_env.seed                   = arguments['seed']
-            loaded_env.rnd_state              = np.random.RandomState(arguments['seed'])
+            loaded_env.name                          = arguments['name']
+            loaded_env.data_width                    = arguments['data_width']
+            loaded_env.data_height                   = arguments['data_height']
+            loaded_env.margins                       = np.array(arguments['margins'])
+            loaded_env.total_width                   = arguments['total_width']
+            loaded_env.total_height                  = arguments['total_height']
+            loaded_env.shape                         = set(arguments['shape'])
+            loaded_env.data_bounds                   = np.array(arguments['data_bounds'])
+            loaded_env.original_data_source_position = np.array(arguments['original_data_source_position'])
+            loaded_env.data_source_position          = np.array(arguments['data_source_position'])
+            loaded_env.source_position               = np.array(arguments['source_position'])
+            loaded_env.source_radius                 = arguments['source_radius']
+            loaded_env.interpolation_method          = arguments['interpolation_method']
+            loaded_env.boundary_condition            = arguments['boundary_condition']
+            loaded_env.on_gpu                        = False
+            loaded_env.seed                          = arguments['seed']
+            loaded_env.rnd_state                     = np.random.RandomState(arguments['seed'])
 
             # Optional arguments
-            loaded_env.data_file_path         = arguments.get('data_file_path')
-            loaded_env.odor_present_threshold = arguments.get('odor_present_threshold')
-            loaded_env.start_type             = arguments.get('start_type')
+            loaded_env.data_file_path                = arguments.get('data_file_path')
+            loaded_env.odor_present_threshold        = arguments.get('odor_present_threshold')
+            loaded_env.start_type                    = arguments.get('start_type')
 
             # Arrays
             loaded_env.data = data
@@ -676,7 +679,7 @@ class Environment:
 
             loaded_env = Environment(
                 data_file              = arguments['data_file_path'],
-                data_source_position   = arguments['data_source_position'],
+                data_source_position   = arguments['original_data_source_position'],
                 source_radius          = arguments['source_radius'],
                 discretization         = arguments['shape'],
                 margins                = arguments['margins'],
