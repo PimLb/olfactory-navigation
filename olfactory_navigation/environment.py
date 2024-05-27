@@ -199,7 +199,7 @@ class Environment:
         multiplier = np.array(multiplier)
 
         # Assert multiplier value is correct
-        with np.seterr(divide='ignore'):
+        with np.errstate(divide='ignore'):
             low_max_mult = ((self.margins[:,0] / self.data_source_position) + 1)
             high_max_mult = (1 + (self.margins[:,1] / (self.data_shape - self.data_source_position)))
             max_mult = np.min(np.vstack([low_max_mult, high_max_mult]), axis=0)

@@ -20,13 +20,13 @@ def buildWindow():
 
     entry_fields = {}
     linked_fields = {
-        'margin_all': ['discretization_y', 'discretization_y', 'discretization_x', 'discretization_x', 'margin_up', 'margin_down', 'margin_left', 'margin_right'],
-        'margin_ver': ['discretization_y', 'discretization_y', 'margin_up', 'margin_down'],
-        'margin_hor': ['discretization_x', 'discretization_x', 'margin_left', 'margin_right'],
-        'margin_up': ['discretization_y'],
-        'margin_down': ['discretization_y'],
-        'margin_left': ['discretization_x'],
-        'margin_right': ['discretization_x']
+        'margin_all': ['shape_y', 'shape_y', 'shape_x', 'shape_x', 'margin_up', 'margin_down', 'margin_left', 'margin_right'],
+        'margin_ver': ['shape_y', 'shape_y', 'margin_up', 'margin_down'],
+        'margin_hor': ['shape_x', 'shape_x', 'margin_left', 'margin_right'],
+        'margin_up': ['shape_y'],
+        'margin_down': ['shape_y'],
+        'margin_left': ['shape_x'],
+        'margin_right': ['shape_x']
     }
 
     class EnvironmentConfig:
@@ -49,9 +49,9 @@ def buildWindow():
             self._data = dat
             self.data_frame = self._data[0]
 
-            # Discretization
-            self.config['discretization_y'] = str(self.data_frame.shape[0])
-            self.config['discretization_x'] = str(self.data_frame.shape[1])
+            # Shape
+            self.config['shape_y'] = str(self.data_frame.shape[0])
+            self.config['shape_x'] = str(self.data_frame.shape[1])
 
             # Source
             self.config['data_source_y'] = "0"
@@ -90,7 +90,7 @@ def buildWindow():
             ax.clear()
 
             # Basics
-            shape = np.array([int(self.config['discretization_y']), int(self.config['discretization_x'])])
+            shape = np.array([int(self.config['shape_y']), int(self.config['shape_x'])])
             margins = np.array([
                 [int(self.config['margin_up']), int(self.config['margin_down'])],
                 [int(self.config['margin_left']), int(self.config['margin_right'])]
@@ -181,6 +181,44 @@ def buildWindow():
             # Refresh canvas
             self.canvas.draw()
 
+        def is_valid(self) -> bool:
+            margins = np.array([[int(self.config['margin_up']), int(self.config['margin_down'])],
+                                [int(self.config['margin_left']), int(self.config['margin_right'])]])
+            axis_margins = np.sum(margins, axis=1)
+            
+            data_source_position = np.array([int(self.config['data_source_y']), int(self.config['data_source_x'])])
+
+            shape = np.array([int(self.config['shape_y']), int(self.config['shape_x'])])
+            data_shape = shape - axis_margins
+
+            multiplier = np.array([int(self.config['multiplier_y']), int(self.config['multiplier_x'])]) / 100
+
+            # MARGINS
+            if np.any(margins < 0):
+                return False
+
+            # SHAPE
+            if np.any(shape < axis_margins):
+                return False
+            
+            # DATA SOURCE
+            if np.any(data_source_position < 0) or np.any(data_source_position >= data_shape):
+                return False
+
+            # MULTIPLIER
+            if np.any(multiplier < 0):
+                return False
+
+            with np.errstate(divide='ignore'):
+                low_max_mult = ((margins[:,0] / data_source_position) + 1)
+                high_max_mult = (1 + (margins[:,1] / (data_shape - data_source_position)))
+                max_mult = np.min(np.vstack([low_max_mult, high_max_mult]), axis=0)
+
+                if np.any(multiplier > max_mult):
+                    return False
+                
+            return True
+
 
     data_config = EnvironmentConfig()
 
@@ -188,10 +226,38 @@ def buildWindow():
         '''
         Function to gather the values from all the entry fields and refresh the printed data
         '''
-        for k, v in entry_fields.items():
-            data_config.config[k] = v.get()
-        
-        data_config.refresh()
+        old_config = {}
+        changed_config = {}
+
+        for k, entry in entry_fields.items():
+            old_config[k] = data_config.config[k]
+            data_config.config[k] = entry.get()
+
+            changed_config[k] = (old_config[k] != data_config.config[k])
+
+        if not data_config.is_valid():
+
+            # Resetting the changed configs
+            for k, entry in entry_fields.items():
+                if not changed_config[k]:
+                    continue
+
+                data_config.config[k] = old_config[k]
+
+                if isinstance(entry, tk.Entry):
+                    entry.delete(0, tk.END)
+                    entry.insert(0, old_config[k])
+                elif isinstance(entry, tk.StringVar):
+                    entry.set(old_config[k])
+                else:
+                    raise Exception(f'{k} entry not supported')
+
+            popFailWin(['Caused the config to fail:',
+                        *[f'- "{k.replace("_", " ")}"' for k, v in changed_config.items() if v],
+                        "",
+                        "Values were reset to the last good value!"])
+        else:
+            data_config.refresh()
 
     # Base of the window
     root = tk.Tk()
@@ -227,6 +293,23 @@ def buildWindow():
         success_close_button.pack(side="top")
 
         success_win.mainloop()
+
+
+    def popFailWin(lines:list[str]):
+        fail_win = tk.Tk()
+
+        fail_label = tk.Label(fail_win, text="Wrong config!", font="Helvetica 12 bold", fg='red')
+        fail_label.pack(side="top")
+        
+        fail_text = tk.Text(master=fail_win)
+        fail_text.insert("1.0", '\n'.join(lines))
+        fail_text.pack(side="top")
+
+        fail_close_button = tk.Button(fail_win, text='OK', command=fail_win.destroy)
+        fail_close_button.pack(side="top")
+
+        fail_win.mainloop()
+
 
 
     # FILE CHOOSER
@@ -360,8 +443,8 @@ def buildWindow():
         total_size_label = tk.Label(master=total_size_frame, text="Total Size Configuration", font=bold_font)
         total_size_label.grid(row=0, columnspan=2, sticky="w", pady=5)
 
-        createValueConfig(in_frame=total_size_frame, at_row=1, name="Total Height", config_name="discretization_y")
-        createValueConfig(in_frame=total_size_frame, at_row=2, name="Total Width", config_name="discretization_x")
+        createValueConfig(in_frame=total_size_frame, at_row=1, name="Total Height", config_name="shape_y")
+        createValueConfig(in_frame=total_size_frame, at_row=2, name="Total Width", config_name="shape_x")
 
 
     # SOURCE CONFIG
@@ -504,7 +587,7 @@ def buildWindow():
             environment = Environment(data_file=data_config.data_file,
                                       data_source_position=[int(data_config.config['data_source_y']), int(data_config.config['data_source_x'])],
                                       source_radius=int(data_config.config['source_radius']),
-                                      shape=[int(data_config.config['discretization_y']), int(data_config.config['discretization_x'])],
+                                      shape=[int(data_config.config['shape_y']), int(data_config.config['shape_x'])],
                                       multiplier=[int(data_config.config['multiplier_y'])/100, int(data_config.config['multiplier_x'])/100],
                                       interpolation_method=data_config.config['interpolation'],
                                       margins=[[int(data_config.config['margin_up']), int(data_config.config['margin_down'])], [int(data_config.config['margin_left']), int(data_config.config['margin_right'])]],
@@ -532,7 +615,7 @@ def buildWindow():
             lines =  f"environment = Environment(data_file='{data_config.data_file}',\n"
             lines += f"                          data_source_position=[{data_config.config['data_source_y']}, {data_config.config['data_source_x']}],\n"
             lines += f"                          source_radius={data_config.config['source_radius']},\n"
-            lines += f"                          discretization=[{data_config.config['discretization_y']}, {data_config.config['discretization_x']}],\n"
+            lines += f"                          shape=[{data_config.config['shape_y']}, {data_config.config['shape_x']}],\n"
             lines += f"                          multiplier=[{str(int(data_config.config['multiplier_y'])/100)}, {str(int(data_config.config['multiplier_x'])/100)}],\n"
             lines += f"                          interpolation='{data_config.config['interpolation']}',\n"
             lines += f"                          margins=[[{data_config.config['margin_up']}, {data_config.config['margin_down']}], [{data_config.config['margin_left']}, {data_config.config['margin_right']}]],\n"
