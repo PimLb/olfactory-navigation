@@ -51,8 +51,7 @@ class PBVI_RA_Agent(PBVI_Agent):
     def expand(self,
                belief_set:BeliefSet,
                value_function:ValueFunction,
-               max_generation:int,
-               use_gpu:bool=False
+               max_generation:int
                ) -> BeliefSet:
         '''
         This expansion technique relies only randomness and will generate at most 'max_generation' beliefs.
@@ -65,8 +64,6 @@ class PBVI_RA_Agent(PBVI_Agent):
             The current value function. (NOT USED)
         max_generation : int, default=10
             The max amount of beliefs that can be added to the belief set at once.
-        use_gpu : bool, default=False
-            Whether to run this operation on the GPU or not.
 
         Returns
         -------
@@ -74,11 +71,8 @@ class PBVI_RA_Agent(PBVI_Agent):
             Union of the belief_set and the expansions of the beliefs in the belief_set.
         '''
         # GPU support
-        if use_gpu:
-            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
-
-        xp = np if not use_gpu else cp
-        model = self.model if not use_gpu else self.model.gpu_model
+        xp = np if not self.on_gpu else cp
+        model = self.model
 
         # How many new beliefs to add
         generation_count = min(belief_set.belief_array.shape[0], max_generation)

@@ -315,6 +315,8 @@ class PBVI_Agent(Agent):
         gpu_agent : Agent
             A copy of the agent with the arrays on the GPU.
         '''
+        assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
+
         # Generating a new instance
         cls = self.__class__
         gpu_agent = cls.__new__(cls)
@@ -365,6 +367,11 @@ class PBVI_Agent(Agent):
             Whether to save the environment data along with the agent.
         '''
         assert self.trained_at is not None, "The agent is not trained, there is nothing to save."
+
+        # GPU support
+        if self.on_gpu:
+            self.to_cpu().save(folder=folder, force=force, save_environment=save_environment)
+            return
 
         # Adding env name to folder path
         if folder is None:
@@ -529,17 +536,40 @@ class PBVI_Agent(Agent):
             The history of the solving process with some plotting options.
         '''
         # GPU support
-        if use_gpu:
-            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
+        if use_gpu and not self.on_gpu:
+            gpu_agent = self.to_gpu()
+            solver_history = super(self.__class__, gpu_agent).train(
+                expansions=expansions,
+                full_backup=full_backup,
+                update_passes=update_passes,
+                max_belief_growth=max_belief_growth,
+                initial_belief=initial_belief,
+                initial_value_function=initial_value_function,
+                prune_level=prune_level,
+                prune_interval=prune_interval,
+                limit_value_function_size=limit_value_function_size,
+                gamma=gamma,
+                eps=eps,
+                use_gpu=use_gpu,
+                history_tracking_level=history_tracking_level,
+                force=force,
+                print_progress=print_progress,
+                print_stats=print_stats,
+                **expand_arguments
+            )
+            self.value_function = gpu_agent.value_function.to_cpu()
+            return solver_history
 
-        xp = np if not use_gpu else cp
-        model = self.model if not use_gpu else self.model.gpu_model
+        xp = np if not self.on_gpu else cp
+
+        # Getting model
+        model = self.model
 
         # Initial belief
         if initial_belief is None:
             belief_set = BeliefSet(model, [Belief(model)])
         elif isinstance(initial_belief, BeliefSet):
-            belief_set = initial_belief.to_gpu() if use_gpu else initial_belief 
+            belief_set = initial_belief.to_gpu() if self.on_gpu else initial_belief 
         else:
             initial_belief = Belief(model, xp.array(initial_belief.values))
             belief_set = BeliefSet(model, [initial_belief])
@@ -557,7 +587,7 @@ class PBVI_Agent(Agent):
         if initial_value_function is None:
             value_function = ValueFunction(model, model.expected_rewards_table.T, model.actions)
         else:
-            value_function = initial_value_function.to_gpu() if use_gpu else initial_value_function
+            value_function = initial_value_function.to_gpu() if self.on_gpu else initial_value_function
 
         # Convergence check boundary
         max_allowed_change = eps * (gamma / (1-gamma))
@@ -587,7 +617,6 @@ class PBVI_Agent(Agent):
                 new_belief_set = self.expand(belief_set=belief_set,
                                              value_function=value_function,
                                              max_generation=max_belief_growth,
-                                             use_gpu=use_gpu,
                                              **expand_arguments)
 
                 # Add new beliefs points to the total belief_set
@@ -605,8 +634,7 @@ class PBVI_Agent(Agent):
                                                  value_function,
                                                  gamma=gamma,
                                                  append=(not full_backup),
-                                                 belief_dominance_prune=False,
-                                                 use_gpu=use_gpu)
+                                                 belief_dominance_prune=False)
                     backup_time = (datetime.now() - start_ts).total_seconds()
 
                     # Additional pruning
@@ -692,7 +720,8 @@ class PBVI_Agent(Agent):
         self.trained_at = datetime.now().strftime("%m%d%Y_%H%M%S")
         self.name += f'-trained_{self.trained_at}'
 
-        self.value_function = value_function.to_cpu() if not self.on_gpu else value_function.to_gpu()
+        # Saving value function
+        self.value_function = value_function
 
         # Print stats if requested
         if print_stats:
@@ -740,7 +769,6 @@ class PBVI_Agent(Agent):
                belief_set:BeliefSet,
                value_function:ValueFunction,
                max_generation:int,
-               use_gpu:bool=False, # TODO Remove this
                **kwargs
                ) -> BeliefSet:
         '''
@@ -759,8 +787,6 @@ class PBVI_Agent(Agent):
             The current value function. To be used to guide the exploration process.
         max_generation : int
             How many beliefs to be generated at most.
-        use_gpu : bool, default=False
-            Whether to run this operation on the GPU or not.
         kwargs
             Special parameters for the particular flavors of the PBVI Agent.
 
@@ -777,8 +803,7 @@ class PBVI_Agent(Agent):
                value_function:ValueFunction,
                gamma:float=0.99,
                append:bool=False,
-               belief_dominance_prune:bool=True,
-               use_gpu:bool=False # TODO Remove this
+               belief_dominance_prune:bool=True
                ) -> ValueFunction:
         '''
         This function has purpose to update the set of alpha vectors. It does so in 3 steps:
@@ -802,19 +827,14 @@ class PBVI_Agent(Agent):
             Whether to append the new alpha vectors generated to the old alpha vectors before pruning.
         belief_dominance_prune : bool, default=True
             Whether, before returning the new value function, checks what alpha vectors have a supperior value, if so it adds it.
-        use_gpu : bool, default=False
             
         Returns
         -------
         new_alpha_set : ValueFunction
             A list of updated alpha vectors.
         '''
-        # GPU support
-        if use_gpu:
-            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
-
-        xp = np if not use_gpu else cp
-        model = self.model if not use_gpu else self.model.gpu_model
+        xp = np if not self.on_gpu else cp
+        model = self.model
 
         # Step 1
         vector_array = value_function.alpha_vector_array
