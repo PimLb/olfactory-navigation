@@ -195,6 +195,8 @@ class Environment:
         else:
             shape = self.data_shape + np.sum(self.margins, axis=1)
 
+        self.data_shape = new_data_shape
+
         # Process multiplier
         multiplier = np.array(multiplier)
 
@@ -237,7 +239,9 @@ class Environment:
                 new_data[i] = cv2.resize(self.data[i], dsize=new_data_shape[::-1], interpolation=interpolation_choice)
 
             self.data = new_data
-            self.data_height, self.data_width = new_data_shape
+            self.data_height:int = new_data_shape[0]
+            self.data_width:int = new_data_shape[1]
+            self.data_shape:tuple[int, int] = (self.data_height, self.data_width)
 
         # Reading shape of data array
         self.total_height:int = self.data_height + np.sum(self.margins[0])

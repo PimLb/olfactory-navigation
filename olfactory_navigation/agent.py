@@ -126,11 +126,12 @@ class Agent:
     def update_state(self,
                      observation:int|np.ndarray,
                      source_reached:bool|np.ndarray
-                     ) -> None:
+                     ) ->  None | np.ndarray:
         '''
         Function to update the internal state of the agent based on the previous action taken and the observation received.
         '''
         raise NotImplementedError('The update_state function is not implemented, make an agent subclass to implement the method')
+
 
     def kill(self,
              simulations_to_kill:np.ndarray

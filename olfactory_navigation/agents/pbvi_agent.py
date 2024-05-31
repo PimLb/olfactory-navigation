@@ -933,10 +933,12 @@ class PBVI_Agent(Agent):
         observation_ids[source_reached] = 2 # Observe source
 
         # Update the set of beliefs
-        self.belief = self.belief.update(actions=self.action_played, observations=observation_ids)
+        self.belief = self.belief.update(actions=self.action_played, observations=observation_ids, throw_error=False)
 
-        # Remove the beliefs of the agents having reached the source
-        self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~source_reached])
+        # Check for failed updates
+        update_successful = (self.belief.belief_array.sum(axis=1) != 0.0)
+
+        return update_successful
 
 
     def kill(self,

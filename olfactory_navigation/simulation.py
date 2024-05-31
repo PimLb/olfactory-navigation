@@ -675,8 +675,10 @@ def run_test(agent:Agent,
     time_shift = time_shift.astype(int)
 
     # Move things to GPU if needed
+    xp = np
     if use_gpu:
         assert gpu_support, f"GPU support is not enabled, the use_gpu option is not available."
+        xp = cp
 
         # Move instances to GPU
         agent = agent.to_gpu()
@@ -726,15 +728,20 @@ def run_test(agent:Agent,
         source_reached = environment.source_reached(new_agent_position)
 
         # Return the observation to the agent
-        agent.update_state(observation, source_reached)
+        update_succeeded = agent.update_state(observation, source_reached)
+        if update_succeeded is None:
+            update_succeeded = xp.ones(len(source_reached) , dtype=bool)
 
         # Handling the case where simulations have reached the end
         sims_at_end = ((time_shift + i + 1) >= (math.inf if time_loop else len(environment.grid)))
 
+        # Agents to terminate
+        to_terminate = source_reached | sims_at_end | ~update_succeeded
+
         # Interupt agents that reached the end
-        agent_position = new_agent_position[~source_reached & ~sims_at_end]
-        time_shift = time_shift[~source_reached & ~sims_at_end]
-        agent.kill(simulations_to_kill=sims_at_end[~source_reached])
+        agent_position = new_agent_position[~to_terminate]
+        time_shift = time_shift[~to_terminate]
+        agent.kill(simulations_to_kill=to_terminate)
 
         # Send the values to the tracker
         hist.add_step(
@@ -742,7 +749,7 @@ def run_test(agent:Agent,
             next_positions=new_agent_position,
             observations=observation,
             is_done=source_reached,
-            interupt=sims_at_end
+            interupt=to_terminate
         )
 
         # Early stopping if all agents done
