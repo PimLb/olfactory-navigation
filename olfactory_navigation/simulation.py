@@ -287,10 +287,10 @@ class SimulationHistory:
 
 
     def save(self,
-             file:str|None=None,
-             folder:str|None=None,
-             save_analysis:bool=True,
-             save_components:bool=False
+             file: str | None = None,
+             folder: str | None = None,
+             save_analysis: bool = True,
+             save_components: bool = False
              ) -> None:
         '''
         Function to save the simulation history to a csv file in a given folder.
@@ -313,6 +313,8 @@ class SimulationHistory:
         save_components : bool, default=False
             Whether or not to save the environment and agent along with the simulation histories in the given folder.
         '''
+        assert (self.environment is not None) and (self.agent is not None), "Function not available, the agent and/or the environment is not set."
+
         # Handle file name
         if file is None:
             env_name = f's_{self.environment.shape[0]}_{self.environment.shape[1]}'
@@ -366,9 +368,9 @@ class SimulationHistory:
 
     @classmethod
     def load_from_file(cls,
-                       file:str,
-                       environment:Environment|None=None,
-                       agent:Agent|None=None
+                       file: str,
+                       environment: bool | Environment = False,
+                       agent: bool | Agent = False
                        ) -> 'SimulationHistory':
         '''
         Function to load the simulation history from a file.
@@ -380,14 +382,12 @@ class SimulationHistory:
         ----------
         file : str
             A file (with the path) of the simulation histories csv. (the analysis file cannot be used for this)
-        environment : Environment, optional
-            An environment instance to be linked with the simulation history object.
-            If an environment can be loaded from the path found in the file, this parameter will be ignored.
-            But if this loading fails and no environment is provided, the loading will fail.
-        agent : Agent, optional
+        environment : bool or Environment, default=False
+            If set to True, it will try to load the environment that was used for the simulation (if the save path is available).
+            Or, an environment instance to be linked with the simulation history object.
+        agent : bool or Agent, default=False
+            If set to True, it will try to load the agent that was used for the simulation (if the save path is available).
             An agent instance to be linked with the simulation history object.
-            If an agent can be loaded from the path found in the file, this parameter will be ignored.
-            But if this loading fails and no agent is provided, the loading will fail.
 
         Returns
         -------
@@ -402,7 +402,7 @@ class SimulationHistory:
             'dx':               float,
             'o':                float,
             'done':             float,
-            'reward_discount':  str,
+            'reward_discount':  float,
             'environment':      str,
             'agent':            str
         })
@@ -411,40 +411,36 @@ class SimulationHistory:
         reward_discount = combined_df['reward_discount'][0]
 
         # Retrieving environment
-        loaded_environment = None
-        environment_name = combined_df['environment'][0]
-        if combined_df['environment'][1] is not None:
+        if (not isinstance(environment, Environment)) and (environment == True):
+            environment_name = combined_df['environment'][0]
+            environment_path = combined_df['environment'][1]
+
+            environment_path_check = (environment_path is not None) and (not np.isnan(environment_path))
+            assert environment_path_check, "Environment was not saved at the time of the saving of the simulation history. Input an environment to the environment parameter or toggle the parameter to False."
+            
             try:
-                loaded_environment = Environment.load(combined_df['environment'][1])
+                environment = Environment.load(environment_path)
             except:
                 print(f'Failed to retrieve "{environment_name}" environment from memory')
 
-        if loaded_environment is not None:
-            print(f'Environment "{environment_name}" loaded from memory' + (' (Ignoring environment provided as a parameter)' if environment is not None else ''))
-            environment = loaded_environment
-
-        if environment is None:
-            raise Exception('No environment could be linked, the simulation history cannot be instanciated. Provide an environment to resolve this.')
-
         # Retrieving agent
-        loaded_agent = None
-        agent_name = combined_df['agent'][0]
-        agent_class = combined_df['agent'][1]
-        if combined_df['agent'][2] is not None:
+        if (not isinstance(agent, Agent)) and (agent == True):
+            agent_name = combined_df['environment'][0]
+            agent_class = combined_df['environment'][1]
+            agent_path = combined_df['environment'][2]
+
+            agent_path_check = (agent_path is not None) and (not np.isnan(agent_path))
+            assert agent_path_check, "Agent was not saved at the time of the saving of the simulation history. Input an agent to the agent parameter or toggle the parameter to False."
+
             try:
+                class_instance = None
                 for (class_name, class_obj) in inspect.getmembers(sys.modules[__name__], inspect.isclass):
                     if class_name == agent_class:
-                        loaded_agent = class_obj.load(combined_df['agent'][2])
+                        class_instance = class_obj
                         break
+                agent = class_instance.load(combined_df['agent'][2])
             except:
                 print(f'Failed to retrieve "{agent_name}" agent from memory')
-
-        if loaded_agent is not None:
-            print(f'Agent "{agent_name}" loaded from memory' + (' (Ignoring agent provided as a parameter)' if agent is not None else ''))
-            agent = loaded_agent
-
-        if agent is None:
-            raise Exception('No agent could be linked, the simulation history cannot be instanciated. Provide an agent to resolve this.')
 
         # Columns to retrieve
         columns = [
@@ -476,20 +472,24 @@ class SimulationHistory:
         start_points = all_simulation_arrays[0,:,1:3].astype(int)
         time_shift = all_simulation_arrays[0,:,0].astype(int)
 
-        # Generation of SimHist instance
-        hist = SimulationHistory(
-            start_points=start_points,
-            environment=environment,
-            agent=agent,
-            time_shift=time_shift,
-            reward_discount=reward_discount
-        )
-
         # Recreating action, state and observations
         positions = all_simulation_arrays[1:,:,1:3]
         actions = all_simulation_arrays[1:,:,3:5]
         observations = all_simulation_arrays[1:,:,5]
         done_at_step = np.where(all_simulation_arrays[sizes-1,np.arange(n),6], sizes-1, -1)
+
+        # Building SimulationHistory instance
+        hist = cls.__new__(cls)
+
+        hist.n = len(start_points)
+        hist.environment = environment.to_cpu() if isinstance(environment, Environment) else None
+        hist.agent = agent.to_cpu() if isinstance(agent, Agent) else None
+        hist.time_shift = time_shift
+        hist.reward_discount = reward_discount
+        hist.start_time = datetime.now() # TODO Make start time a column in the saved file
+
+        hist.start_points = start_points
+        hist._running_sims = None
 
         hist.positions = [*positions]
         hist.actions = [*actions]
@@ -504,8 +504,8 @@ class SimulationHistory:
 
 
     def plot(self,
-             sim_id:int=0,
-             ax:plt.Axes=None
+             sim_id: int = 0,
+             ax: plt.Axes = None
              ) -> None:
         '''
         Function to plot a the trajectory of a given simulation.
@@ -518,6 +518,9 @@ class SimulationHistory:
         ax : plt.Axes, optional
             The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
+        # TODO: Make environment and agent optional for plotting
+        assert (self.environment is not None) and (self.agent is not None), "Plot function not available as the environment and/or the agent used during the simulation is not linked to the simulation history."
+
         # Generate ax is not provided
         if ax is None:
             _, ax = plt.subplots(figsize=(18,3))
@@ -558,7 +561,7 @@ class SimulationHistory:
 
 
     def plot_runtimes(self,
-                      ax:plt.Axes=None
+                      ax: plt.Axes = None
                       ) -> None:
         '''
         Function to plot the runtimes over the iterations.
@@ -583,17 +586,17 @@ class SimulationHistory:
         ax.set_ylabel('Runtime (ms)')
 
 
-def run_test(agent:Agent,
-             n:int|None=None,
-             start_points:np.ndarray|None=None,
-             environment:Environment|None=None,
-             time_shift:int|np.ndarray=0,
-             time_loop:bool=True,
-             horizon:int=1000,
-             reward_discount:float=0.99,
-             print_progress:bool=True,
-             print_stats:bool=True,
-             use_gpu:bool=False
+def run_test(agent: Agent,
+             n: int | None = None,
+             start_points: np.ndarray | None = None,
+             environment: Environment | None = None,
+             time_shift: int | np.ndarray = 0,
+             time_loop: bool = True,
+             horizon: int = 1000,
+             reward_discount: float = 0.99,
+             print_progress: bool = True,
+             print_stats: bool = True,
+             use_gpu: bool = False
              ) -> SimulationHistory:
     '''
     Function to run n simulations for a given agent in its environment (or a given modified environment).
