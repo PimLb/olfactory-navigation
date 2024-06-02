@@ -458,16 +458,23 @@ class SimulationHistory:
         ]
 
         # Recreation of list of simulations
-        simulation_dfs = []
-        sim_start_rows = [None] + np.argwhere(combined_df[['done']].isnull())[1:,0].tolist() + [None]
-        n = len(sim_start_rows)-1
+        sim_start_rows = np.argwhere(combined_df[['done']].isnull())[1:,0].tolist()
+        n = len(sim_start_rows)+1
 
-        for i in range(n):
-            simulation_dfs.append(combined_df[columns].iloc[sim_start_rows[i]:sim_start_rows[i+1]])
+        simulation_arrays = np.split(combined_df[columns].to_numpy(), sim_start_rows)
+        simulation_dfs = [pd.DataFrame(sim_array, columns=columns) for sim_array in simulation_arrays]
+
+        # Making a combined numpy array with all the simulations
+        sizes = np.array([len(sim_array) for sim_array in simulation_arrays])
+        max_length = sizes.max()
+        paddings = max_length - sizes
+
+        padded_simulation_arrays = [np.pad(sim_arr, ((0,pad),(0,0)), constant_values=-1) for sim_arr, pad in zip(simulation_arrays, paddings)]
+        all_simulation_arrays = np.array(padded_simulation_arrays).transpose((1,0,2))
 
         # Gathering start states
-        start_points = np.array([sim[['y', 'x']].iloc[0] for sim in simulation_dfs])
-        time_shift = np.array([sim['time'].iloc[0] for sim in simulation_dfs])
+        start_points = all_simulation_arrays[0,:,1:3].astype(int)
+        time_shift = all_simulation_arrays[0,:,0].astype(int)
 
         # Generation of SimHist instance
         hist = SimulationHistory(
@@ -478,23 +485,15 @@ class SimulationHistory:
             reward_discount=reward_discount
         )
 
-        max_length = max(len(sim) for sim in simulation_dfs)
-
         # Recreating action, state and observations
-        positions = np.full((max_length-1, n, 2), -1)
-        actions = np.full((max_length-1, n, 2), -1)
-        observations = np.full((max_length-1, n), -1)
-        done_at_step = np.full((n,), -1)
+        positions = all_simulation_arrays[1:,:,1:3]
+        actions = all_simulation_arrays[1:,:,3:5]
+        observations = all_simulation_arrays[1:,:,5]
+        done_at_step = np.where(all_simulation_arrays[sizes-1,np.arange(n),6], sizes-1, -1)
 
-        for i, sim in enumerate(simulation_dfs):
-            positions[:len(sim)-1, i, :] = sim[['y','x']].to_numpy()[1:]
-            actions[:len(sim)-1, i, :] = sim[['dy','dx']].to_numpy()[1:]
-            observations[:len(sim)-1, i] = sim[['o']].to_numpy()[1:,0]
-            done_at_step[i] = len(sim)-1 if sim['done'].iloc[-1] == 1 else -1
-
-        hist.positions = [arr for arr in positions]
-        hist.actions = [arr for arr in actions]
-        hist.observations = [arr for arr in observations]
+        hist.positions = [*positions]
+        hist.actions = [*actions]
+        hist.observations = [*observations]
         hist.done_at_step = done_at_step
         hist.timestamps = [datetime.strptime(str(int(ts)), '%H%M%S%f') for ts in combined_df['timestamps'][:max_length-1]]
 
