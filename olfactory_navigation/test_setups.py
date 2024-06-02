@@ -227,7 +227,7 @@ def analyse_shape_robustness(all_histories: list[SimulationHistory],
 def test_shape_robustness(agent: Agent,
                           step_percentage: int = 20,
                           min_percentage:int = 20,
-                          max_percentage:int = 300,
+                          max_percentage:int = 200,
                           multipliers: list[int] | None = None,
                           use_gpu: bool = False,
                           print_progress: bool = True,
@@ -239,6 +239,9 @@ def test_shape_robustness(agent: Agent,
     '''
     Function to test the robustness of an agent in a environment where the odor plume's shape is altered by some percentage.
 
+    A list of multipliers will be constructed from the min_percentage to 100% and up to max_percentage values with between each percentage step_percentage values.
+    These percentage multipliers will be applied both in the x and y direction but cropped to the largest allowed multiplier along each axis.
+
     Parameters
     ----------
     agent : Agent
@@ -247,8 +250,9 @@ def test_shape_robustness(agent: Agent,
         Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
     min_percentage : int, default=20
         The minimum percentage of deformation to apply on the environment's odor plume.
-    max_percentage : int, default=300
+    max_percentage : int, default=200
         The maximum percentage of deformation to apply on the environment's odor plume.
+        If this value is larger than the maximum shape allowed by the margins, the largest allowed percentage will be used.
     multipliers : list[int], optional
         If provided, the step_percentage, min_percentage and max_percentage parameters will be ignored.
         A list of percentages of deformations to use to deforme the environment's odor plume.
