@@ -43,7 +43,7 @@ class Environment:
     data_source_position : list or np.ndarray
         The center point of the source provided as a list or a 1D array with the components being x,y.
         This position is computed in the olfactory data zone (so excluding the margins).
-    source_radius : int, default=1
+    source_radius : float, default=1.0
         The radius from the center point of the source in which we consider the agent has reached the source.
     shape : list or np.ndarray, optional
         A 2-element array or list of how many units should be kept in the final array (including the margins).
@@ -107,7 +107,7 @@ class Environment:
         The bounds between which the original olfactory data stands in the coordinate system of the environment (after modifications have been applied).
     source_position : np.ndarray
         The position of the source in the padded grid (after modifications have been applied).
-    source_radius : int
+    source_radius : float
         The radius of the source.
     interpolation_method : str
         The interpolation used to modify the shape of the original data.
@@ -134,7 +134,7 @@ class Environment:
     def __init__(self,
                  data_file: str | np.ndarray,
                  data_source_position: list | np.ndarray,
-                 source_radius: int = 1,
+                 source_radius: float = 1.0,
                  shape: list | np.ndarray | None = None,
                  margins: int | list | np.ndarray = 0,
                  multiplier: list| np.ndarray = [1.0, 1.0],
@@ -326,6 +326,8 @@ class Environment:
         if ax is None:
             _, ax = plt.subplots(1, figsize=(15,5))
 
+        legend_elements = [[],[]]
+
         # Odor grid
         odor = plt.Rectangle([0,0], 1, 1, color='black', fill=True)
         frame_data = (self.data[frame] > (self.odor_present_threshold if self.odor_present_threshold is not None else 0)).astype(float)
@@ -333,16 +335,28 @@ class Environment:
         environment_frame[self.data_bounds[0,0]:self.data_bounds[0,1], self.data_bounds[1,0]:self.data_bounds[1,1]] = frame_data
         ax.imshow(environment_frame, cmap='Greys')
 
+        legend_elements[0].append(odor)
+        legend_elements[1].append(f'Frame {frame} odor cues')
+
         # Start zone contour
         start_zone = plt.Rectangle([0,0], 1, 1, color='blue', fill=False)
         ax.contour(self.start_probabilities, levels=[0.0], colors='blue')
 
+        legend_elements[0].append(start_zone)
+        legend_elements[1].append('Start zone')
+
         # Source circle
         goal_circle = plt.Circle(self.source_position[::-1], self.source_radius, color='r', fill=False)
-        ax.add_patch(goal_circle)
+        legend_elements[0].append(goal_circle)
+        legend_elements[1].append('Source')
+
+        if self.source_radius > 0.0:
+            ax.add_patch(goal_circle)
+        else:
+            ax.scatter(self.source_position[1], self.source_position[0], c='red')
 
         # Legend
-        ax.legend([odor, start_zone, goal_circle], [f'Frame {frame} odor cues', 'Start zone', 'Source'])
+        ax.legend(legend_elements[0], legend_elements[1])
 
 
     def get_observation(self,
@@ -695,7 +709,7 @@ class Environment:
                 data_file              = arguments['data_file_path'],
                 data_source_position   = arguments['original_data_source_position'],
                 source_radius          = arguments['source_radius'],
-                shape         = arguments['shape'],
+                shape                  = arguments['shape'],
                 margins                = arguments['margins'],
                 interpolation_method   = arguments['interpolation_method'],
                 boundary_condition     = arguments['boundary_condition'],
@@ -763,7 +777,7 @@ class Environment:
 
     def modify(self,
                data_source_position: list | np.ndarray | None = None,
-               source_radius: int | None = None,
+               source_radius: float | None = None,
                shape: list | np.ndarray | None = None,
                margins: int | list | np.ndarray | None = None,
                multiplier: list | np.ndarray | None = None,
@@ -777,7 +791,7 @@ class Environment:
         ----------
         data_source_position: list or np.ndarray, optional
             A new position for the source relative to the data file.
-        source_radius: int, optional
+        source_radius: float, optional
             A new source radius.
         shape: list or np.ndarray, optional
             A new shape of environment.
@@ -815,6 +829,44 @@ class Environment:
             multiplier             = (multiplier if (multiplier is not None) else [1.0,1.0]),
             interpolation_method   = (interpolation_method if (interpolation_method is not None) else self.interpolation_method),
             boundary_condition     = (boundary_condition if (boundary_condition is not None) else self.boundary_condition),
+            start_zone             = self.start_type,
+            odor_present_threshold = self.odor_present_threshold,
+            name                   = self.name,
+            seed                   = self.seed
+        )
+        return modified_environment
+
+
+    def modify_scale(self,
+                     scale_factor: float
+                     ) -> 'Environment':
+        '''
+        Function to modify the size of the environment by a scale factor.
+        Everything will be scaled this factor. This includes: shape, margins, source radius, and data shape.
+
+        Parameters
+        ----------
+        scale_factor : float
+            By how much to modify the size of the current environment.
+
+        Returns
+        -------
+        modified_environment : Environment
+            The environment with the scale factor applied. 
+        '''
+        modified_source_radius = self.source_radius * scale_factor
+        modified_shape = (np.array(self.shape) * scale_factor).astype(int)
+        modified_margins = (self.margins * scale_factor).astype(int)
+
+        modified_environment = Environment(
+            data_file              = (self.data_file_path if (self.data_file_path is not None) else self.data),
+            data_source_position   = self.original_data_source_position,
+            source_radius          = modified_source_radius,
+            shape                  = modified_shape,
+            margins                = modified_margins,
+            multiplier             = [1.0,1.0],
+            interpolation_method   = self.interpolation_method,
+            boundary_condition     = self.boundary_condition,
             start_zone             = self.start_type,
             odor_present_threshold = self.odor_present_threshold,
             name                   = self.name,

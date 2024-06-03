@@ -242,6 +242,8 @@ def test_shape_robustness(agent: Agent,
     A list of multipliers will be constructed from the min_percentage to 100% and up to max_percentage values with between each percentage step_percentage values.
     These percentage multipliers will be applied both in the x and y direction but cropped to the largest allowed multiplier along each axis.
 
+    For each multiplier pair, a completed test will be run. This complete test consists in running from all possible start positions of the original environment.
+
     Parameters
     ----------
     agent : Agent
