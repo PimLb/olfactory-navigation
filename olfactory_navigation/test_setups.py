@@ -208,7 +208,7 @@ def analyse_shape_robustness(all_histories: list[SimulationHistory],
         df = hist.analysis_df
 
         # Then the summarized metrics are collapsed on a single row
-        col_metric_dict = {'y_multiplier': multiplier_pair[0], 'x_multiplier': multiplier_pair[1]}
+        col_metric_dict = {'y_multiplier': multiplier_pair[0].astype(int), 'x_multiplier': multiplier_pair[1].astype(int)}
         for col in ['converged', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']:
             for metric in ['mean', 'standard_deviation', 'success_mean', 'success_standard_deviation']:
                 col_metric_dict[f'{col}_{metric}'] = df.loc[metric, col]
@@ -341,9 +341,9 @@ def test_shape_robustness(agent: Agent,
 
     # Analysis saving
     if save and save_analysis:
-        analysis_df = analyse_shape_robustness(all_histories=all_histories, multipliers=mult_combinations)
+        analysis_df = analyse_shape_robustness(all_histories=all_histories, multipliers=(mult_combinations*100))
         analysis_file_name = '_analysis.csv'
-        analysis_df.to_csv(save_folder + '/' + analysis_file_name)
+        analysis_df.to_csv(save_folder + '/' + analysis_file_name, index=False)
         print(f'Shape robustness analysis saved to: {save_folder}/{analysis_file_name}')
 
     return all_histories
