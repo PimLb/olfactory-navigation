@@ -1,10 +1,10 @@
+import cv2
 import inspect
 import json
 import os
 import shutil
 
 from datetime import datetime
-from typing import Union
 from tqdm.auto import trange
 
 from ..environment import Environment
@@ -284,9 +284,9 @@ class PBVI_Agent(Agent):
         A list of n actions played based on how many simulations are running at once.
     '''
     def __init__(self,
-                 environment:Environment,
-                 threshold:float|None=3e-6,
-                 name:str|None=None
+                 environment: Environment,
+                 threshold: float | None = 3e-6,
+                 name: str | None = None
                  ) -> None:
         super().__init__(
             environment=environment,
@@ -343,9 +343,9 @@ class PBVI_Agent(Agent):
 
 
     def save(self,
-             folder:str|None=None,
-             force:bool=False,
-             save_environment:bool=False
+             folder: str | None = None,
+             force: bool = False,
+             save_environment: bool = False
              ) -> None:
         '''
         The save function for PBVI Agents consists in recording the value function after the training.
@@ -416,7 +416,7 @@ class PBVI_Agent(Agent):
 
     @classmethod
     def load(cls,
-             folder:str
+             folder: str
              ) -> 'PBVI_Agent':
         '''
         Function to load a PBVI agent from a given folder it has been saved to.
@@ -466,22 +466,22 @@ class PBVI_Agent(Agent):
 
 
     def train(self,
-              expansions:int,
-              full_backup:bool=True,
-              update_passes:int=1,
-              max_belief_growth:int=10,
-              initial_belief:Union[BeliefSet, Belief, None]=None,
-              initial_value_function:Union[ValueFunction,None]=None,
-              prune_level:int=1,
-              prune_interval:int=10,
-              limit_value_function_size:int=-1,
-              gamma:float=0.99,
-              eps:float=1e-6,
-              use_gpu:bool=False, # TODO rehandle the way things are run on GPU
-              history_tracking_level:int=1,
-              force:bool=False,
-              print_progress:bool=True,
-              print_stats:bool=True,
+              expansions: int,
+              full_backup: bool = True,
+              update_passes: int = 1,
+              max_belief_growth: int = 10,
+              initial_belief: BeliefSet | Belief | None = None,
+              initial_value_function: ValueFunction | None = None,
+              prune_level: int = 1,
+              prune_interval: int = 10,
+              limit_value_function_size: int = -1,
+              gamma: float = 0.99,
+              eps: float = 1e-6,
+              use_gpu: bool = False,
+              history_tracking_level: int = 1,
+              force: bool = False,
+              print_progress: bool = True,
+              print_stats: bool = True,
               **expand_arguments
               ) -> TrainingHistory:
         '''
@@ -731,9 +731,9 @@ class PBVI_Agent(Agent):
 
 
     def compute_change(self,
-                       value_function:ValueFunction,
-                       new_value_function:ValueFunction,
-                       belief_set:BeliefSet
+                       value_function: ValueFunction,
+                       new_value_function: ValueFunction,
+                       belief_set: BeliefSet
                        ) -> float:
         '''
         Function to compute whether the change between two value functions can be considered as having converged based on the eps parameter of the Solver.
@@ -766,9 +766,9 @@ class PBVI_Agent(Agent):
 
 
     def expand(self,
-               belief_set:BeliefSet,
-               value_function:ValueFunction,
-               max_generation:int,
+               belief_set: BeliefSet,
+               value_function: ValueFunction,
+               max_generation: int,
                **kwargs
                ) -> BeliefSet:
         '''
@@ -799,11 +799,11 @@ class PBVI_Agent(Agent):
 
 
     def backup(self,
-               belief_set:BeliefSet,
-               value_function:ValueFunction,
-               gamma:float=0.99,
-               append:bool=False,
-               belief_dominance_prune:bool=True
+               belief_set: BeliefSet,
+               value_function: ValueFunction,
+               gamma: float = 0.99,
+               append: bool = False,
+               belief_dominance_prune: bool = True
                ) -> ValueFunction:
         '''
         This function has purpose to update the set of alpha vectors. It does so in 3 steps:
@@ -873,7 +873,45 @@ class PBVI_Agent(Agent):
         return new_value_function
 
 
-    def initialize_state(self, n:int=1) -> None:
+    def modify_environment(self,
+                           new_environment: Environment
+                           ) -> 'Agent':
+        '''
+        Function to modify the environment of the agent.
+        If the agent is already trained, the trained element should also be adapted to fit this new environment.
+
+        Parameters
+        ----------
+        new_environment : Environment
+            A modified environment.
+
+        Returns
+        -------
+        modified_agent : PBVI_Agent
+            A new pbvi agent with a modified environment
+        '''
+        # GPU support
+        if self.on_gpu:
+            return self.to_cpu().modify_environment(new_environment=new_environment)
+
+        # Creating a new agent instance
+        modified_agent = self.__class__(environment=new_environment,
+                                        threshold=self.threshold,
+                                        name=self.name)
+        
+        # Modifying the value function
+        if self.value_function is not None:
+            reshaped_vf_array = np.array([cv2.resize(av, np.array(modified_agent.state_grid.shape)[::-1]).ravel()
+                                          for av in self.value_function.alpha_vector_array.reshape(len(self.value_function), *self.model.state_grid.shape)])
+            modified_vf = ValueFunction(modified_agent.model, alpha_vectors=reshaped_vf_array, action_list=self.value_function.actions)
+            modified_agent.value_function = modified_vf
+
+        return modified_agent
+
+
+    def initialize_state(self,
+                         n: int = 1
+                         ) -> None:
         '''
         To use an agent within a simulation, the agent's state needs to be initialized.
         The initialization consists of setting the agent's initial belief.
@@ -913,8 +951,8 @@ class PBVI_Agent(Agent):
 
 
     def update_state(self,
-                     observation:np.ndarray,
-                     source_reached:np.ndarray
+                     observation: np.ndarray,
+                     source_reached: np.ndarray
                      ) -> None:
         '''
         Function to update the internal state(s) of the agent(s) based on the previous action(s) taken and the observation(s) received.
@@ -942,7 +980,7 @@ class PBVI_Agent(Agent):
 
 
     def kill(self,
-             simulations_to_kill:np.ndarray
+             simulations_to_kill: np.ndarray
              ) -> None:
         '''
         Function to kill any simulations that have not reached the source but can't continue further
