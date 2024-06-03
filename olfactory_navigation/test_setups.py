@@ -304,7 +304,7 @@ def test_shape_robustness(agent: Agent,
     # Save Folder name and creation
     if save or save_analysis:
         if save_folder is None:
-            save_folder = f'./results/{datetime.now().strftime("%m%d%Y_%H%M%S")}_robustness_test_' + environment.name
+            save_folder = f'./results/{datetime.now().strftime("%m%d%Y_%H%M%S")}_shape_robustness_test_' + environment.name
 
         if not os.path.exists(save_folder):
             os.mkdir(save_folder)
