@@ -937,6 +937,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../build_environment_gui/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    build_environment_gui
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../environment/" class="md-nav__link">
         
   
@@ -1125,6 +1146,27 @@
   
   <span class="md-ellipsis">
     test_setups
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../visualization/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    visualization
   </span>
   
 
@@ -2182,7 +2224,9 @@
 <span class="normal">581</span>
 <span class="normal">582</span>
 <span class="normal">583</span>
-<span class="normal">584</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SimulationHistory</span><span class="p">:</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SimulationHistory</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Class to represent a list of the steps that happened during a simulation with:</span>
 <span class="sd">        - the positions the agents pass by</span>
@@ -2442,10 +2486,10 @@
 
 
     <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-             <span class="n">file</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-             <span class="n">folder</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-             <span class="n">save_analysis</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">save_components</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+             <span class="n">file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+             <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+             <span class="n">save_analysis</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+             <span class="n">save_components</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
              <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to save the simulation history to a csv file in a given folder.</span>
@@ -2468,6 +2512,8 @@
 <span class="sd">        save_components : bool, default=False</span>
 <span class="sd">            Whether or not to save the environment and agent along with the simulation histories in the given folder.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;Function not available, the agent and/or the environment is not set.&quot;</span>
+
         <span class="c1"># Handle file name</span>
         <span class="k">if</span> <span class="n">file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">env_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;s_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
@@ -2521,9 +2567,9 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">load_from_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
-                       <span class="n">file</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span>
-                       <span class="n">environment</span><span class="p">:</span><span class="n">Environment</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                       <span class="n">agent</span><span class="p">:</span><span class="n">Agent</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span>
+                       <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                       <span class="n">environment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">Environment</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                       <span class="n">agent</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">Agent</span> <span class="o">=</span> <span class="kc">False</span>
                        <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;SimulationHistory&#39;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to load the simulation history from a file.</span>
@@ -2535,14 +2581,12 @@
 <span class="sd">        ----------</span>
 <span class="sd">        file : str</span>
 <span class="sd">            A file (with the path) of the simulation histories csv. (the analysis file cannot be used for this)</span>
-<span class="sd">        environment : Environment, optional</span>
-<span class="sd">            An environment instance to be linked with the simulation history object.</span>
-<span class="sd">            If an environment can be loaded from the path found in the file, this parameter will be ignored.</span>
-<span class="sd">            But if this loading fails and no environment is provided, the loading will fail.</span>
-<span class="sd">        agent : Agent, optional</span>
+<span class="sd">        environment : bool or Environment, default=False</span>
+<span class="sd">            If set to True, it will try to load the environment that was used for the simulation (if the save path is available).</span>
+<span class="sd">            Or, an environment instance to be linked with the simulation history object.</span>
+<span class="sd">        agent : bool or Agent, default=False</span>
+<span class="sd">            If set to True, it will try to load the agent that was used for the simulation (if the save path is available).</span>
 <span class="sd">            An agent instance to be linked with the simulation history object.</span>
-<span class="sd">            If an agent can be loaded from the path found in the file, this parameter will be ignored.</span>
-<span class="sd">            But if this loading fails and no agent is provided, the loading will fail.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -2557,7 +2601,7 @@
             <span class="s1">&#39;dx&#39;</span><span class="p">:</span>               <span class="nb">float</span><span class="p">,</span>
             <span class="s1">&#39;o&#39;</span><span class="p">:</span>                <span class="nb">float</span><span class="p">,</span>
             <span class="s1">&#39;done&#39;</span><span class="p">:</span>             <span class="nb">float</span><span class="p">,</span>
-            <span class="s1">&#39;reward_discount&#39;</span><span class="p">:</span>  <span class="nb">str</span><span class="p">,</span>
+            <span class="s1">&#39;reward_discount&#39;</span><span class="p">:</span>  <span class="nb">float</span><span class="p">,</span>
             <span class="s1">&#39;environment&#39;</span><span class="p">:</span>      <span class="nb">str</span><span class="p">,</span>
             <span class="s1">&#39;agent&#39;</span><span class="p">:</span>            <span class="nb">str</span>
         <span class="p">})</span>
@@ -2566,40 +2610,36 @@
         <span class="n">reward_discount</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;reward_discount&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># Retrieving environment</span>
-        <span class="n">loaded_environment</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">environment_name</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">environment</span><span class="p">,</span> <span class="n">Environment</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span><span class="n">environment</span> <span class="o">==</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="n">environment_name</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">environment_path</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="n">environment_path_check</span> <span class="o">=</span> <span class="p">(</span><span class="n">environment_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">environment_path</span><span class="p">))</span>
+            <span class="k">assert</span> <span class="n">environment_path_check</span><span class="p">,</span> <span class="s2">&quot;Environment was not saved at the time of the saving of the simulation history. Input an environment to the environment parameter or toggle the parameter to False.&quot;</span>
+
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">loaded_environment</span> <span class="o">=</span> <span class="n">Environment</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">environment</span> <span class="o">=</span> <span class="n">Environment</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">environment_path</span><span class="p">)</span>
             <span class="k">except</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to retrieve &quot;</span><span class="si">{</span><span class="n">environment_name</span><span class="si">}</span><span class="s1">&quot; environment from memory&#39;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">loaded_environment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Environment &quot;</span><span class="si">{</span><span class="n">environment_name</span><span class="si">}</span><span class="s1">&quot; loaded from memory&#39;</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39; (Ignoring environment provided as a parameter)&#39;</span> <span class="k">if</span> <span class="n">environment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
-            <span class="n">environment</span> <span class="o">=</span> <span class="n">loaded_environment</span>
-
-        <span class="k">if</span> <span class="n">environment</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No environment could be linked, the simulation history cannot be instanciated. Provide an environment to resolve this.&#39;</span><span class="p">)</span>
-
         <span class="c1"># Retrieving agent</span>
-        <span class="n">loaded_agent</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">agent_name</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">agent_class</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">agent</span><span class="p">,</span> <span class="n">Agent</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span><span class="n">agent</span> <span class="o">==</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="n">agent_name</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">agent_class</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">agent_path</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+
+            <span class="n">agent_path_check</span> <span class="o">=</span> <span class="p">(</span><span class="n">agent_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">agent_path</span><span class="p">))</span>
+            <span class="k">assert</span> <span class="n">agent_path_check</span><span class="p">,</span> <span class="s2">&quot;Agent was not saved at the time of the saving of the simulation history. Input an agent to the agent parameter or toggle the parameter to False.&quot;</span>
+
             <span class="k">try</span><span class="p">:</span>
+                <span class="n">class_instance</span> <span class="o">=</span> <span class="kc">None</span>
                 <span class="k">for</span> <span class="p">(</span><span class="n">class_name</span><span class="p">,</span> <span class="n">class_obj</span><span class="p">)</span> <span class="ow">in</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getmembers</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="vm">__name__</span><span class="p">],</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">):</span>
                     <span class="k">if</span> <span class="n">class_name</span> <span class="o">==</span> <span class="n">agent_class</span><span class="p">:</span>
-                        <span class="n">loaded_agent</span> <span class="o">=</span> <span class="n">class_obj</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+                        <span class="n">class_instance</span> <span class="o">=</span> <span class="n">class_obj</span>
                         <span class="k">break</span>
+                <span class="n">agent</span> <span class="o">=</span> <span class="n">class_instance</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
             <span class="k">except</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to retrieve &quot;</span><span class="si">{</span><span class="n">agent_name</span><span class="si">}</span><span class="s1">&quot; agent from memory&#39;</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">loaded_agent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Agent &quot;</span><span class="si">{</span><span class="n">agent_name</span><span class="si">}</span><span class="s1">&quot; loaded from memory&#39;</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39; (Ignoring agent provided as a parameter)&#39;</span> <span class="k">if</span> <span class="n">agent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
-            <span class="n">agent</span> <span class="o">=</span> <span class="n">loaded_agent</span>
-
-        <span class="k">if</span> <span class="n">agent</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No agent could be linked, the simulation history cannot be instanciated. Provide an agent to resolve this.&#39;</span><span class="p">)</span>
 
         <span class="c1"># Columns to retrieve</span>
         <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
@@ -2613,43 +2653,46 @@
         <span class="p">]</span>
 
         <span class="c1"># Recreation of list of simulations</span>
-        <span class="n">simulation_dfs</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">sim_start_rows</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[[</span><span class="s1">&#39;done&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">isnull</span><span class="p">())[</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="o">+</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span>
-        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sim_start_rows</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
+        <span class="n">sim_start_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[[</span><span class="s1">&#39;done&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">isnull</span><span class="p">())[</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sim_start_rows</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span>
 
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
-            <span class="n">simulation_dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">sim_start_rows</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span><span class="n">sim_start_rows</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="n">simulation_arrays</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">sim_start_rows</span><span class="p">)</span>
+        <span class="n">simulation_dfs</span> <span class="o">=</span> <span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">sim_array</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span> <span class="k">for</span> <span class="n">sim_array</span> <span class="ow">in</span> <span class="n">simulation_arrays</span><span class="p">]</span>
+
+        <span class="c1"># Making a combined numpy array with all the simulations</span>
+        <span class="n">sizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">sim_array</span><span class="p">)</span> <span class="k">for</span> <span class="n">sim_array</span> <span class="ow">in</span> <span class="n">simulation_arrays</span><span class="p">])</span>
+        <span class="n">max_length</span> <span class="o">=</span> <span class="n">sizes</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">paddings</span> <span class="o">=</span> <span class="n">max_length</span> <span class="o">-</span> <span class="n">sizes</span>
+
+        <span class="n">padded_simulation_arrays</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">sim_arr</span><span class="p">,</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">pad</span><span class="p">),(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)),</span> <span class="n">constant_values</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">sim_arr</span><span class="p">,</span> <span class="n">pad</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">simulation_arrays</span><span class="p">,</span> <span class="n">paddings</span><span class="p">)]</span>
+        <span class="n">all_simulation_arrays</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">padded_simulation_arrays</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
 
         <span class="c1"># Gathering start states</span>
-        <span class="n">start_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">sim</span><span class="p">[[</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">sim</span> <span class="ow">in</span> <span class="n">simulation_dfs</span><span class="p">])</span>
-        <span class="n">time_shift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">sim</span> <span class="ow">in</span> <span class="n">simulation_dfs</span><span class="p">])</span>
-
-        <span class="c1"># Generation of SimHist instance</span>
-        <span class="n">hist</span> <span class="o">=</span> <span class="n">SimulationHistory</span><span class="p">(</span>
-            <span class="n">start_points</span><span class="o">=</span><span class="n">start_points</span><span class="p">,</span>
-            <span class="n">environment</span><span class="o">=</span><span class="n">environment</span><span class="p">,</span>
-            <span class="n">agent</span><span class="o">=</span><span class="n">agent</span><span class="p">,</span>
-            <span class="n">time_shift</span><span class="o">=</span><span class="n">time_shift</span><span class="p">,</span>
-            <span class="n">reward_discount</span><span class="o">=</span><span class="n">reward_discount</span>
-        <span class="p">)</span>
-
-        <span class="n">max_length</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span> <span class="k">for</span> <span class="n">sim</span> <span class="ow">in</span> <span class="n">simulation_dfs</span><span class="p">)</span>
+        <span class="n">start_points</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">0</span><span class="p">,:,</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">time_shift</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">0</span><span class="p">,:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
         <span class="c1"># Recreating action, state and observations</span>
-        <span class="n">positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">max_length</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">actions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">max_length</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">observations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">max_length</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">done_at_step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n</span><span class="p">,),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">positions</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">1</span><span class="p">:,:,</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">actions</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">1</span><span class="p">:,:,</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">]</span>
+        <span class="n">observations</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">1</span><span class="p">:,:,</span><span class="mi">5</span><span class="p">]</span>
+        <span class="n">done_at_step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">all_simulation_arrays</span><span class="p">[</span><span class="n">sizes</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span><span class="mi">6</span><span class="p">],</span> <span class="n">sizes</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sim</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">simulation_dfs</span><span class="p">):</span>
-            <span class="n">positions</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">sim</span><span class="p">[[</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="s1">&#39;x&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
-            <span class="n">actions</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">sim</span><span class="p">[[</span><span class="s1">&#39;dy&#39;</span><span class="p">,</span><span class="s1">&#39;dx&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
-            <span class="n">observations</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">sim</span><span class="p">[[</span><span class="s1">&#39;o&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()[</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">done_at_step</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">sim</span><span class="p">[</span><span class="s1">&#39;done&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="c1"># Building SimulationHistory instance</span>
+        <span class="n">hist</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
 
-        <span class="n">hist</span><span class="o">.</span><span class="n">positions</span> <span class="o">=</span> <span class="p">[</span><span class="n">arr</span> <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">positions</span><span class="p">]</span>
-        <span class="n">hist</span><span class="o">.</span><span class="n">actions</span> <span class="o">=</span> <span class="p">[</span><span class="n">arr</span> <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">actions</span><span class="p">]</span>
-        <span class="n">hist</span><span class="o">.</span><span class="n">observations</span> <span class="o">=</span> <span class="p">[</span><span class="n">arr</span> <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">observations</span><span class="p">]</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">start_points</span><span class="p">)</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">environment</span> <span class="o">=</span> <span class="n">environment</span><span class="o">.</span><span class="n">to_cpu</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">environment</span><span class="p">,</span> <span class="n">Environment</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">to_cpu</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">agent</span><span class="p">,</span> <span class="n">Agent</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">time_shift</span> <span class="o">=</span> <span class="n">time_shift</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">reward_discount</span> <span class="o">=</span> <span class="n">reward_discount</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="c1"># TODO Make start time a column in the saved file</span>
+
+        <span class="n">hist</span><span class="o">.</span><span class="n">start_points</span> <span class="o">=</span> <span class="n">start_points</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">_running_sims</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">hist</span><span class="o">.</span><span class="n">positions</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">positions</span><span class="p">]</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">actions</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">actions</span><span class="p">]</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">observations</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">observations</span><span class="p">]</span>
         <span class="n">hist</span><span class="o">.</span><span class="n">done_at_step</span> <span class="o">=</span> <span class="n">done_at_step</span>
         <span class="n">hist</span><span class="o">.</span><span class="n">timestamps</span> <span class="o">=</span> <span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ts</span><span class="p">)),</span> <span class="s1">&#39;%H%M%S</span><span class="si">%f</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">ts</span> <span class="ow">in</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">][:</span><span class="n">max_length</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
 
@@ -2660,8 +2703,8 @@
 
 
     <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-             <span class="n">sim_id</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-             <span class="n">ax</span><span class="p">:</span><span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="o">=</span><span class="kc">None</span>
+             <span class="n">sim_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+             <span class="n">ax</span><span class="p">:</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span> <span class="o">=</span> <span class="kc">None</span>
              <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to plot a the trajectory of a given simulation.</span>
@@ -2674,6 +2717,9 @@
 <span class="sd">        ax : plt.Axes, optional</span>
 <span class="sd">            The ax on which to plot the path. (If not provided, a new axis will be created)</span>
 <span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># TODO: Make environment and agent optional for plotting</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;Plot function not available as the environment and/or the agent used during the simulation is not linked to the simulation history.&quot;</span>
+
         <span class="c1"># Generate ax is not provided</span>
         <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">_</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
@@ -2714,7 +2760,7 @@
 
 
     <span class="k">def</span> <span class="nf">plot_runtimes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                      <span class="n">ax</span><span class="p">:</span><span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="o">=</span><span class="kc">None</span>
+                      <span class="n">ax</span><span class="p">:</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span> <span class="o">=</span> <span class="kc">None</span>
                       <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to plot the runtimes over the iterations.</span>
@@ -3064,7 +3110,7 @@ The metrics used are averages of:
 
 
 <h3 id="olfactory_navigation.simulation.SimulationHistory.load_from_file" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">load_from_file</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">environment</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">load_from_file</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">environment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -3109,33 +3155,31 @@ This can be useful to use the plot functions on the simulations saved in succh f
         <tr class="doc-section-item">
           <td><code>environment</code></td>
           <td>
-                <code><a class="autorefs autorefs-internal" title="olfactory_navigation.agent.Environment" href="../environment/#olfactory_navigation.environment.Environment">Environment</a></code>
+                <code>bool or <a class="autorefs autorefs-internal" title="olfactory_navigation.agent.Environment" href="../environment/#olfactory_navigation.environment.Environment">Environment</a></code>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>An environment instance to be linked with the simulation history object.
-If an environment can be loaded from the path found in the file, this parameter will be ignored.
-But if this loading fails and no environment is provided, the loading will fail.</p>
+              <p>If set to True, it will try to load the environment that was used for the simulation (if the save path is available).
+Or, an environment instance to be linked with the simulation history object.</p>
             </div>
           </td>
           <td>
-                <code>None</code>
+                <code>False</code>
           </td>
         </tr>
         <tr class="doc-section-item">
           <td><code>agent</code></td>
           <td>
-                <code><a class="autorefs autorefs-internal" title="olfactory_navigation.agent.Agent" href="../agent/#olfactory_navigation.agent.Agent">Agent</a></code>
+                <code>bool or <a class="autorefs autorefs-internal" title="olfactory_navigation.agent.Agent" href="../agent/#olfactory_navigation.agent.Agent">Agent</a></code>
           </td>
           <td>
             <div class="doc-md-description">
-              <p>An agent instance to be linked with the simulation history object.
-If an agent can be loaded from the path found in the file, this parameter will be ignored.
-But if this loading fails and no agent is provided, the loading will fail.</p>
+              <p>If set to True, it will try to load the agent that was used for the simulation (if the save path is available).
+An agent instance to be linked with the simulation history object.</p>
             </div>
           </td>
           <td>
-                <code>None</code>
+                <code>False</code>
           </td>
         </tr>
     </tbody>
@@ -3167,9 +3211,7 @@ But if this loading fails and no agent is provided, the loading will fail.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\simulation.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">367</span>
-<span class="normal">368</span>
-<span class="normal">369</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">369</span>
 <span class="normal">370</span>
 <span class="normal">371</span>
 <span class="normal">372</span>
@@ -3303,12 +3345,11 @@ But if this loading fails and no agent is provided, the loading will fail.</p>
 <span class="normal">500</span>
 <span class="normal">501</span>
 <span class="normal">502</span>
-<span class="normal">503</span>
-<span class="normal">504</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">503</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span> <span class="nf">load_from_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
-                   <span class="n">file</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span>
-                   <span class="n">environment</span><span class="p">:</span><span class="n">Environment</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                   <span class="n">agent</span><span class="p">:</span><span class="n">Agent</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span>
+                   <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                   <span class="n">environment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">Environment</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                   <span class="n">agent</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="n">Agent</span> <span class="o">=</span> <span class="kc">False</span>
                    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;SimulationHistory&#39;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to load the simulation history from a file.</span>
@@ -3320,14 +3361,12 @@ But if this loading fails and no agent is provided, the loading will fail.</p>
 <span class="sd">    ----------</span>
 <span class="sd">    file : str</span>
 <span class="sd">        A file (with the path) of the simulation histories csv. (the analysis file cannot be used for this)</span>
-<span class="sd">    environment : Environment, optional</span>
-<span class="sd">        An environment instance to be linked with the simulation history object.</span>
-<span class="sd">        If an environment can be loaded from the path found in the file, this parameter will be ignored.</span>
-<span class="sd">        But if this loading fails and no environment is provided, the loading will fail.</span>
-<span class="sd">    agent : Agent, optional</span>
+<span class="sd">    environment : bool or Environment, default=False</span>
+<span class="sd">        If set to True, it will try to load the environment that was used for the simulation (if the save path is available).</span>
+<span class="sd">        Or, an environment instance to be linked with the simulation history object.</span>
+<span class="sd">    agent : bool or Agent, default=False</span>
+<span class="sd">        If set to True, it will try to load the agent that was used for the simulation (if the save path is available).</span>
 <span class="sd">        An agent instance to be linked with the simulation history object.</span>
-<span class="sd">        If an agent can be loaded from the path found in the file, this parameter will be ignored.</span>
-<span class="sd">        But if this loading fails and no agent is provided, the loading will fail.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -3342,7 +3381,7 @@ But if this loading fails and no agent is provided, the loading will fail.</p>
         <span class="s1">&#39;dx&#39;</span><span class="p">:</span>               <span class="nb">float</span><span class="p">,</span>
         <span class="s1">&#39;o&#39;</span><span class="p">:</span>                <span class="nb">float</span><span class="p">,</span>
         <span class="s1">&#39;done&#39;</span><span class="p">:</span>             <span class="nb">float</span><span class="p">,</span>
-        <span class="s1">&#39;reward_discount&#39;</span><span class="p">:</span>  <span class="nb">str</span><span class="p">,</span>
+        <span class="s1">&#39;reward_discount&#39;</span><span class="p">:</span>  <span class="nb">float</span><span class="p">,</span>
         <span class="s1">&#39;environment&#39;</span><span class="p">:</span>      <span class="nb">str</span><span class="p">,</span>
         <span class="s1">&#39;agent&#39;</span><span class="p">:</span>            <span class="nb">str</span>
     <span class="p">})</span>
@@ -3351,40 +3390,36 @@ But if this loading fails and no agent is provided, the loading will fail.</p>
     <span class="n">reward_discount</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;reward_discount&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># Retrieving environment</span>
-    <span class="n">loaded_environment</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">environment_name</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">environment</span><span class="p">,</span> <span class="n">Environment</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span><span class="n">environment</span> <span class="o">==</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="n">environment_name</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">environment_path</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">environment_path_check</span> <span class="o">=</span> <span class="p">(</span><span class="n">environment_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">environment_path</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="n">environment_path_check</span><span class="p">,</span> <span class="s2">&quot;Environment was not saved at the time of the saving of the simulation history. Input an environment to the environment parameter or toggle the parameter to False.&quot;</span>
+
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">loaded_environment</span> <span class="o">=</span> <span class="n">Environment</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">environment</span> <span class="o">=</span> <span class="n">Environment</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">environment_path</span><span class="p">)</span>
         <span class="k">except</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to retrieve &quot;</span><span class="si">{</span><span class="n">environment_name</span><span class="si">}</span><span class="s1">&quot; environment from memory&#39;</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">loaded_environment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Environment &quot;</span><span class="si">{</span><span class="n">environment_name</span><span class="si">}</span><span class="s1">&quot; loaded from memory&#39;</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39; (Ignoring environment provided as a parameter)&#39;</span> <span class="k">if</span> <span class="n">environment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
-        <span class="n">environment</span> <span class="o">=</span> <span class="n">loaded_environment</span>
-
-    <span class="k">if</span> <span class="n">environment</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No environment could be linked, the simulation history cannot be instanciated. Provide an environment to resolve this.&#39;</span><span class="p">)</span>
-
     <span class="c1"># Retrieving agent</span>
-    <span class="n">loaded_agent</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">agent_name</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">agent_class</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">agent</span><span class="p">,</span> <span class="n">Agent</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span><span class="n">agent</span> <span class="o">==</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="n">agent_name</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">agent_class</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">agent_path</span> <span class="o">=</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="n">agent_path_check</span> <span class="o">=</span> <span class="p">(</span><span class="n">agent_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">agent_path</span><span class="p">))</span>
+        <span class="k">assert</span> <span class="n">agent_path_check</span><span class="p">,</span> <span class="s2">&quot;Agent was not saved at the time of the saving of the simulation history. Input an agent to the agent parameter or toggle the parameter to False.&quot;</span>
+
         <span class="k">try</span><span class="p">:</span>
+            <span class="n">class_instance</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">for</span> <span class="p">(</span><span class="n">class_name</span><span class="p">,</span> <span class="n">class_obj</span><span class="p">)</span> <span class="ow">in</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getmembers</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="vm">__name__</span><span class="p">],</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">class_name</span> <span class="o">==</span> <span class="n">agent_class</span><span class="p">:</span>
-                    <span class="n">loaded_agent</span> <span class="o">=</span> <span class="n">class_obj</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+                    <span class="n">class_instance</span> <span class="o">=</span> <span class="n">class_obj</span>
                     <span class="k">break</span>
+            <span class="n">agent</span> <span class="o">=</span> <span class="n">class_instance</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;agent&#39;</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
         <span class="k">except</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to retrieve &quot;</span><span class="si">{</span><span class="n">agent_name</span><span class="si">}</span><span class="s1">&quot; agent from memory&#39;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">loaded_agent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Agent &quot;</span><span class="si">{</span><span class="n">agent_name</span><span class="si">}</span><span class="s1">&quot; loaded from memory&#39;</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39; (Ignoring agent provided as a parameter)&#39;</span> <span class="k">if</span> <span class="n">agent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
-        <span class="n">agent</span> <span class="o">=</span> <span class="n">loaded_agent</span>
-
-    <span class="k">if</span> <span class="n">agent</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No agent could be linked, the simulation history cannot be instanciated. Provide an agent to resolve this.&#39;</span><span class="p">)</span>
 
     <span class="c1"># Columns to retrieve</span>
     <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
@@ -3398,43 +3433,46 @@ But if this loading fails and no agent is provided, the loading will fail.</p>
     <span class="p">]</span>
 
     <span class="c1"># Recreation of list of simulations</span>
-    <span class="n">simulation_dfs</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">sim_start_rows</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[[</span><span class="s1">&#39;done&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">isnull</span><span class="p">())[</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="o">+</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span>
-    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sim_start_rows</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
+    <span class="n">sim_start_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[[</span><span class="s1">&#39;done&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">isnull</span><span class="p">())[</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sim_start_rows</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span>
 
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
-        <span class="n">simulation_dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">sim_start_rows</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span><span class="n">sim_start_rows</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]])</span>
+    <span class="n">simulation_arrays</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">combined_df</span><span class="p">[</span><span class="n">columns</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">sim_start_rows</span><span class="p">)</span>
+    <span class="n">simulation_dfs</span> <span class="o">=</span> <span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">sim_array</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span> <span class="k">for</span> <span class="n">sim_array</span> <span class="ow">in</span> <span class="n">simulation_arrays</span><span class="p">]</span>
+
+    <span class="c1"># Making a combined numpy array with all the simulations</span>
+    <span class="n">sizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">sim_array</span><span class="p">)</span> <span class="k">for</span> <span class="n">sim_array</span> <span class="ow">in</span> <span class="n">simulation_arrays</span><span class="p">])</span>
+    <span class="n">max_length</span> <span class="o">=</span> <span class="n">sizes</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="n">paddings</span> <span class="o">=</span> <span class="n">max_length</span> <span class="o">-</span> <span class="n">sizes</span>
+
+    <span class="n">padded_simulation_arrays</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">sim_arr</span><span class="p">,</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">pad</span><span class="p">),(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)),</span> <span class="n">constant_values</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">sim_arr</span><span class="p">,</span> <span class="n">pad</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">simulation_arrays</span><span class="p">,</span> <span class="n">paddings</span><span class="p">)]</span>
+    <span class="n">all_simulation_arrays</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">padded_simulation_arrays</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
 
     <span class="c1"># Gathering start states</span>
-    <span class="n">start_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">sim</span><span class="p">[[</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">sim</span> <span class="ow">in</span> <span class="n">simulation_dfs</span><span class="p">])</span>
-    <span class="n">time_shift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">sim</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">sim</span> <span class="ow">in</span> <span class="n">simulation_dfs</span><span class="p">])</span>
-
-    <span class="c1"># Generation of SimHist instance</span>
-    <span class="n">hist</span> <span class="o">=</span> <span class="n">SimulationHistory</span><span class="p">(</span>
-        <span class="n">start_points</span><span class="o">=</span><span class="n">start_points</span><span class="p">,</span>
-        <span class="n">environment</span><span class="o">=</span><span class="n">environment</span><span class="p">,</span>
-        <span class="n">agent</span><span class="o">=</span><span class="n">agent</span><span class="p">,</span>
-        <span class="n">time_shift</span><span class="o">=</span><span class="n">time_shift</span><span class="p">,</span>
-        <span class="n">reward_discount</span><span class="o">=</span><span class="n">reward_discount</span>
-    <span class="p">)</span>
-
-    <span class="n">max_length</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span> <span class="k">for</span> <span class="n">sim</span> <span class="ow">in</span> <span class="n">simulation_dfs</span><span class="p">)</span>
+    <span class="n">start_points</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">0</span><span class="p">,:,</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">time_shift</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">0</span><span class="p">,:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
     <span class="c1"># Recreating action, state and observations</span>
-    <span class="n">positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">max_length</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">actions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">max_length</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">observations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">max_length</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">done_at_step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n</span><span class="p">,),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">positions</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">1</span><span class="p">:,:,</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">actions</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">1</span><span class="p">:,:,</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">]</span>
+    <span class="n">observations</span> <span class="o">=</span> <span class="n">all_simulation_arrays</span><span class="p">[</span><span class="mi">1</span><span class="p">:,:,</span><span class="mi">5</span><span class="p">]</span>
+    <span class="n">done_at_step</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">all_simulation_arrays</span><span class="p">[</span><span class="n">sizes</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span><span class="mi">6</span><span class="p">],</span> <span class="n">sizes</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sim</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">simulation_dfs</span><span class="p">):</span>
-        <span class="n">positions</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">sim</span><span class="p">[[</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="s1">&#39;x&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
-        <span class="n">actions</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">sim</span><span class="p">[[</span><span class="s1">&#39;dy&#39;</span><span class="p">,</span><span class="s1">&#39;dx&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
-        <span class="n">observations</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">sim</span><span class="p">[[</span><span class="s1">&#39;o&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()[</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">done_at_step</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">sim</span><span class="p">[</span><span class="s1">&#39;done&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="c1"># Building SimulationHistory instance</span>
+    <span class="n">hist</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
 
-    <span class="n">hist</span><span class="o">.</span><span class="n">positions</span> <span class="o">=</span> <span class="p">[</span><span class="n">arr</span> <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">positions</span><span class="p">]</span>
-    <span class="n">hist</span><span class="o">.</span><span class="n">actions</span> <span class="o">=</span> <span class="p">[</span><span class="n">arr</span> <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">actions</span><span class="p">]</span>
-    <span class="n">hist</span><span class="o">.</span><span class="n">observations</span> <span class="o">=</span> <span class="p">[</span><span class="n">arr</span> <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">observations</span><span class="p">]</span>
+    <span class="n">hist</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">start_points</span><span class="p">)</span>
+    <span class="n">hist</span><span class="o">.</span><span class="n">environment</span> <span class="o">=</span> <span class="n">environment</span><span class="o">.</span><span class="n">to_cpu</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">environment</span><span class="p">,</span> <span class="n">Environment</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">hist</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">to_cpu</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">agent</span><span class="p">,</span> <span class="n">Agent</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">hist</span><span class="o">.</span><span class="n">time_shift</span> <span class="o">=</span> <span class="n">time_shift</span>
+    <span class="n">hist</span><span class="o">.</span><span class="n">reward_discount</span> <span class="o">=</span> <span class="n">reward_discount</span>
+    <span class="n">hist</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="c1"># TODO Make start time a column in the saved file</span>
+
+    <span class="n">hist</span><span class="o">.</span><span class="n">start_points</span> <span class="o">=</span> <span class="n">start_points</span>
+    <span class="n">hist</span><span class="o">.</span><span class="n">_running_sims</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">hist</span><span class="o">.</span><span class="n">positions</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">positions</span><span class="p">]</span>
+    <span class="n">hist</span><span class="o">.</span><span class="n">actions</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">actions</span><span class="p">]</span>
+    <span class="n">hist</span><span class="o">.</span><span class="n">observations</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">observations</span><span class="p">]</span>
     <span class="n">hist</span><span class="o">.</span><span class="n">done_at_step</span> <span class="o">=</span> <span class="n">done_at_step</span>
     <span class="n">hist</span><span class="o">.</span><span class="n">timestamps</span> <span class="o">=</span> <span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ts</span><span class="p">)),</span> <span class="s1">&#39;%H%M%S</span><span class="si">%f</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">ts</span> <span class="ow">in</span> <span class="n">combined_df</span><span class="p">[</span><span class="s1">&#39;timestamps&#39;</span><span class="p">][:</span><span class="n">max_length</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
 
@@ -3510,7 +3548,8 @@ An ax can be use to plot it on.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\simulation.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">507</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">506</span>
+<span class="normal">507</span>
 <span class="normal">508</span>
 <span class="normal">509</span>
 <span class="normal">510</span>
@@ -3561,9 +3600,11 @@ An ax can be use to plot it on.</p>
 <span class="normal">555</span>
 <span class="normal">556</span>
 <span class="normal">557</span>
-<span class="normal">558</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-         <span class="n">sim_id</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-         <span class="n">ax</span><span class="p">:</span><span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="o">=</span><span class="kc">None</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+         <span class="n">sim_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+         <span class="n">ax</span><span class="p">:</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span> <span class="o">=</span> <span class="kc">None</span>
          <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to plot a the trajectory of a given simulation.</span>
@@ -3576,6 +3617,9 @@ An ax can be use to plot it on.</p>
 <span class="sd">    ax : plt.Axes, optional</span>
 <span class="sd">        The ax on which to plot the path. (If not provided, a new axis will be created)</span>
 <span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1"># TODO: Make environment and agent optional for plotting</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;Plot function not available as the environment and/or the agent used during the simulation is not linked to the simulation history.&quot;</span>
+
     <span class="c1"># Generate ax is not provided</span>
     <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">_</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
@@ -3666,9 +3710,7 @@ An ax can be use to plot it on.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\simulation.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">563</span>
 <span class="normal">564</span>
 <span class="normal">565</span>
 <span class="normal">566</span>
@@ -3689,8 +3731,10 @@ An ax can be use to plot it on.</p>
 <span class="normal">581</span>
 <span class="normal">582</span>
 <span class="normal">583</span>
-<span class="normal">584</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">plot_runtimes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                  <span class="n">ax</span><span class="p">:</span><span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="o">=</span><span class="kc">None</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">plot_runtimes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                  <span class="n">ax</span><span class="p">:</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span> <span class="o">=</span> <span class="kc">None</span>
                   <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to plot the runtimes over the iterations.</span>
@@ -3890,11 +3934,13 @@ The file will have the same name as the simulation history file with an addition
 <span class="normal">361</span>
 <span class="normal">362</span>
 <span class="normal">363</span>
-<span class="normal">364</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-         <span class="n">file</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-         <span class="n">folder</span><span class="p">:</span><span class="nb">str</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-         <span class="n">save_analysis</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-         <span class="n">save_components</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+         <span class="n">file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+         <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+         <span class="n">save_analysis</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+         <span class="n">save_components</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
          <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to save the simulation history to a csv file in a given folder.</span>
@@ -3917,6 +3963,8 @@ The file will have the same name as the simulation history file with an addition
 <span class="sd">    save_components : bool, default=False</span>
 <span class="sd">        Whether or not to save the environment and agent along with the simulation histories in the given folder.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;Function not available, the agent and/or the environment is not set.&quot;</span>
+
     <span class="c1"># Handle file name</span>
     <span class="k">if</span> <span class="n">file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">env_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;s_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
@@ -4212,9 +4260,7 @@ It is purely used to compute the Average Discount Reward (ADR) after the simulat
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\simulation.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">589</span>
 <span class="normal">590</span>
 <span class="normal">591</span>
 <span class="normal">592</span>
@@ -4388,17 +4434,26 @@ It is purely used to compute the Average Discount Reward (ADR) after the simulat
 <span class="normal">760</span>
 <span class="normal">761</span>
 <span class="normal">762</span>
-<span class="normal">763</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">run_test</span><span class="p">(</span><span class="n">agent</span><span class="p">:</span><span class="n">Agent</span><span class="p">,</span>
-             <span class="n">n</span><span class="p">:</span><span class="nb">int</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-             <span class="n">start_points</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-             <span class="n">environment</span><span class="p">:</span><span class="n">Environment</span><span class="o">|</span><span class="kc">None</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-             <span class="n">time_shift</span><span class="p">:</span><span class="nb">int</span><span class="o">|</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-             <span class="n">time_loop</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">horizon</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-             <span class="n">reward_discount</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span>
-             <span class="n">print_progress</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">print_stats</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-             <span class="n">use_gpu</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+<span class="normal">763</span>
+<span class="normal">764</span>
+<span class="normal">765</span>
+<span class="normal">766</span>
+<span class="normal">767</span>
+<span class="normal">768</span>
+<span class="normal">769</span>
+<span class="normal">770</span>
+<span class="normal">771</span>
+<span class="normal">772</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">run_test</span><span class="p">(</span><span class="n">agent</span><span class="p">:</span> <span class="n">Agent</span><span class="p">,</span>
+             <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+             <span class="n">start_points</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+             <span class="n">environment</span><span class="p">:</span> <span class="n">Environment</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+             <span class="n">time_shift</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+             <span class="n">time_loop</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+             <span class="n">horizon</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+             <span class="n">reward_discount</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.99</span><span class="p">,</span>
+             <span class="n">print_progress</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+             <span class="n">print_stats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+             <span class="n">use_gpu</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
              <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SimulationHistory</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to run n simulations for a given agent in its environment (or a given modified environment).</span>
@@ -4479,8 +4534,10 @@ It is purely used to compute the Average Discount Reward (ADR) after the simulat
     <span class="n">time_shift</span> <span class="o">=</span> <span class="n">time_shift</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
     <span class="c1"># Move things to GPU if needed</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span>
     <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
         <span class="k">assert</span> <span class="n">gpu_support</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;GPU support is not enabled, the use_gpu option is not available.&quot;</span>
+        <span class="n">xp</span> <span class="o">=</span> <span class="n">cp</span>
 
         <span class="c1"># Move instances to GPU</span>
         <span class="n">agent</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">to_gpu</span><span class="p">()</span>
@@ -4530,15 +4587,20 @@ It is purely used to compute the Average Discount Reward (ADR) after the simulat
         <span class="n">source_reached</span> <span class="o">=</span> <span class="n">environment</span><span class="o">.</span><span class="n">source_reached</span><span class="p">(</span><span class="n">new_agent_position</span><span class="p">)</span>
 
         <span class="c1"># Return the observation to the agent</span>
-        <span class="n">agent</span><span class="o">.</span><span class="n">update_state</span><span class="p">(</span><span class="n">observation</span><span class="p">,</span> <span class="n">source_reached</span><span class="p">)</span>
+        <span class="n">update_succeeded</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">update_state</span><span class="p">(</span><span class="n">observation</span><span class="p">,</span> <span class="n">source_reached</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">update_succeeded</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">update_succeeded</span> <span class="o">=</span> <span class="n">xp</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">source_reached</span><span class="p">)</span> <span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
 
         <span class="c1"># Handling the case where simulations have reached the end</span>
         <span class="n">sims_at_end</span> <span class="o">=</span> <span class="p">((</span><span class="n">time_shift</span> <span class="o">+</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">inf</span> <span class="k">if</span> <span class="n">time_loop</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">grid</span><span class="p">)))</span>
 
+        <span class="c1"># Agents to terminate</span>
+        <span class="n">to_terminate</span> <span class="o">=</span> <span class="n">source_reached</span> <span class="o">|</span> <span class="n">sims_at_end</span> <span class="o">|</span> <span class="o">~</span><span class="n">update_succeeded</span>
+
         <span class="c1"># Interupt agents that reached the end</span>
-        <span class="n">agent_position</span> <span class="o">=</span> <span class="n">new_agent_position</span><span class="p">[</span><span class="o">~</span><span class="n">source_reached</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">sims_at_end</span><span class="p">]</span>
-        <span class="n">time_shift</span> <span class="o">=</span> <span class="n">time_shift</span><span class="p">[</span><span class="o">~</span><span class="n">source_reached</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">sims_at_end</span><span class="p">]</span>
-        <span class="n">agent</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="n">simulations_to_kill</span><span class="o">=</span><span class="n">sims_at_end</span><span class="p">[</span><span class="o">~</span><span class="n">source_reached</span><span class="p">])</span>
+        <span class="n">agent_position</span> <span class="o">=</span> <span class="n">new_agent_position</span><span class="p">[</span><span class="o">~</span><span class="n">to_terminate</span><span class="p">]</span>
+        <span class="n">time_shift</span> <span class="o">=</span> <span class="n">time_shift</span><span class="p">[</span><span class="o">~</span><span class="n">to_terminate</span><span class="p">]</span>
+        <span class="n">agent</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="n">simulations_to_kill</span><span class="o">=</span><span class="n">to_terminate</span><span class="p">)</span>
 
         <span class="c1"># Send the values to the tracker</span>
         <span class="n">hist</span><span class="o">.</span><span class="n">add_step</span><span class="p">(</span>
@@ -4546,7 +4608,7 @@ It is purely used to compute the Average Discount Reward (ADR) after the simulat
             <span class="n">next_positions</span><span class="o">=</span><span class="n">new_agent_position</span><span class="p">,</span>
             <span class="n">observations</span><span class="o">=</span><span class="n">observation</span><span class="p">,</span>
             <span class="n">is_done</span><span class="o">=</span><span class="n">source_reached</span><span class="p">,</span>
-            <span class="n">interupt</span><span class="o">=</span><span class="n">sims_at_end</span>
+            <span class="n">interupt</span><span class="o">=</span><span class="n">to_terminate</span>
         <span class="p">)</span>
 
         <span class="c1"># Early stopping if all agents done</span>

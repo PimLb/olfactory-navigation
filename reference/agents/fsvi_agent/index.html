@@ -1015,6 +1015,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../build_environment_gui/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    build_environment_gui
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../environment/" class="md-nav__link">
         
   
@@ -1062,6 +1083,27 @@
   
   <span class="md-ellipsis">
     test_setups
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualization/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    visualization
   </span>
   
 
@@ -1713,13 +1755,7 @@ A list of n actions played based on how many simulations are running at once.</p
 <span class="normal">242</span>
 <span class="normal">243</span>
 <span class="normal">244</span>
-<span class="normal">245</span>
-<span class="normal">246</span>
-<span class="normal">247</span>
-<span class="normal">248</span>
-<span class="normal">249</span>
-<span class="normal">250</span>
-<span class="normal">251</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FSVI_Agent</span><span class="p">(</span><span class="n">PBVI_Agent</span><span class="p">):</span>
+<span class="normal">245</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FSVI_Agent</span><span class="p">(</span><span class="n">PBVI_Agent</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    A particular flavor of the Point-Based Value Iteration based agent.</span>
 <span class="sd">    The general concept relies on Model-Based reinforcement learning as described in: Pineau, J., Gordon, G., &amp; Thrun, S. (2003, August). Point-based value iteration: An anytime algorithm for POMDPs</span>
@@ -1779,8 +1815,7 @@ A list of n actions played based on how many simulations are running at once.</p
                <span class="n">belief_set</span><span class="p">:</span><span class="n">BeliefSet</span><span class="p">,</span>
                <span class="n">value_function</span><span class="p">:</span><span class="n">ValueFunction</span><span class="p">,</span>
                <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-               <span class="n">mdp_policy</span><span class="p">:</span><span class="n">ValueFunction</span><span class="p">,</span>
-               <span class="n">use_gpu</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+               <span class="n">mdp_policy</span><span class="p">:</span><span class="n">ValueFunction</span>
                <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BeliefSet</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function implementing the exploration process using the MDP policy in order to generate a sequence of Beliefs following the the Forward Search Value Iteration principles.</span>
@@ -1800,8 +1835,6 @@ A list of n actions played based on how many simulations are running at once.</p
 <span class="sd">            How many beliefs to be generated at most.</span>
 <span class="sd">        mdp_policy : ValueFunction</span>
 <span class="sd">            The mdp policy used to choose the action from with the given state &#39;s&#39;.</span>
-<span class="sd">        use_gpu : bool, default=False</span>
-<span class="sd">            Whether to run this operation on the GPU or not.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1809,11 +1842,8 @@ A list of n actions played based on how many simulations are running at once.</p
 <span class="sd">            A new sequence of beliefs.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="c1"># GPU support</span>
-        <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">gpu_support</span><span class="p">,</span> <span class="s2">&quot;GPU support is not enabled, Cupy might need to be installed...&quot;</span>
-
-        <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="n">cp</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">gpu_model</span>
+        <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_gpu</span> <span class="k">else</span> <span class="n">cp</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
 
         <span class="c1"># Getting initial belief</span>
         <span class="n">b0</span> <span class="o">=</span> <span class="n">belief_set</span><span class="o">.</span><span class="n">belief_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -1976,7 +2006,7 @@ A list of n actions played based on how many simulations are running at once.</p
 
 
 <h3 id="olfactory_navigation.agents.fsvi_agent.FSVI_Agent.expand" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">expand</span><span class="p">(</span><span class="n">belief_set</span><span class="p">,</span> <span class="n">value_function</span><span class="p">,</span> <span class="n">max_generation</span><span class="p">,</span> <span class="n">mdp_policy</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">expand</span><span class="p">(</span><span class="n">belief_set</span><span class="p">,</span> <span class="n">value_function</span><span class="p">,</span> <span class="n">max_generation</span><span class="p">,</span> <span class="n">mdp_policy</span><span class="p">)</span></code>
 
 </h3>
 
@@ -2057,20 +2087,6 @@ A random state will be chosen based on the probability distribution of the belie
           </td>
           <td>
               <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>use_gpu</code></td>
-          <td>
-                <code>bool</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Whether to run this operation on the GPU or not.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
           </td>
         </tr>
     </tbody>
@@ -2171,18 +2187,11 @@ A random state will be chosen based on the probability distribution of the belie
 <span class="normal">138</span>
 <span class="normal">139</span>
 <span class="normal">140</span>
-<span class="normal">141</span>
-<span class="normal">142</span>
-<span class="normal">143</span>
-<span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<span class="normal">141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
            <span class="n">belief_set</span><span class="p">:</span><span class="n">BeliefSet</span><span class="p">,</span>
            <span class="n">value_function</span><span class="p">:</span><span class="n">ValueFunction</span><span class="p">,</span>
            <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-           <span class="n">mdp_policy</span><span class="p">:</span><span class="n">ValueFunction</span><span class="p">,</span>
-           <span class="n">use_gpu</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+           <span class="n">mdp_policy</span><span class="p">:</span><span class="n">ValueFunction</span>
            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BeliefSet</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function implementing the exploration process using the MDP policy in order to generate a sequence of Beliefs following the the Forward Search Value Iteration principles.</span>
@@ -2202,8 +2211,6 @@ A random state will be chosen based on the probability distribution of the belie
 <span class="sd">        How many beliefs to be generated at most.</span>
 <span class="sd">    mdp_policy : ValueFunction</span>
 <span class="sd">        The mdp policy used to choose the action from with the given state &#39;s&#39;.</span>
-<span class="sd">    use_gpu : bool, default=False</span>
-<span class="sd">        Whether to run this operation on the GPU or not.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -2211,11 +2218,8 @@ A random state will be chosen based on the probability distribution of the belie
 <span class="sd">        A new sequence of beliefs.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="c1"># GPU support</span>
-    <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="n">gpu_support</span><span class="p">,</span> <span class="s2">&quot;GPU support is not enabled, Cupy might need to be installed...&quot;</span>
-
-    <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="n">cp</span>
-    <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">gpu_model</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_gpu</span> <span class="k">else</span> <span class="n">cp</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
 
     <span class="c1"># Getting initial belief</span>
     <span class="n">b0</span> <span class="o">=</span> <span class="n">belief_set</span><span class="o">.</span><span class="n">belief_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -2549,7 +2553,13 @@ Bellow the amound of change, the value function is considered converged and the 
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\fsvi_agent.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">150</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
 <span class="normal">151</span>
 <span class="normal">152</span>
 <span class="normal">153</span>
@@ -2644,13 +2654,7 @@ Bellow the amound of change, the value function is considered converged and the 
 <span class="normal">242</span>
 <span class="normal">243</span>
 <span class="normal">244</span>
-<span class="normal">245</span>
-<span class="normal">246</span>
-<span class="normal">247</span>
-<span class="normal">248</span>
-<span class="normal">249</span>
-<span class="normal">250</span>
-<span class="normal">251</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<span class="normal">245</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
           <span class="n">expansions</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
           <span class="n">update_passes</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
           <span class="n">max_belief_growth</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
