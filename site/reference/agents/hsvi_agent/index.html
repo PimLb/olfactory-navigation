@@ -1033,6 +1033,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../build_environment_gui/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    build_environment_gui
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../environment/" class="md-nav__link">
         
   
@@ -1080,6 +1101,27 @@
   
   <span class="md-ellipsis">
     test_setups
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualization/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    visualization
   </span>
   
 
@@ -1721,13 +1763,7 @@ A list of n actions played based on how many simulations are running at once.</p
 <span class="normal">232</span>
 <span class="normal">233</span>
 <span class="normal">234</span>
-<span class="normal">235</span>
-<span class="normal">236</span>
-<span class="normal">237</span>
-<span class="normal">238</span>
-<span class="normal">239</span>
-<span class="normal">240</span>
-<span class="normal">241</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">HSVI_Agent</span><span class="p">(</span><span class="n">PBVI_Agent</span><span class="p">):</span>
+<span class="normal">235</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">HSVI_Agent</span><span class="p">(</span><span class="n">PBVI_Agent</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    A flavor of the PBVI Agent. </span>
 
@@ -1770,8 +1806,7 @@ A list of n actions played based on how many simulations are running at once.</p
     <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                <span class="n">belief_set</span><span class="p">:</span><span class="n">BeliefSet</span><span class="p">,</span>
                <span class="n">value_function</span><span class="p">:</span><span class="n">ValueFunction</span><span class="p">,</span>
-               <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-               <span class="n">use_gpu</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+               <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span>
                <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BeliefSet</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        The expand function of the  Heuristic Search Value Iteration (HSVI) technique.</span>
@@ -1787,8 +1822,6 @@ A list of n actions played based on how many simulations are running at once.</p
 <span class="sd">            The current value function. Used to compute the value at belief points.</span>
 <span class="sd">        max_generation : int, default=10</span>
 <span class="sd">            The max amount of beliefs that can be added to the belief set at once.</span>
-<span class="sd">        use_gpu : bool, default=False</span>
-<span class="sd">            Whether to run this operation on the GPU or not.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1796,11 +1829,8 @@ A list of n actions played based on how many simulations are running at once.</p
 <span class="sd">            A new sequence of beliefs.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="c1"># GPU support</span>
-        <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">gpu_support</span><span class="p">,</span> <span class="s2">&quot;GPU support is not enabled, Cupy might need to be installed...&quot;</span>
-
-        <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="n">cp</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">gpu_model</span>
+        <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_gpu</span> <span class="k">else</span> <span class="n">cp</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
 
         <span class="k">if</span> <span class="n">conv_term</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">conv_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span>
@@ -1973,7 +2003,7 @@ A list of n actions played based on how many simulations are running at once.</p
 
 
 <h3 id="olfactory_navigation.agents.hsvi_agent.HSVI_Agent.expand" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">expand</span><span class="p">(</span><span class="n">belief_set</span><span class="p">,</span> <span class="n">value_function</span><span class="p">,</span> <span class="n">max_generation</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">expand</span><span class="p">(</span><span class="n">belief_set</span><span class="p">,</span> <span class="n">value_function</span><span class="p">,</span> <span class="n">max_generation</span><span class="p">)</span></code>
 
 </h3>
 
@@ -2037,20 +2067,6 @@ It is a redursive function attempting to minimize the bound between the upper an
           </td>
           <td>
                 <code>10</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>use_gpu</code></td>
-          <td>
-                <code>bool</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Whether to run this operation on the GPU or not.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
           </td>
         </tr>
     </tbody>
@@ -2175,17 +2191,10 @@ It is a redursive function attempting to minimize the bound between the upper an
 <span class="normal">147</span>
 <span class="normal">148</span>
 <span class="normal">149</span>
-<span class="normal">150</span>
-<span class="normal">151</span>
-<span class="normal">152</span>
-<span class="normal">153</span>
-<span class="normal">154</span>
-<span class="normal">155</span>
-<span class="normal">156</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
            <span class="n">belief_set</span><span class="p">:</span><span class="n">BeliefSet</span><span class="p">,</span>
            <span class="n">value_function</span><span class="p">:</span><span class="n">ValueFunction</span><span class="p">,</span>
-           <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-           <span class="n">use_gpu</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+           <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span>
            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BeliefSet</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    The expand function of the  Heuristic Search Value Iteration (HSVI) technique.</span>
@@ -2201,8 +2210,6 @@ It is a redursive function attempting to minimize the bound between the upper an
 <span class="sd">        The current value function. Used to compute the value at belief points.</span>
 <span class="sd">    max_generation : int, default=10</span>
 <span class="sd">        The max amount of beliefs that can be added to the belief set at once.</span>
-<span class="sd">    use_gpu : bool, default=False</span>
-<span class="sd">        Whether to run this operation on the GPU or not.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -2210,11 +2217,8 @@ It is a redursive function attempting to minimize the bound between the upper an
 <span class="sd">        A new sequence of beliefs.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="c1"># GPU support</span>
-    <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="n">gpu_support</span><span class="p">,</span> <span class="s2">&quot;GPU support is not enabled, Cupy might need to be installed...&quot;</span>
-
-    <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="n">cp</span>
-    <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">gpu_model</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_gpu</span> <span class="k">else</span> <span class="n">cp</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
 
     <span class="k">if</span> <span class="n">conv_term</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">conv_term</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span>
@@ -2562,7 +2566,13 @@ Bellow the amound of change, the value function is considered converged and the 
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\hsvi_agent.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">159</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
 <span class="normal">160</span>
 <span class="normal">161</span>
 <span class="normal">162</span>
@@ -2638,13 +2648,7 @@ Bellow the amound of change, the value function is considered converged and the 
 <span class="normal">232</span>
 <span class="normal">233</span>
 <span class="normal">234</span>
-<span class="normal">235</span>
-<span class="normal">236</span>
-<span class="normal">237</span>
-<span class="normal">238</span>
-<span class="normal">239</span>
-<span class="normal">240</span>
-<span class="normal">241</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<span class="normal">235</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
           <span class="n">expansions</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
           <span class="n">update_passes</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
           <span class="n">max_belief_growth</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>

@@ -1,4 +1,4 @@
-![Olfactory cues in turbulent air](img/PiMLB_vaduhx_kqb41a.jpg)
+![Olfactory cues in turbulent air](img/Odor_Plume.jpg)
 
 This site contains the documentation for the `olfactory-navigation` framework.
 
@@ -22,4 +22,7 @@ The framework aims to allow a user to create agents using different techniques a
 
 ## PiMLb
 
-This framework was built as a project within the [PiMLb](https://malga.unige.it/research/pimlb) unit of the [Malga](https://malga.unige.it) lab.
+This framework was built within the ERC funded project RIDING, by the [PiMLb](https://malga.unige.it/research/pimlb) unit of the [Malga](https://malga.unige.it) lab.
+
+<img src="img/ERC.jpg" alt="ERC Logo" width="25%"/>
+<img src="img/Malga_verticale_UniGe.png" alt="Malga Logo" width="25%"/>

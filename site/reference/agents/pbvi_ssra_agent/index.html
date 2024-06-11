@@ -1015,6 +1015,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../build_environment_gui/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    build_environment_gui
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../environment/" class="md-nav__link">
         
   
@@ -1062,6 +1083,27 @@
   
   <span class="md-ellipsis">
     test_setups
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../visualization/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    visualization
   </span>
   
 
@@ -1634,13 +1676,7 @@ A list of n actions played based on how many simulations are running at once.</p
 <span class="normal">182</span>
 <span class="normal">183</span>
 <span class="normal">184</span>
-<span class="normal">185</span>
-<span class="normal">186</span>
-<span class="normal">187</span>
-<span class="normal">188</span>
-<span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">PBVI_SSRA_Agent</span><span class="p">(</span><span class="n">PBVI_Agent</span><span class="p">):</span>
+<span class="normal">185</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">PBVI_SSRA_Agent</span><span class="p">(</span><span class="n">PBVI_Agent</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    A flavor of the PBVI Agent. The expand function consists in choosing random actions and observations and generating belief points based on that.</span>
 
@@ -1680,8 +1716,7 @@ A list of n actions played based on how many simulations are running at once.</p
     <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                <span class="n">belief_set</span><span class="p">:</span><span class="n">BeliefSet</span><span class="p">,</span>
                <span class="n">value_function</span><span class="p">:</span><span class="n">ValueFunction</span><span class="p">,</span>
-               <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-               <span class="n">use_gpu</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+               <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span>
                <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BeliefSet</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Stochastic Simulation with Random Action.</span>
@@ -1697,8 +1732,6 @@ A list of n actions played based on how many simulations are running at once.</p
 <span class="sd">            The current value function. (NOT USED)</span>
 <span class="sd">        max_generation : int, default=10</span>
 <span class="sd">            The max amount of beliefs that can be added to the belief set at once.</span>
-<span class="sd">        use_gpu : bool, default=False</span>
-<span class="sd">            Whether to run this operation on the GPU or not.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1706,11 +1739,8 @@ A list of n actions played based on how many simulations are running at once.</p
 <span class="sd">            Union of the belief_set and the expansions of the beliefs in the belief_set.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="c1"># GPU support</span>
-        <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">gpu_support</span><span class="p">,</span> <span class="s2">&quot;GPU support is not enabled, Cupy might need to be installed...&quot;</span>
-
-        <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="n">cp</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">gpu_model</span>
+        <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_gpu</span> <span class="k">else</span> <span class="n">cp</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
 
         <span class="n">old_shape</span> <span class="o">=</span> <span class="n">belief_set</span><span class="o">.</span><span class="n">belief_array</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">to_generate</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_generation</span><span class="p">,</span> <span class="n">old_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
@@ -1837,7 +1867,7 @@ A list of n actions played based on how many simulations are running at once.</p
 
 
 <h3 id="olfactory_navigation.agents.pbvi_ssra_agent.PBVI_SSRA_Agent.expand" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">expand</span><span class="p">(</span><span class="n">belief_set</span><span class="p">,</span> <span class="n">value_function</span><span class="p">,</span> <span class="n">max_generation</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">expand</span><span class="p">(</span><span class="n">belief_set</span><span class="p">,</span> <span class="n">value_function</span><span class="p">,</span> <span class="n">max_generation</span><span class="p">)</span></code>
 
 </h3>
 
@@ -1902,20 +1932,6 @@ From this action a and observation o we can update our belief.</p>
           </td>
           <td>
                 <code>10</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>use_gpu</code></td>
-          <td>
-                <code>bool</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Whether to run this operation on the GPU or not.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
           </td>
         </tr>
     </tbody>
@@ -1994,17 +2010,10 @@ From this action a and observation o we can update our belief.</p>
 <span class="normal"> 97</span>
 <span class="normal"> 98</span>
 <span class="normal"> 99</span>
-<span class="normal">100</span>
-<span class="normal">101</span>
-<span class="normal">102</span>
-<span class="normal">103</span>
-<span class="normal">104</span>
-<span class="normal">105</span>
-<span class="normal">106</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<span class="normal">100</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
            <span class="n">belief_set</span><span class="p">:</span><span class="n">BeliefSet</span><span class="p">,</span>
            <span class="n">value_function</span><span class="p">:</span><span class="n">ValueFunction</span><span class="p">,</span>
-           <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-           <span class="n">use_gpu</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+           <span class="n">max_generation</span><span class="p">:</span><span class="nb">int</span>
            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BeliefSet</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Stochastic Simulation with Random Action.</span>
@@ -2020,8 +2029,6 @@ From this action a and observation o we can update our belief.</p>
 <span class="sd">        The current value function. (NOT USED)</span>
 <span class="sd">    max_generation : int, default=10</span>
 <span class="sd">        The max amount of beliefs that can be added to the belief set at once.</span>
-<span class="sd">    use_gpu : bool, default=False</span>
-<span class="sd">        Whether to run this operation on the GPU or not.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -2029,11 +2036,8 @@ From this action a and observation o we can update our belief.</p>
 <span class="sd">        Union of the belief_set and the expansions of the beliefs in the belief_set.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="c1"># GPU support</span>
-    <span class="k">if</span> <span class="n">use_gpu</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="n">gpu_support</span><span class="p">,</span> <span class="s2">&quot;GPU support is not enabled, Cupy might need to be installed...&quot;</span>
-
-    <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="n">cp</span>
-    <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">gpu_model</span>
+    <span class="n">xp</span> <span class="o">=</span> <span class="n">np</span> <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_gpu</span> <span class="k">else</span> <span class="n">cp</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
 
     <span class="n">old_shape</span> <span class="o">=</span> <span class="n">belief_set</span><span class="o">.</span><span class="n">belief_array</span><span class="o">.</span><span class="n">shape</span>
     <span class="n">to_generate</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_generation</span><span class="p">,</span> <span class="n">old_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
@@ -2335,7 +2339,13 @@ Bellow the amound of change, the value function is considered converged and the 
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\pbvi_ssra_agent.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">109</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
 <span class="normal">110</span>
 <span class="normal">111</span>
 <span class="normal">112</span>
@@ -2411,13 +2421,7 @@ Bellow the amound of change, the value function is considered converged and the 
 <span class="normal">182</span>
 <span class="normal">183</span>
 <span class="normal">184</span>
-<span class="normal">185</span>
-<span class="normal">186</span>
-<span class="normal">187</span>
-<span class="normal">188</span>
-<span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+<span class="normal">185</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
           <span class="n">expansions</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
           <span class="n">update_passes</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
           <span class="n">max_belief_growth</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
