@@ -73,8 +73,7 @@ class FSVI_Agent(PBVI_Agent):
                belief_set:BeliefSet,
                value_function:ValueFunction,
                max_generation:int,
-               mdp_policy:ValueFunction,
-               use_gpu:bool=False
+               mdp_policy:ValueFunction
                ) -> BeliefSet:
         '''
         Function implementing the exploration process using the MDP policy in order to generate a sequence of Beliefs following the the Forward Search Value Iteration principles.
@@ -94,8 +93,6 @@ class FSVI_Agent(PBVI_Agent):
             How many beliefs to be generated at most.
         mdp_policy : ValueFunction
             The mdp policy used to choose the action from with the given state 's'.
-        use_gpu : bool, default=False
-            Whether to run this operation on the GPU or not.
         
         Returns
         -------
@@ -103,11 +100,8 @@ class FSVI_Agent(PBVI_Agent):
             A new sequence of beliefs.
         '''
         # GPU support
-        if use_gpu:
-            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
-
-        xp = np if not use_gpu else cp
-        model = self.model if not use_gpu else self.model.gpu_model
+        xp = np if not self.on_gpu else cp
+        model = self.model
 
         # Getting initial belief
         b0 = belief_set.belief_list[0]

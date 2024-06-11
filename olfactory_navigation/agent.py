@@ -14,9 +14,9 @@ class Agent:
     Generic agent class
     '''
     def __init__(self,
-                 environment:Environment,
-                 threshold:float|None=3e-6,
-                 name:str|None=None
+                 environment: Environment,
+                 threshold: float | None = 3e-6,
+                 name: str | None = None
                  ) -> None:
         self.environment = environment
         self.threshold = threshold
@@ -72,9 +72,9 @@ class Agent:
 
 
     def save(self,
-             folder:str|None=None,
-             force:bool=False,
-             save_environment:bool=False
+             folder: str | None = None,
+             force: bool = False,
+             save_environment: bool = False
              ) -> None:
         '''
         Function to save a trained agent to memory.
@@ -84,7 +84,7 @@ class Agent:
 
     @classmethod
     def load(cls,
-             folder:str
+             folder: str
              ) -> 'Agent':
         '''
         Function to load a trained agent from memory.
@@ -98,7 +98,19 @@ class Agent:
         raise NotImplementedError('The load function is not implemented, make an agent subclass to implement the method')
 
 
-    def initialize_state(self, n:int=1) -> None:
+    def modify_environment(self,
+                           new_environment: Environment
+                           ) -> 'Agent':
+        '''
+        Function to modify the environment of the agent.
+        If the agent is already trained, the trained element should also be adapted to fit this new environment.
+        '''
+        raise NotImplementedError('The modify_environment function is not implemented, make an agent subclass to implement the method')
+
+
+    def initialize_state(self,
+                         n: int = 1
+                         ) -> None:
         '''
         Function to initialize the state of the agent. Which is meant to contain concepts such as the "memory" or "belief" of the agent.
 
@@ -124,16 +136,17 @@ class Agent:
 
 
     def update_state(self,
-                     observation:int|np.ndarray,
-                     source_reached:bool|np.ndarray
-                     ) -> None:
+                     observation: int | np.ndarray,
+                     source_reached: bool | np.ndarray
+                     ) -> None | np.ndarray:
         '''
         Function to update the internal state of the agent based on the previous action taken and the observation received.
         '''
         raise NotImplementedError('The update_state function is not implemented, make an agent subclass to implement the method')
 
+
     def kill(self,
-             simulations_to_kill:np.ndarray
+             simulations_to_kill: np.ndarray
              ) -> None:
         '''
         Function to kill any simulations that still haven't reached the source

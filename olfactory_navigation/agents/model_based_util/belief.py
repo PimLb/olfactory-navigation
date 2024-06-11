@@ -343,8 +343,8 @@ class BeliefSet:
         flatten_offset = xp.arange(len(observations))[:,None] * self.model.state_count
         flat_shape = (len(observations), (self.model.state_count * self.model.reachable_state_count))
         
-        a=reachable_state_per_actions.swapaxes(0,1).reshape(flat_shape)
-        w=reachable_probabilities.swapaxes(0,1).reshape(flat_shape)
+        a = reachable_state_per_actions.swapaxes(0,1).reshape(flat_shape)
+        w = reachable_probabilities.swapaxes(0,1).reshape(flat_shape)
 
         a_offs = a + flatten_offset
         new_probabilities = xp.bincount(a_offs.ravel(), weights=w.ravel(), minlength=a.shape[0]*self.model.state_count).reshape((-1,self.model.state_count))

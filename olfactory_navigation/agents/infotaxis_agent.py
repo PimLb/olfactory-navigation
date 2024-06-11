@@ -142,8 +142,8 @@ class Infotaxis_Agent(Agent):
             total_entropy = xp.zeros(n)
 
             for o in self.model.observations:
-                b_ao = self.beliefs.update(actions=np.ones(n, dtype=int)*a,
-                                           observations=np.ones(n, dtype=int)*o,
+                b_ao = self.beliefs.update(actions=xp.ones(n, dtype=int)*a,
+                                           observations=xp.ones(n, dtype=int)*o,
                                            throw_error=False)
 
                 # Computing entropy
@@ -185,8 +185,10 @@ class Infotaxis_Agent(Agent):
         '''
         assert self.beliefs is not None, "Agent was not initialized yet, run the initialize_state function first"
 
+        xp = np if not self.on_gpu else cp
+
         # Binarize observations
-        observation_ids = np.where(observation > self.threshold, 1, 0).astype(int)
+        observation_ids = xp.where(observation > self.threshold, 1, 0).astype(int)
         observation_ids[source_reached] = 2 # Observe source
 
         # Update the set of beliefs

@@ -57,8 +57,7 @@ class HSVI_Agent(PBVI_Agent):
     def expand(self,
                belief_set:BeliefSet,
                value_function:ValueFunction,
-               max_generation:int,
-               use_gpu:bool=False
+               max_generation:int
                ) -> BeliefSet:
         '''
         The expand function of the  Heuristic Search Value Iteration (HSVI) technique.
@@ -74,8 +73,6 @@ class HSVI_Agent(PBVI_Agent):
             The current value function. Used to compute the value at belief points.
         max_generation : int, default=10
             The max amount of beliefs that can be added to the belief set at once.
-        use_gpu : bool, default=False
-            Whether to run this operation on the GPU or not.
 
         Returns
         -------
@@ -83,11 +80,8 @@ class HSVI_Agent(PBVI_Agent):
             A new sequence of beliefs.
         '''
         # GPU support
-        if use_gpu:
-            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
-
-        xp = np if not use_gpu else cp
-        model = self.model if not use_gpu else self.model.gpu_model
+        xp = np if not self.on_gpu else cp
+        model = self.model
 
         if conv_term is None:
             conv_term = self.eps
