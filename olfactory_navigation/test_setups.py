@@ -269,7 +269,7 @@ def test_shape_robustness(agent: Agent,
         Each test's result will be under the name 'test_env_y-<y_multiplier>_x-<x_multiplier>.csv'
     save_folder : str, optional
         The path to which the test results are saved.
-        If not provided, it will automatically create a new folder './results/<timestamp>_robustness_test_<environment_name>/'
+        If not provided, it will automatically create a new folder './results/<timestamp>_shape_robustness_test_<environment_name>/'
     save_analysis : bool, default=True
         Whether to save the analysis of the histories.
         It will be saved under a file named '_analysis.csv' in the save_folder.
@@ -345,5 +345,173 @@ def test_shape_robustness(agent: Agent,
         analysis_file_name = '_analysis.csv'
         analysis_df.to_csv(save_folder + '/' + analysis_file_name, index=False)
         print(f'Shape robustness analysis saved to: {save_folder}/{analysis_file_name}')
+
+    return all_histories
+
+
+def analyse_scale_robustness(all_histories: list[SimulationHistory],
+                             multipliers: np.ndarray
+                             ) -> pd.DataFrame:
+    '''
+    Function to generate an analysis of a set of simulation tests with different multipliers applied in the environment.
+    It returns a pandas dataframe summarizing the results for each multiplier pairs.
+    The results analyzed are the following:
+    
+    - convergence
+    - steps taken
+    - discounted rewards
+    - extra steps taken (compared to a minimum path)
+    - t min over t (a ratio of how optimal the path taken was)
+
+    For each result, the mean, standard deviation along with the mean and standard deviation of the successful trajectories are recorded. 
+
+    Parameters
+    ----------
+    all_histories : list[SimulationHistory]
+        A list of all the simulation histories to summarize
+    multipliers : np.ndarray
+        An array of the multiplier pairs used (for the y multiplier then the x multiplier)
+
+    Returns
+    -------
+    df : pd.DataFrame
+        The analysis dataframe.
+    '''
+    rows = []
+    # For each simulation history and multiplier, the analysis dataframe is extracted
+    for hist, multiplier in zip(all_histories, multipliers):
+        df = hist.analysis_df
+
+        # Then the summarized metrics are collapsed on a single row
+        col_metric_dict = {'multiplier': int(multiplier)}
+        for col in ['converged', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']:
+            for metric in ['mean', 'standard_deviation', 'success_mean', 'success_standard_deviation']:
+                col_metric_dict[f'{col}_{metric}'] = df.loc[metric, col]
+
+        rows.append(col_metric_dict)
+
+    # Creating the dataframe from all the rows
+    df = pd.DataFrame(rows)
+
+    # Removal of 2 unnecessary columns
+    df = df.drop(columns=['converged_success_mean', 'converged_success_standard_deviation'])
+
+    return df
+
+
+def test_scale_robustness(agent: Agent,
+                          step_percentage: int = 20,
+                          min_percentage:int = 20,
+                          max_percentage:int = 200,
+                          multipliers: list[int] | None = None,
+                          use_gpu: bool = False,
+                          print_progress: bool = True,
+                          print_stats: bool = True,
+                          save: bool = True,
+                          save_folder: str = None,
+                          save_analysis: bool = True
+                          ) -> list[SimulationHistory]:
+    '''
+    Function to test the robustness of an agent in a environment where the scale of the environment's shape is altered by some percentage.
+
+    A list of multipliers will be constructed from the min_percentage to 100% and up to max_percentage values with between each percentage step_percentage values.
+    These percentage multipliers will be applied both in the x and y direction but cropped to the largest allowed multiplier along each axis.
+
+    This complete test consists in running from all possible start positions of the original environment.
+
+    Parameters
+    ----------
+    agent : Agent
+        The agent to run the shape robustness test on.
+    step_percentage : int, default=20
+        Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
+    min_percentage : int, default=20
+        The minimum percentage of deformation to apply on the environment's odor plume.
+    max_percentage : int, default=200
+        The maximum percentage of deformation to apply on the environment's odor plume.
+        If this value is larger than the maximum shape allowed by the margins, the largest allowed percentage will be used.
+    multipliers : list[int], optional
+        If provided, the step_percentage, min_percentage and max_percentage parameters will be ignored.
+        A list of percentages of deformations to use to deforme the environment's odor plume.
+    use_gpu : bool, default=False
+        Whether to use the GPU to speed up the tests.
+    print_progress : bool, default=True
+        Whether to display a progress bar of how many test have been performed so far.
+    print_stats : bool, default=True
+        Whether to display statistics at the end of each test.
+    save : bool, default=True
+        Whether to save the results of each test to a save_folder.
+        Each test's result will be under the name 'test_env_mult-<multiplier>.csv'
+    save_folder : str, optional
+        The path to which the test results are saved.
+        If not provided, it will automatically create a new folder './results/<timestamp>_scale_robustness_test_<environment_name>/'
+    save_analysis : bool, default=True
+        Whether to save the analysis of the histories.
+        It will be saved under a file named '_analysis.csv' in the save_folder.
+
+    Returns
+    -------
+    all_histories : list[SimulationHistory]
+        A list of SimulationHistory instances.
+    '''
+    # Gather environment
+    environment = agent.environment
+
+    # Gathering starting points
+    start_points = np.argwhere(environment.start_probabilities > 0)
+    n = len(start_points)
+
+    # Generating multipliers
+    if multipliers is None:
+        with np.errstate(divide='ignore'):
+            low_max_mult = ((environment.margins[:,0] / environment.data_source_position) + 1)
+            high_max_mult = (1 + (environment.margins[:,1] / (environment.data_shape - environment.data_source_position)))
+            max_mult = np.min(np.vstack([low_max_mult, high_max_mult]), axis=0)
+
+        multipliers = [(100 - perc_mult) for perc_mult in range(0, (100-min_percentage)+step_percentage, step_percentage)[1:]] + [perc_mult for perc_mult in range(100, min(max_percentage, int(max(max_mult)*100)), step_percentage)]
+    multipliers.sort()
+
+    # Save Folder name and creation
+    if save or save_analysis:
+        if save_folder is None:
+            save_folder = f'./results/{datetime.now().strftime("%m%d%Y_%H%M%S")}_scale_robustness_test_' + environment.name
+
+        if not os.path.exists(save_folder):
+            os.mkdir(save_folder)
+
+        print(f'The results will be saved to: {save_folder}\n')
+
+    all_histories = []
+    for mult in (tqdm(multipliers) if print_progress else multipliers):
+        print(f'Testing on environment with scale modifier {mult}%')
+        
+        # Modifying environment and agent
+        modified_environment = environment.modify_scale(scale_factor=mult/100)
+        modified_agent = agent.modify_environment(modified_environment)
+
+        # Running test
+        hist = run_all_starts_test(
+            agent=modified_agent,
+            print_progress=False,
+            print_stats=print_stats,
+            use_gpu=use_gpu)
+
+        all_histories.append(hist)
+
+        # Saving history
+        if save:
+            file_name = f'test_env_mult-{mult}'
+            hist.save(file=file_name,
+                      folder=save_folder,
+                      save_analysis=False)
+
+        print()
+
+    # Analysis saving
+    if save and save_analysis:
+        analysis_df = analyse_scale_robustness(all_histories=all_histories, multipliers=multipliers)
+        analysis_file_name = '_analysis.csv'
+        analysis_df.to_csv(save_folder + '/' + analysis_file_name, index=False)
+        print(f'Scale robustness analysis saved to: {save_folder}/{analysis_file_name}')
 
     return all_histories

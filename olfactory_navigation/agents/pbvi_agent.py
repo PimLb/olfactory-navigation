@@ -901,7 +901,7 @@ class PBVI_Agent(Agent):
         
         # Modifying the value function
         if self.value_function is not None:
-            reshaped_vf_array = np.array([cv2.resize(av, np.array(modified_agent.state_grid.shape)[::-1]).ravel()
+            reshaped_vf_array = np.array([cv2.resize(av, np.array(modified_agent.model.state_grid.shape)[::-1]).ravel()
                                           for av in self.value_function.alpha_vector_array.reshape(len(self.value_function), *self.model.state_grid.shape)])
             modified_vf = ValueFunction(modified_agent.model, alpha_vectors=reshaped_vf_array, action_list=self.value_function.actions)
             modified_agent.value_function = modified_vf
