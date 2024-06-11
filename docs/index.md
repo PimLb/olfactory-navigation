@@ -25,4 +25,4 @@ The framework aims to allow a user to create agents using different techniques a
 This framework was built within the ERC funded project RIDING, by the [PiMLb](https://malga.unige.it/research/pimlb) unit of the [Malga](https://malga.unige.it) lab.
 
 <img src="img/ERC.jpg" alt="ERC Logo" width="25%"/>
-<img src="img/Malga_verticale_UniGe.png" alt="Malga Logo" width="25%"/>
+<img src="img/MaLGa_verticale_UniGe.png" alt="Malga Logo" width="25%"/>
