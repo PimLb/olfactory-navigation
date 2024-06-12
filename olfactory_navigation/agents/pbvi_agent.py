@@ -260,6 +260,9 @@ class PBVI_Agent(Agent):
         The olfactory sensitivity of the agent. Odor cues under this threshold will not be detected by the agent.
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    environment_converter : Callable, default=exact_converter
+        A function to convert the olfactory environment instance to a POMDP Model instance.
+        By default, we use an exact convertion that keeps the shape of the environment to make the amount of states of the POMDP Model.
 
     Attributes
     ---------
@@ -289,7 +292,7 @@ class PBVI_Agent(Agent):
                  environment: Environment,
                  threshold: float | None = 3e-6,
                  name: str | None = None,
-                 environment_convertion: Callable | None = None
+                 environment_converter: Callable | None = None
                  ) -> None:
         super().__init__(
             environment=environment,
@@ -297,8 +300,9 @@ class PBVI_Agent(Agent):
             name=name
         )
 
-        if callable(environment_convertion):
-            self.model = environment_convertion(environment=environment, threshold=threshold)
+        # Converting the olfactory environment to a POMDP Model
+        if callable(environment_converter):
+            self.model = environment_converter(environment=environment, threshold=threshold)
         else:
             # Using the exact converter
             self.model = exact_converter(environment=environment, threshold=threshold)

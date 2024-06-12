@@ -16,6 +16,14 @@ def exact_converter(environment: Environment,
     '''
     Method to create a POMDP model based on an olfactory environment object.
 
+    This version of the converter converts the environment in an exact manner.
+    This mean the amount of states is equal to the grid points in the olfactory environment object.
+
+    It supports an environment in 2D and therefore defines 4 available actions for the agent.
+
+    It also defines at least different observations: Nothing, Something or Goal.
+    However, if multiple thresholds are provided, the more observations will be available: |threshold| + 1 (Nothing) + 1 (Goal)
+
     Parameters
     ----------
     environment : Environment
