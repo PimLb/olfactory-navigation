@@ -2,12 +2,6 @@ from olfactory_navigation import Environment
 from olfactory_navigation.agents.model_based_util.pomdp import Model
 
 import numpy as np
-gpu_support = False
-try:
-    import cupy as cp
-    gpu_support = True
-except:
-    print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
 
 def exact_converter(environment: Environment,

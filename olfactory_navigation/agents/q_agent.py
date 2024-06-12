@@ -1,6 +1,6 @@
 import os
-from ..environment import Environment
-from ..agent import Agent
+from olfactory_navigation.environment import Environment
+from olfactory_navigation.agent import Agent
 
 from math import sqrt
 from tqdm import tqdm

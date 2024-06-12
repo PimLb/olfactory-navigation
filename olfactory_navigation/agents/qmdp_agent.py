@@ -1,15 +1,7 @@
 from datetime import datetime
-from .pbvi_agent import PBVI_Agent, TrainingHistory
-from .model_based_util.value_function import ValueFunction
-from .model_based_util import vi_solver
-
-import numpy as np
-gpu_support = False
-try:
-    import cupy as cp
-    gpu_support = True
-except:
-    print('[Warning] Cupy could not be loaded: GPU support is not available.')
+from olfactory_navigation.agents.pbvi_agent import PBVI_Agent, TrainingHistory
+from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
+from olfactory_navigation.agents.model_based_util import vi_solver
 
 
 class QMDP_Agent(PBVI_Agent):
@@ -55,15 +47,15 @@ class QMDP_Agent(PBVI_Agent):
         A list of n actions played based on how many simulations are running at once.
     '''
     def train(self,
-              expansions:int,
-              initial_value_function:ValueFunction|None=None,
-              gamma:float=0.99,
-              eps:float=1e-6,
-              use_gpu:bool=False,
-              history_tracking_level:int=1,
-              force:bool=False,
-              print_progress:bool=True,
-              print_stats:bool=True
+              expansions: int,
+              initial_value_function: ValueFunction | None = None,
+              gamma: float = 0.99,
+              eps: float = 1e-6,
+              use_gpu: bool = False,
+              history_tracking_level: int = 1,
+              force: bool = False,
+              print_progress: bool = True,
+              print_stats: bool = True
               ) -> TrainingHistory:
         '''
         Simplified version of the training. It consists in running the Value Iteration process.
@@ -96,10 +88,6 @@ class QMDP_Agent(PBVI_Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        # GPU support
-        if use_gpu:
-            assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
-
         # Handeling the case where the agent is already trained
         if (self.value_function is not None) and (not force):
             raise Exception('Agent has already been trained. The force parameter needs to be set to "True" if training should still happen')

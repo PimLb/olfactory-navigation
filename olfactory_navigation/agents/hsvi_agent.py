@@ -1,7 +1,7 @@
-from ..agents.pbvi_agent import PBVI_Agent, TrainingHistory
-from .model_based_util.value_function import ValueFunction
-from .model_based_util.belief import Belief, BeliefSet
-from .model_based_util.belief_value_mapping import BeliefValueMapping
+from olfactory_navigation.agents.pbvi_agent import PBVI_Agent, TrainingHistory
+from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
+from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
+from olfactory_navigation.agents.model_based_util.belief_value_mapping import BeliefValueMapping
 
 from typing import Union
 
@@ -55,9 +55,9 @@ class HSVI_Agent(PBVI_Agent):
         A list of n actions played based on how many simulations are running at once.
     '''
     def expand(self,
-               belief_set:BeliefSet,
-               value_function:ValueFunction,
-               max_generation:int
+               belief_set: BeliefSet,
+               value_function: ValueFunction,
+               max_generation: int
                ) -> BeliefSet:
         '''
         The expand function of the  Heuristic Search Value Iteration (HSVI) technique.
@@ -151,21 +151,21 @@ class HSVI_Agent(PBVI_Agent):
 
 
     def train(self,
-              expansions:int,
-              update_passes:int=1,
-              max_belief_growth:int=10,
-              initial_belief:BeliefSet|Belief|None=None,
-              initial_value_function:ValueFunction|None=None,
-              prune_level:int=1,
-              prune_interval:int=10,
-              limit_value_function_size:int=-1,
-              gamma:float=0.99,
-              eps:float=1e-6,
-              use_gpu:bool=False,
-              history_tracking_level:int=1,
-              force:bool=False,
-              print_progress:bool=True,
-              print_stats:bool=True
+              expansions: int,
+              update_passes: int = 1,
+              max_belief_growth: int = 10,
+              initial_belief: BeliefSet | Belief | None = None,
+              initial_value_function: ValueFunction | None = None,
+              prune_level: int = 1,
+              prune_interval: int = 10,
+              limit_value_function_size: int = -1,
+              gamma: float = 0.99,
+              eps: float = 1e-6,
+              use_gpu: bool = False,
+              history_tracking_level: int = 1,
+              force: bool = False,
+              print_progress: bool = True,
+              print_stats: bool = True
               ) -> TrainingHistory:
         '''
         Main loop of the Point-Based Value Iteration algorithm.

@@ -1,8 +1,9 @@
 import warnings
-from ..environment import Environment
-from ..agent import Agent
-from .model_based_util.pomdp import Model
-from .model_based_util.belief import Belief, BeliefSet
+
+from olfactory_navigation.environment import Environment
+from olfactory_navigation.agent import Agent
+from olfactory_navigation.agents.model_based_util.pomdp import Model
+from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
 
 import numpy as np
 gpu_support = False
@@ -54,9 +55,9 @@ class Infotaxis_Agent(Agent):
         A list of n actions played based on how many simulations are running at once.
     '''
     def __init__(self,
-                 environment:Environment,
-                 threshold:float|None=3e-6,
-                 name:str|None=None
+                 environment: Environment,
+                 threshold: float | None = 3e-6,
+                 name: str | None=None
                  ) -> None:
         super().__init__(
             environment = environment,
@@ -104,7 +105,7 @@ class Infotaxis_Agent(Agent):
 
 
     def initialize_state(self,
-                         n:int=1
+                         n: int = 1
                          ) -> None:
         '''
         To use an agent within a simulation, the agent's state needs to be initialized.
@@ -170,8 +171,8 @@ class Infotaxis_Agent(Agent):
 
 
     def update_state(self,
-                     observation:int|np.ndarray,
-                     source_reached:bool|np.ndarray
+                     observation: int | np.ndarray,
+                     source_reached: bool | np.ndarray
                      ) -> None:
         '''
         Function to update the internal state(s) of the agent(s) based on the previous action(s) taken and the observation(s) received.
@@ -199,7 +200,7 @@ class Infotaxis_Agent(Agent):
 
 
     def kill(self,
-             simulations_to_kill:np.ndarray
+             simulations_to_kill: np.ndarray
              ) -> None:
         '''
         Function to kill any simulations that have not reached the source but can't continue further
