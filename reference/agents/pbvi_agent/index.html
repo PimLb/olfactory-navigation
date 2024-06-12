@@ -6476,13 +6476,13 @@ The visualizations available are:
 <span class="sd">    explored_beliefs : BeliefSet</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                 <span class="n">tracking_level</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-                 <span class="n">model</span><span class="p">:</span><span class="n">Model</span><span class="p">,</span>
-                 <span class="n">gamma</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                 <span class="n">eps</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                 <span class="n">expand_append</span><span class="p">:</span><span class="nb">bool</span><span class="p">,</span>
-                 <span class="n">initial_value_function</span><span class="p">:</span><span class="n">ValueFunction</span><span class="p">,</span>
-                 <span class="n">initial_belief_set</span><span class="p">:</span><span class="n">BeliefSet</span>
+                 <span class="n">tracking_level</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                 <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
+                 <span class="n">gamma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                 <span class="n">expand_append</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+                 <span class="n">initial_value_function</span><span class="p">:</span> <span class="n">ValueFunction</span><span class="p">,</span>
+                 <span class="n">initial_belief_set</span><span class="p">:</span> <span class="n">BeliefSet</span>
                  <span class="p">):</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">tracking_level</span> <span class="o">=</span> <span class="n">tracking_level</span>
@@ -6536,8 +6536,8 @@ The visualizations available are:
 
 
     <span class="k">def</span> <span class="nf">add_expand_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                        <span class="n">expansion_time</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                        <span class="n">belief_set</span><span class="p">:</span><span class="n">BeliefSet</span>
+                        <span class="n">expansion_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                        <span class="n">belief_set</span><span class="p">:</span> <span class="n">BeliefSet</span>
                         <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to add an expansion step in the simulation history by the explored belief set the expand function generated.</span>
@@ -6558,9 +6558,9 @@ The visualizations available are:
 
 
     <span class="k">def</span> <span class="nf">add_backup_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                        <span class="n">backup_time</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                        <span class="n">value_function_change</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                        <span class="n">value_function</span><span class="p">:</span><span class="n">ValueFunction</span>
+                        <span class="n">backup_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                        <span class="n">value_function_change</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                        <span class="n">value_function</span><span class="p">:</span> <span class="n">ValueFunction</span>
                         <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to add a backup step in the simulation history by recording the value function the backup function generated.</span>
@@ -6584,8 +6584,8 @@ The visualizations available are:
 
 
     <span class="k">def</span> <span class="nf">add_prune_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                       <span class="n">prune_time</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                       <span class="n">alpha_vectors_pruned</span><span class="p">:</span><span class="nb">int</span>
+                       <span class="n">prune_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                       <span class="n">alpha_vectors_pruned</span><span class="p">:</span> <span class="nb">int</span>
                        <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to add a prune step in the simulation history by recording the amount of alpha vectors that were pruned by the pruning function and how long it took.</span>
@@ -6808,9 +6808,9 @@ The visualizations available are:
 <span class="normal">183</span>
 <span class="normal">184</span>
 <span class="normal">185</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">add_backup_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                    <span class="n">backup_time</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                    <span class="n">value_function_change</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                    <span class="n">value_function</span><span class="p">:</span><span class="n">ValueFunction</span>
+                    <span class="n">backup_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                    <span class="n">value_function_change</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                    <span class="n">value_function</span><span class="p">:</span> <span class="n">ValueFunction</span>
                     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to add a backup step in the simulation history by recording the value function the backup function generated.</span>
@@ -6918,8 +6918,8 @@ The visualizations available are:
 <span class="normal">157</span>
 <span class="normal">158</span>
 <span class="normal">159</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">add_expand_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                    <span class="n">expansion_time</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                    <span class="n">belief_set</span><span class="p">:</span><span class="n">BeliefSet</span>
+                    <span class="n">expansion_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                    <span class="n">belief_set</span><span class="p">:</span> <span class="n">BeliefSet</span>
                     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to add an expansion step in the simulation history by the explored belief set the expand function generated.</span>
@@ -7021,8 +7021,8 @@ The visualizations available are:
 <span class="normal">202</span>
 <span class="normal">203</span>
 <span class="normal">204</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">add_prune_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                   <span class="n">prune_time</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span>
-                   <span class="n">alpha_vectors_pruned</span><span class="p">:</span><span class="nb">int</span>
+                   <span class="n">prune_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                   <span class="n">alpha_vectors_pruned</span><span class="p">:</span> <span class="nb">int</span>
                    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to add a prune step in the simulation history by recording the amount of alpha vectors that were pruned by the pruning function and how long it took.</span>
