@@ -1,10 +1,9 @@
 from datetime import datetime
 from matplotlib import pyplot as plt
 from tqdm.auto import trange
-from typing import Union
 
-from .mdp import Model
-from .value_function import ValueFunction
+from olfactory_navigation.agents.model_based_util.mdp import Model
+from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
 
 import numpy as np
 gpu_support = False
@@ -21,7 +20,6 @@ class SolverHistory:
     The purpose of this class is to allow plotting of the solution and plotting the evolution of the value function over the training process.
     This class is not meant to be instanciated manually, it meant to be used when returned by the solve() method of a Solver object.
 
-    ...
 
     Parameters
     ----------
@@ -54,12 +52,12 @@ class SolverHistory:
     summary : str
     '''
     def __init__(self,
-                 tracking_level:int,
-                 model:Model,
-                 gamma:float,
-                 eps:float,
-                 initial_value_function:Union[ValueFunction,None]=None
-                 ):
+                 tracking_level: int,
+                 model: Model,
+                 gamma: float,
+                 eps: float,
+                 initial_value_function: ValueFunction | None = None
+                 ) -> None:
         self.tracking_level = tracking_level
         self.model = model
         self.gamma = gamma
@@ -85,9 +83,9 @@ class SolverHistory:
     
 
     def add(self,
-            iteration_time:float,
-            value_function_change:float,
-            value_function:ValueFunction
+            iteration_time: float,
+            value_function_change: float,
+            value_function: ValueFunction
             ) -> None:
         '''
         Function to add a step in the simulation history.
@@ -137,14 +135,14 @@ class SolverHistory:
         plt.show()
 
 
-def solve(model:Model,
-          horizon:int=100,
-          initial_value_function:Union[ValueFunction,None]=None,
-          gamma:float=0.99,
-          eps:float=1e-6,
-          use_gpu:bool=False,
-          history_tracking_level:int=1,
-          print_progress:bool=True
+def solve(model: Model,
+          horizon: int = 100,
+          initial_value_function: ValueFunction | None = None,
+          gamma: float = 0.99,
+          eps: float = 1e-6,
+          use_gpu: bool = False,
+          history_tracking_level: int = 1,
+          print_progress: bool = True
           ) -> tuple[ValueFunction, SolverHistory]:
     '''
     Function to solve an MDP model using Value Iteration.

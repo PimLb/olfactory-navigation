@@ -11,7 +11,6 @@ class QMDP_Agent(PBVI_Agent):
 
     As stated, during simulations, the agent will choose actions based on an argmax of what action has the highest matrix product of the value function with the belief vector.
 
-    ...
 
     Parameters
     ----------

@@ -1,5 +1,6 @@
-from . import ValueFunction
-from . import Belief
+from olfactory_navigation.agents.model_based_util.pomdp import Model
+from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
+from olfactory_navigation.agents.model_based_util.belief import Belief
 
 import numpy as np
 gpu_support = False
@@ -16,6 +17,7 @@ class BeliefValueMapping:
     To evaluate this version of the value function the sawtooth algorithm is used (described in Shani G. et al., "A survey of point-based POMDP solvers")
     
     We can also compute the Q value for a particular belief b and action using the qva function.
+
 
     Parameters
     ----------
@@ -37,7 +39,10 @@ class BeliefValueMapping:
         Mapping of beliefs points with their associated value.
     
     '''
-    def __init__(self, model, corner_belief_values:ValueFunction) -> None:
+    def __init__(self,
+                 model: Model,
+                 corner_belief_values: ValueFunction
+                 ) -> None:
         xp = np if not gpu_support else cp.get_array_module(corner_belief_values.alpha_vector_array)
 
         self.model = model
@@ -52,14 +57,19 @@ class BeliefValueMapping:
         self._value_array = None
 
     
-    def add(self, b:Belief, v:float) -> None:
+    def add(self,
+            b: Belief,
+            v: float
+            ) -> None:
         '''
-        Function to a belief point and its associated value to the belief value mappings
+        Function to a belief point and its associated value to the belief value mappings.
 
         Parameters
         ----------
         b: Belief
+            A belief to add the belief value mappings.
         v: float
+            The value associated to the belief to be added to the mappings.
         '''
         if b not in self.beliefs:
             self.beliefs.append(b)
@@ -68,6 +78,9 @@ class BeliefValueMapping:
 
     @property
     def belief_array(self) -> np.ndarray:
+        '''
+        The beliefs represented in the form of an array.
+        '''
         xp = np if not gpu_support else cp.get_array_module(self.beliefs[0].values)
 
         if self._belief_array is None:
@@ -78,6 +91,9 @@ class BeliefValueMapping:
 
     @property
     def value_array(self) -> np.ndarray:
+        '''
+        An array of the values.
+        '''
         xp = np if not gpu_support else cp.get_array_module(self.beliefs[0].values)
 
         if self._value_array is None:
@@ -96,13 +112,13 @@ class BeliefValueMapping:
         self._value_array = xp.array(list(self.belief_value_mapping.values()))
 
 
-    def evaluate(self, belief:Belief) -> float:
+    def evaluate(self, belief: Belief) -> float:
         '''
         Runs the sawtooth algorithm to find the value at a given belief point.
 
         Parameters
         ----------
-        belief: Belief
+        belief : Belief
         '''
         xp = np if not gpu_support else cp.get_array_module(belief.values)
 

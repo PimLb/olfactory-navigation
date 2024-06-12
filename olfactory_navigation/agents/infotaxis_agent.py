@@ -23,7 +23,6 @@ class Infotaxis_Agent(Agent):
 
     It does not need to be trained to the train(), save() and load() function are not implemented.
 
-    ...
 
     Parameters
     ----------

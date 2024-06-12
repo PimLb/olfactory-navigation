@@ -34,7 +34,6 @@ class TrainingHistory:
         - Solution plot
         - Video of value function and belief set evolution over training.
 
-    ...
 
     Parameters
     ----------

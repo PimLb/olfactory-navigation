@@ -1,7 +1,6 @@
 from datetime import datetime
 from matplotlib import patches
 from matplotlib import pyplot as plt
-from typing import Union
 
 import os
 import pandas as pd
@@ -9,9 +8,9 @@ import random
 
 from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
 
-from .mdp import Model
-from .mdp import log
-from .mdp import COLOR_LIST, COLOR_ARRAY
+from olfactory_navigation.agents.model_based_util.mdp import Model
+from olfactory_navigation.agents.model_based_util.mdp import log
+from olfactory_navigation.agents.model_based_util.mdp import COLOR_LIST, COLOR_ARRAY
 
 import numpy as np
 gpu_support = False
@@ -33,7 +32,6 @@ class AlphaVector:
     '''
     A class to represent an Alpha Vector, a vector representing a plane in |S| dimension for POMDP models.
 
-    ...
 
     Parameters
     ----------
@@ -42,7 +40,10 @@ class AlphaVector:
     action : int
         The action associated with the vector.
     '''
-    def __init__(self, values:np.ndarray, action:int) -> None:
+    def __init__(self,
+                 values: np.ndarray,
+                 action: int
+                 ) -> None:
         self.values = values
         self.action = int(action)
 
@@ -51,7 +52,6 @@ class ValueFunction:
     '''
     Class representing a set of AlphaVectors. One such set approximates the value function of the MDP model.
 
-    ...
 
     Parameters
     ----------
@@ -70,7 +70,11 @@ class ValueFunction:
     alpha_vector_array : np.ndarray
     actions : np.ndarray
     '''
-    def __init__(self, model:Model, alpha_vectors:Union[list[AlphaVector], np.ndarray]=[], action_list:Union[list[int], np.ndarray]=[]):
+    def __init__(self,
+                 model: Model,
+                 alpha_vectors: list[AlphaVector] | np.ndarray = [],
+                 action_list: list[int] | np.ndarray = []
+                 ) -> None:
         self.model = model
 
         self._vector_list = None
@@ -154,7 +158,7 @@ class ValueFunction:
         return len(self._vector_list) if self._vector_list is not None else self._vector_array.shape[0]
     
 
-    def __add__(self, other_value_function:'Model') -> 'Model':
+    def __add__(self, other_value_function: 'Model') -> 'Model':
         # combined_dict = {**self._uniqueness_dict, **other_value_function._uniqueness_dict}
         combined_dict = {}
         combined_dict.update(self._uniqueness_dict)
@@ -175,7 +179,9 @@ class ValueFunction:
         return new_value_function
 
 
-    def append(self, alpha_vector:AlphaVector) -> None:
+    def append(self,
+               alpha_vector: AlphaVector
+               ) -> None:
         '''
         Function to add an alpha vector to the value function.
 
@@ -199,7 +205,9 @@ class ValueFunction:
             self._vector_list.append(alpha_vector)
 
 
-    def extend(self, other_value_function:'Model') -> None:
+    def extend(self,
+               other_value_function: 'Model'
+               ) -> None:
         '''
         Function to add another value function is place.
         Effectively, it performs the union of the two sets of alpha vectors.
@@ -270,7 +278,9 @@ class ValueFunction:
         return cpu_value_function
 
 
-    def prune(self, level:int=1) -> None:
+    def prune(self,
+              level: int = 1
+              ) -> None:
         '''
         Function pruning the set of alpha vectors composing the value function.
         The pruning is as thorough as the level:
@@ -345,7 +355,9 @@ class ValueFunction:
         self._pruning_level = level
 
 
-    def evaluate_at(self, belief:Belief|BeliefSet) -> tuple[float|np.ndarray, int|np.ndarray]:
+    def evaluate_at(self,
+                    belief: Belief | BeliefSet
+                    ) -> tuple[float | np.ndarray, int | np.ndarray]:
         '''
         Function to evaluate the value function at a belief point or at a set of belief points.
         It returns a value and the associated action.
@@ -392,8 +404,8 @@ class ValueFunction:
 
 
     def save(self,
-             folder:str='./ValueFunctions',
-             file_name:Union[str,None]=None
+             folder: str = './ValueFunctions',
+             file_name: str | None = None
              ) -> None:
         '''
         Function to save the value function in a file at a given path. If no path is provided, it will be saved in a subfolder (ValueFunctions) inside the current working directory.
@@ -427,9 +439,9 @@ class ValueFunction:
 
     @classmethod
     def load(cls,
-            file:str,
-            model:Model
-            ) -> 'ValueFunction':
+             file: str,
+             model: Model
+             ) -> 'ValueFunction':
         '''
         Function to load the value function from a csv file.
 
@@ -447,13 +459,17 @@ class ValueFunction:
         '''
         av_array = np.load(file)
 
-        return ValueFunction(model, alpha_vectors=av_array[:,1:], action_list=av_array[:,0].astype(int))
+        loaded_value_function = ValueFunction(model=model,
+                                              alpha_vectors=av_array[:,1:],
+                                              action_list=av_array[:,0].astype(int))
+
+        return loaded_value_function
 
 
     def plot(self,
-             as_grid:bool=False,
-             size:int=5,
-             belief_set:np.ndarray=None
+             as_grid: bool = False,
+             size: int = 5,
+             belief_set: np.ndarray = None
              ) -> None:
         '''
         Function to plot out the value function in 2 or 3 dimensions if possible and the as_grid parameter is kept to false. Else, the value function is plot as a grid.

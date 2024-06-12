@@ -1,6 +1,5 @@
 from datetime import datetime
 from inspect import signature
-from typing import Union
 
 import random
 
@@ -12,15 +11,14 @@ try:
 except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
-from .mdp import log
-from .mdp import Model as MDP_Model
+from olfactory_navigation.agents.model_based_util.mdp import log
+from olfactory_navigation.agents.model_based_util.mdp import Model as MDP_Model
 
 
 class Model(MDP_Model):
     '''
     POMDP Model class. Partially Observable Markov Decision Process Model.
 
-    ...
 
     Parameters
     ----------
@@ -53,6 +51,8 @@ class Model(MDP_Model):
         Entering either state in the list during a simulation will end the simulation.
     end_actions : list, optional
         Playing action of the list during a simulation will end the simulation.
+    print_debug : bool, default=False
+        Whether to print debug logs about the creation progress of the POMDP Model.
 
     Attributes
     ----------
@@ -119,22 +119,21 @@ class Model(MDP_Model):
     cpu_model : mdp.Model
         An equivalent model with the np.ndarray objects on CPU. (If already on CPU, returns self)
     '''
-
     def __init__(self,
-                 states:Union[int, list[str], list[list[str]]],
-                 actions:Union[int, list],
-                 observations:Union[int, list],
-                 transitions=None,
-                 reachable_states=None,
-                 rewards=None,
-                 observation_table=None,
-                 rewards_are_probabilistic:bool=False,
-                 state_grid=None,
-                 start_probabilities:Union[list,None]=None,
-                 end_states:list[int]=[],
-                 end_actions:list[int]=[]
-                 ):
-        
+                 states: int | list[str] | list[list[str]],
+                 actions: int | list,
+                 observations: int | list,
+                 transitions = None,
+                 reachable_states = None,
+                 rewards = None,
+                 observation_table = None,
+                 rewards_are_probabilistic: bool = False,
+                 state_grid = None,
+                 start_probabilities: list | None = None,
+                 end_states: list[int] = [],
+                 end_actions: list[int] = [],
+                 print_debug: bool = False
+                 ) -> None:
         super().__init__(states=states,
                          actions=actions,
                          transitions=transitions,
@@ -144,11 +143,18 @@ class Model(MDP_Model):
                          state_grid=state_grid,
                          start_probabilities=start_probabilities,
                          end_states=end_states,
-                         end_actions=end_actions)
+                         end_actions=end_actions,
+                         print_debug=print_debug)
+        # Debug logger
+        def logger(content: str):
+            if print_debug:
+                log(content=content)
 
-        print()
-        log('POMDP particular parameters:')
+        if print_debug:
+            print()
+            log('POMDP particular parameters:')
 
+        # TODO: Move this away from here to allow from different action sets
         self.movement_vector = np.array([
             [-1,  0], # North
             [ 0,  1], # East
@@ -175,17 +181,17 @@ class Model(MDP_Model):
             exp_shape = (self.state_count, self.action_count, self.observation_count)
             assert o_shape == exp_shape, f"Observations table doesnt have the right shape, it should be SxAxO (expected: {exp_shape}, received: {o_shape})."
 
-        log(f'- {self.observation_count} observations')
+        logger(f'- {self.observation_count} observations')
 
         # ------------------------- Reachable transitional observation probabilities -------------------------
-        log('- Starting of transitional observations for reachable states table')
+        logger('- Starting of transitional observations for reachable states table')
         start_ts = datetime.now()
 
         reachable_observations = self.observation_table[self.reachable_states[:,:,None,:], self.actions[None,:,None,None], self.observations[None,None,:,None]] # SAOR
         self.reachable_transitional_observation_table = np.einsum('sar,saor->saor', self.reachable_probabilities, reachable_observations)
         
         duration = (datetime.now() - start_ts).total_seconds()
-        log(f'    > Done in {duration:.3f}s')
+        logger(f'    > Done in {duration:.3f}s')
 
         # ------------------------- Rewards -------------------------
         self.immediate_reward_table = None
@@ -193,15 +199,15 @@ class Model(MDP_Model):
         
         if rewards is None:
             if (len(self.end_states) > 0) or (len(self.end_actions) > 0):
-                log('- [Warning] Rewards are not define but end states/actions are, reaching an end state or doing an end action will give a reward of 1.')
+                logger('- [Warning] Rewards are not define but end states/actions are, reaching an end state or doing an end action will give a reward of 1.')
                 self.immediate_reward_function = self._end_reward_function
             else:
                 # If no reward matrix given, generate random one
                 self.immediate_reward_table = np.random.rand(self.state_count, self.action_count, self.state_count, self.observation_count)
         elif callable(rewards):
             # Rewards is a function
-            log('- [Warning] The rewards are provided as a function, if the model is saved, the rewards will need to be defined before loading model.')
-            log('    > Alternative: Setting end states/actions and leaving the rewards can be done to make the end states/action giving a reward of 1 by default.')
+            logger('- [Warning] The rewards are provided as a function, if the model is saved, the rewards will need to be defined before loading model.')
+            logger('    > Alternative: Setting end states/actions and leaving the rewards can be done to make the end states/action giving a reward of 1 by default.')
             self.immediate_reward_function = rewards
             assert len(signature(rewards).parameters) == 4, "Reward function should accept 4 parameters: s, a, sn, o..."
         else:
@@ -212,7 +218,7 @@ class Model(MDP_Model):
             assert r_shape == exp_shape, f"Rewards table doesnt have the right shape, it should be SxAxSxO (expected: {exp_shape}, received {r_shape})"
         
         # ------------------------- Expected rewards -------------------------
-        log('- Starting generation of expected rewards table')
+        logger('- Starting generation of expected rewards table')
         start_ts = datetime.now()
 
         reachable_rewards = None
@@ -234,7 +240,7 @@ class Model(MDP_Model):
         self.expected_rewards_table = np.einsum('saor,saro->sa', self.reachable_transitional_observation_table, reachable_rewards)
 
         duration = (datetime.now() - start_ts).total_seconds()
-        log(f'    > Done in {duration:.3f}s')
+        logger(f'    > Done in {duration:.3f}s')
 
 
     def _end_reward_function(self, s, a, sn, o):
@@ -245,7 +251,12 @@ class Model(MDP_Model):
         return (np.isin(sn, self.end_states) | np.isin(a, self.end_actions)).astype(int)
 
 
-    def reward(self, s:int, a:int, s_p:int, o:int) -> Union[int,float]:
+    def reward(self,
+               s: int,
+               a: int,
+               s_p: int,
+               o: int
+               ) -> int | float:
         '''
         Returns the rewards of playing action a when in state s and landing in state s_p.
         If the rewards are probabilistic, it will return 0 or 1.
@@ -274,7 +285,10 @@ class Model(MDP_Model):
             return reward
     
 
-    def observe(self, s_p:int, a:int) -> int:
+    def observe(self,
+                s_p: int,
+                a: int
+                ) -> int:
         '''
         Returns a random observation knowing action a is taken from state s, it is weighted by the observation probabilities.
 

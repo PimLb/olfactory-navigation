@@ -1,8 +1,7 @@
 from matplotlib import pyplot as plt
-from typing import Union
 from scipy.stats import entropy
 
-from .pomdp import Model
+from olfactory_navigation.agents.model_based_util.pomdp import Model
 
 import numpy as np
 gpu_support = False
@@ -13,6 +12,7 @@ try:
 except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
+
 class Belief:
     '''
     A class representing a belief in the space of a given model. It is the belief to be in any combination of states:
@@ -21,7 +21,6 @@ class Belief:
 
     The belief update function has been implemented based on the belief update define in the paper of J. Pineau, G. Gordon, and S. Thrun, 'Point-based approximations for fast POMDP solving'
 
-    ...
 
     Parameters
     ----------
@@ -38,7 +37,10 @@ class Belief:
     bytes_repr : bytes
         A representation in bytes of the value of the belief
     '''
-    def __init__(self, model:Model, values:Union[np.ndarray,None]=None):
+    def __init__(self,
+                 model: Model,
+                 values: np.ndarray | None = None
+                 ) -> None:
         assert model is not None
         self.model = model
 
@@ -92,9 +94,9 @@ class Belief:
     
 
     def update(self,
-               a:int,
-               o:int,
-               throw_error:bool=True
+               a: int,
+               o: int,
+               throw_error: bool = True
                ) -> 'Belief':
         '''
         Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).
@@ -187,7 +189,7 @@ class Belief:
         return float(entropy(self._values) if xp == np else cupy_entropy(self._values))
     
 
-    def plot(self, size:int=5) -> None:
+    def plot(self, size: int = 5) -> None:
         '''
         Function to plot a heatmap of the belief distribution if the belief is of a grid model.
 
@@ -225,13 +227,12 @@ class BeliefSet:
     Class to represent a set of beliefs with regard to a POMDP model.
     It has the purpose to store the beliefs in a numpy array format and be able to conver it to a list of Belief class objects.
     
-    ...
 
     Parameters
     ----------
     model : pomdp.Model
         The model on which the beliefs apply.
-    beliefs : list[Belief] | np.ndarray
+    beliefs : list[Belief] or np.ndarray
         The actual set of beliefs.
 
     Attributes
@@ -242,7 +243,10 @@ class BeliefSet:
     belief_list : list[Belief]
         A list of N Belief object.
     '''
-    def __init__(self, model:Model, beliefs:Union[list[Belief],np.ndarray]) -> None:
+    def __init__(self,
+                 model: Model,
+                 beliefs: list[Belief] | np.ndarray
+                 ) -> None:
         self.model = model
 
         self._belief_list = None
@@ -307,9 +311,9 @@ class BeliefSet:
 
 
     def update(self,
-               actions:list|np.ndarray,
-               observations:list|np.ndarray,
-               throw_error:bool=True
+               actions: list | np.ndarray,
+               observations: list | np.ndarray,
+               throw_error: bool = True
                ) -> 'BeliefSet':
         '''
         Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).
@@ -369,7 +373,7 @@ class BeliefSet:
         return self._uniqueness_dict
 
 
-    def union(self, other_belief_set:'BeliefSet') -> 'BeliefSet':
+    def union(self, other_belief_set: 'BeliefSet') -> 'BeliefSet':
         '''
         Function to make the union between two belief set objects.
 
