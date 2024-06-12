@@ -6,12 +6,14 @@ import shutil
 
 from datetime import datetime
 from tqdm.auto import trange
+from typing import Callable
 
-from ..environment import Environment
-from ..agent import Agent
-from .model_based_util.pomdp import Model
-from .model_based_util.value_function import ValueFunction
-from .model_based_util.belief import Belief, BeliefSet
+from olfactory_navigation.environment import Environment
+from olfactory_navigation.agent import Agent
+from olfactory_navigation.agents.model_based_util.pomdp import Model
+from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
+from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
+from olfactory_navigation.agents.model_based_util.environment_converter import exact_converter
 
 import numpy as np
 
@@ -78,13 +80,13 @@ class TrainingHistory:
     explored_beliefs : BeliefSet
     '''
     def __init__(self,
-                 tracking_level:int,
-                 model:Model,
-                 gamma:float,
-                 eps:float,
-                 expand_append:bool,
-                 initial_value_function:ValueFunction,
-                 initial_belief_set:BeliefSet
+                 tracking_level: int,
+                 model: Model,
+                 gamma: float,
+                 eps: float,
+                 expand_append: bool,
+                 initial_value_function: ValueFunction,
+                 initial_belief_set: BeliefSet
                  ):
         
         self.tracking_level = tracking_level
@@ -138,8 +140,8 @@ class TrainingHistory:
     
 
     def add_expand_step(self,
-                        expansion_time:float,
-                        belief_set:BeliefSet
+                        expansion_time: float,
+                        belief_set: BeliefSet
                         ) -> None:
         '''
         Function to add an expansion step in the simulation history by the explored belief set the expand function generated.
@@ -160,9 +162,9 @@ class TrainingHistory:
 
 
     def add_backup_step(self,
-                        backup_time:float,
-                        value_function_change:float,
-                        value_function:ValueFunction
+                        backup_time: float,
+                        value_function_change: float,
+                        value_function: ValueFunction
                         ) -> None:
         '''
         Function to add a backup step in the simulation history by recording the value function the backup function generated.
@@ -186,8 +188,8 @@ class TrainingHistory:
 
 
     def add_prune_step(self,
-                       prune_time:float,
-                       alpha_vectors_pruned:int
+                       prune_time: float,
+                       alpha_vectors_pruned: int
                        ) -> None:
         '''
         Function to add a prune step in the simulation history by recording the amount of alpha vectors that were pruned by the pruning function and how long it took.
@@ -286,7 +288,8 @@ class PBVI_Agent(Agent):
     def __init__(self,
                  environment: Environment,
                  threshold: float | None = 3e-6,
-                 name: str | None = None
+                 name: str | None = None,
+                 environment_convertion: Callable | None = None
                  ) -> None:
         super().__init__(
             environment=environment,
@@ -294,7 +297,11 @@ class PBVI_Agent(Agent):
             name=name
         )
 
-        self.model = Model.from_environment(environment, threshold)
+        if callable(environment_convertion):
+            self.model = environment_convertion(environment=environment, threshold=threshold)
+        else:
+            # Using the exact converter
+            self.model = exact_converter(environment=environment, threshold=threshold)
 
         # Trainable variables
         self.trained_at = None
