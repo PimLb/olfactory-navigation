@@ -195,7 +195,8 @@ class Environment:
         else:
             shape = self.data_shape + np.sum(self.margins, axis=1)
 
-        self.data_shape = new_data_shape
+        if new_data_shape is not None:
+            self.data_shape = new_data_shape
 
         # Process multiplier
         multiplier = np.array(multiplier)
