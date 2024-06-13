@@ -30,11 +30,11 @@ __all__ = (
 class SimulationHistory:
     '''
     Class to represent a list of the steps that happened during a simulation with:
+
         - the positions the agents pass by
         - the actions the agents take
         - the observations the agents receive ('observations')
 
-    ...
 
     Parameters
     ----------
@@ -46,6 +46,8 @@ class SimulationHistory:
         The agent used in the simulation.
     time_shift : np.ndarray
         An array of time shifts in the simulation data.
+    horizon : int
+        The horizon of the simulation. i.e. how many steps can be taken by the agent during the simulation before he is considered lost.
     reward_discount : float, default=0.99
         A discount to be applied to the rewards received by the agent. (eg: reward of 1 received at time n would be: 1 * reward_discount^n)
     
@@ -55,6 +57,7 @@ class SimulationHistory:
     environment : Environment
     agent : Agent
     time_shift : np.ndarray
+    horizon : int
     reward_discount : float
     n : int
         The amount of simulations.
@@ -70,11 +73,12 @@ class SimulationHistory:
         A numpy array containing n elements that records when a given simulation reaches the source (-1 is not reached).
     '''
     def __init__(self,
-                 start_points:np.ndarray,
-                 environment:Environment,
-                 agent:Agent,
-                 time_shift:np.ndarray,
-                 reward_discount:float=0.99
+                 start_points: np.ndarray,
+                 environment: Environment,
+                 agent: Agent,
+                 time_shift: np.ndarray,
+                 horizon: int,
+                 reward_discount: float = 0.99
                  ) -> None:
         # If only on state is provided, we make it a 1x2 vector
         if len(start_points.shape) == 1:
@@ -85,6 +89,7 @@ class SimulationHistory:
         self.environment = environment.to_cpu()
         self.agent = agent.to_cpu()
         self.time_shift = time_shift if gpu_support and cp.get_array_module(time_shift) == np else cp.asnumpy(time_shift)
+        self.horizon = horizon
         self.reward_discount = reward_discount
         self.start_time = datetime.now()
 
@@ -103,11 +108,11 @@ class SimulationHistory:
 
 
     def add_step(self,
-                 actions:np.ndarray,
-                 next_positions:np.ndarray,
-                 observations:np.ndarray,
-                 is_done:np.ndarray,
-                 interupt:np.ndarray
+                 actions: np.ndarray,
+                 next_positions: np.ndarray,
+                 observations: np.ndarray,
+                 is_done: np.ndarray,
+                 interupt: np.ndarray
                  ) -> None:
         '''
         Function to add a step in the simulation history.
@@ -168,10 +173,11 @@ class SimulationHistory:
          - y_start and x_start: The x, y starting positions
          - optimal_steps_count: The minimal amount of steps to reach the source
          - converged:           Whether or not the simulation reached the source
+         - reached_horizon:     Whether the failed simulation reached to horizon
          - steps_taken:         The amount of steps the agent took to reach the source, (horizon if the simulation did not reach the source)
          - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
          - extra_steps:         The amount of extra steps compared to the optimal trajectory
-         - t_min_over_t:         normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
+         - t_min_over_t:        Normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
 
         For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
         '''
@@ -179,6 +185,7 @@ class SimulationHistory:
         df = pd.DataFrame(self.start_points, columns=['y_start', 'x_start'])
         df['optimal_steps_count'] = self.environment.distance_to_source(self.start_points)
         df['converged'] = self.done_at_step >= 0
+        df['reached_horizon'] = np.all(self.positions[-1] != -1, axis=1) & (self.done_at_step == -1) & (len(self.positions) == self.horizon)
         df['steps_taken'] = np.where(df['converged'], self.done_at_step, len(self.positions))
         df['discounted_rewards'] = self.reward_discount ** df['steps_taken']
         df['extra_steps'] = df['steps_taken'] - df['optimal_steps_count']
@@ -223,7 +230,9 @@ class SimulationHistory:
         Along with the respective the standard deviations and equally for only for the successful simulations.
         '''
         done_sim_count = np.sum(self.done_at_step >= 0)
-        summary_str = f'Simulations reached goal: {done_sim_count}/{self.n} ({self.n-done_sim_count} failures) ({(done_sim_count*100)/self.n:.2f}%)'
+        failed_count = self.n - done_sim_count
+        reached_horizon_count = int(np.sum(np.all(self.positions[-1] != -1, axis=1) & (self.done_at_step == -1) & (len(self.positions) == self.horizon)))
+        summary_str = f'Simulations reached goal: {done_sim_count}/{self.n} ({failed_count} failures (reached horizon: {reached_horizon_count})) ({(done_sim_count*100)/self.n:.2f}% success)'
 
         if done_sim_count == 0:
             return summary_str
@@ -231,16 +240,16 @@ class SimulationHistory:
         # Metrics
         df = self.analysis_df
 
-        summary_str += f"\n\t- Average step count: {df.loc['mean','steps_taken']:.3f} +- {df.loc['standard_deviation','steps_taken']:.2f} "
+        summary_str += f"\n - {'Average step count:':<35} {df.loc['mean','steps_taken']:.3f} +- {df.loc['standard_deviation','steps_taken']:.2f} "
         summary_str += f"(Successfull only: {df.loc['success_mean','steps_taken']:.3f} +- {df.loc['success_standard_deviation','steps_taken']:.2f})"
 
-        summary_str += f"\n\t- Extra steps: {df.loc['mean','extra_steps']:.3f} +- {df.loc['standard_deviation','extra_steps']:.2f} "
+        summary_str += f"\n - {'Extra steps:':<35} {df.loc['mean','extra_steps']:.3f} +- {df.loc['standard_deviation','extra_steps']:.2f} "
         summary_str += f"(Successful only: {df.loc['success_mean','extra_steps']:.3f} +- {df.loc['success_standard_deviation','extra_steps']:.2f})"
 
-        summary_str += f"\n\t- Average discounted rewards (ADR): {df.loc['mean','discounted_rewards']:.3f} +- {df.loc['standard_deviation','discounted_rewards']:.2f} "
+        summary_str += f"\n - {'Average discounted rewards (ADR):':<35} {df.loc['mean','discounted_rewards']:.3f} +- {df.loc['standard_deviation','discounted_rewards']:.2f} "
         summary_str += f"(Successfull only: {df.loc['success_mean','discounted_rewards']:.3f} +- {df.loc['success_standard_deviation','discounted_rewards']:.2f})"
 
-        summary_str += f"\n\t- Tmin/T: {df.loc['mean','t_min_over_t']:.3f} +- {df.loc['standard_deviation','t_min_over_t']:.2f} "
+        summary_str += f"\n - {'Tmin/T:':<35} {df.loc['mean','t_min_over_t']:.3f} +- {df.loc['standard_deviation','t_min_over_t']:.2f} "
         summary_str += f"(Successful only: {df.loc['success_mean','t_min_over_t']:.3f} +- {df.loc['success_standard_deviation','t_min_over_t']:.2f})"
 
         return summary_str
@@ -349,7 +358,8 @@ class SimulationHistory:
 
         # Adding Environment and Agent info
         padding = [None] * len(combined_df)
-        combined_df['timestamps'] = [ts.strftime('%H%M%S%f') for ts in self.timestamps] + padding[:-len(self.timestamps)]
+        combined_df['timestamps'] = [self.start_time.strftime('%Y%m%d_%H%M%S%f')] + [ts.strftime('%H%M%S%f') for ts in self.timestamps] + padding[:-(len(self.timestamps)+1)]
+        combined_df['horizon'] = [self.horizon] + padding[:-1]
         combined_df['reward_discount'] = [self.reward_discount] + padding[:-1]
         combined_df['environment'] = [self.environment.name, self.environment.saved_at] + padding[:-2]
         combined_df['agent'] = [self.agent.name, self.agent.class_name, self.agent.saved_at] + padding[:-3]
@@ -402,12 +412,15 @@ class SimulationHistory:
             'dx':               float,
             'o':                float,
             'done':             float,
+            'timestamps':       str,
+            'horizon':          float,
             'reward_discount':  float,
             'environment':      str,
             'agent':            str
         })
 
-        # Retrieving reward discount
+        # Retrieving horizon and reward discount
+        horizon = int(combined_df['horizon'][0])
         reward_discount = combined_df['reward_discount'][0]
 
         # Retrieving environment
@@ -485,8 +498,9 @@ class SimulationHistory:
         hist.environment = environment.to_cpu() if isinstance(environment, Environment) else None
         hist.agent = agent.to_cpu() if isinstance(agent, Agent) else None
         hist.time_shift = time_shift
+        hist.horizon = horizon
         hist.reward_discount = reward_discount
-        hist.start_time = datetime.now() # TODO Make start time a column in the saved file
+        hist.start_time = datetime.strptime(combined_df['timestamps'][0], '%Y%m%d_%H%M%S%f')
 
         hist.start_points = start_points
         hist._running_sims = None
@@ -495,7 +509,8 @@ class SimulationHistory:
         hist.actions = [*actions]
         hist.observations = [*observations]
         hist.done_at_step = done_at_step
-        hist.timestamps = [datetime.strptime(str(int(ts)), '%H%M%S%f') for ts in combined_df['timestamps'][:max_length-1]]
+        hist.timestamps = [datetime.strptime(ts, '%H%M%S%f') for ts in combined_df['timestamps'][1:max_length]]
+        # hist.timestamps = [datetime.strptime(str(int(ts)), '%H%M%S%f') for ts in combined_df['timestamps'][:max_length-1]]
 
         # Saving simulation dfs back
         hist._simulation_dfs = simulation_dfs
@@ -708,6 +723,7 @@ def run_test(agent: Agent,
         environment=environment,
         agent=agent,
         time_shift=time_shift,
+        horizon=horizon,
         reward_discount=reward_discount
     )
 
