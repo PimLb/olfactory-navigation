@@ -196,7 +196,7 @@ class SimulationHistory:
         df.index = runs_list
 
         # Analysis aggregations
-        columns_to_analyze = ['converged', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']
+        columns_to_analyze = ['converged', 'reached_horizon', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']
         success_averages = df.loc[df['converged'], columns_to_analyze].mean()
         succes_std = df.loc[df['converged'], columns_to_analyze].std()
 
@@ -327,7 +327,7 @@ class SimulationHistory:
         # Handle file name
         if file is None:
             env_name = f's_{self.environment.shape[0]}_{self.environment.shape[1]}'
-            file = f'Simulations-{env_name}-n_{self.n}-{self.start_time.strftime("%m%d%Y_%H%M%S")}-horizon_{len(self.positions)}.csv'
+            file = f'Simulations-{env_name}-n_{self.n}-{self.start_time.strftime("%Y%m%d_%H%M%S")}-horizon_{len(self.positions)}.csv'
 
         if not file.endswith('.csv'):
             file += '.csv'

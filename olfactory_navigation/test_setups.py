@@ -209,7 +209,7 @@ def analyse_shape_robustness(all_histories: list[SimulationHistory],
 
         # Then the summarized metrics are collapsed on a single row
         col_metric_dict = {'y_multiplier': multiplier_pair[0].astype(int), 'x_multiplier': multiplier_pair[1].astype(int)}
-        for col in ['converged', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']:
+        for col in ['converged', 'reached_horizon', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']:
             for metric in ['mean', 'standard_deviation', 'success_mean', 'success_standard_deviation']:
                 col_metric_dict[f'{col}_{metric}'] = df.loc[metric, col]
 
@@ -218,8 +218,11 @@ def analyse_shape_robustness(all_histories: list[SimulationHistory],
     # Creating the dataframe from all the rows
     df = pd.DataFrame(rows)
 
-    # Removal of 2 unnecessary columns
-    df = df.drop(columns=['converged_success_mean', 'converged_success_standard_deviation'])
+    # Removal of 4 unnecessary columns
+    df = df.drop(columns=['converged_success_mean',
+                          'converged_success_standard_deviation',
+                          'reached_horizon_success_mean',
+                          'reached_horizon_success_standard_deviation'])
 
     return df
 
@@ -304,7 +307,7 @@ def test_shape_robustness(agent: Agent,
     # Save Folder name and creation
     if save or save_analysis:
         if save_folder is None:
-            save_folder = f'./results/{datetime.now().strftime("%m%d%Y_%H%M%S")}_shape_robustness_test_' + environment.name
+            save_folder = f'./results/{datetime.now().strftime("%Y%m%d_%H%M%S")}_shape_robustness_test_' + environment.name
 
         if not os.path.exists(save_folder):
             os.mkdir(save_folder)
@@ -384,7 +387,7 @@ def analyse_scale_robustness(all_histories: list[SimulationHistory],
 
         # Then the summarized metrics are collapsed on a single row
         col_metric_dict = {'multiplier': int(multiplier)}
-        for col in ['converged', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']:
+        for col in ['converged', 'reached_horizon', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']:
             for metric in ['mean', 'standard_deviation', 'success_mean', 'success_standard_deviation']:
                 col_metric_dict[f'{col}_{metric}'] = df.loc[metric, col]
 
@@ -393,8 +396,11 @@ def analyse_scale_robustness(all_histories: list[SimulationHistory],
     # Creating the dataframe from all the rows
     df = pd.DataFrame(rows)
 
-    # Removal of 2 unnecessary columns
-    df = df.drop(columns=['converged_success_mean', 'converged_success_standard_deviation'])
+    # Removal of 4 unnecessary columns
+    df = df.drop(columns=['converged_success_mean',
+                          'converged_success_standard_deviation',
+                          'reached_horizon_success_mean',
+                          'reached_horizon_success_standard_deviation'])
 
     return df
 
@@ -474,7 +480,7 @@ def test_scale_robustness(agent: Agent,
     # Save Folder name and creation
     if save or save_analysis:
         if save_folder is None:
-            save_folder = f'./results/{datetime.now().strftime("%m%d%Y_%H%M%S")}_scale_robustness_test_' + environment.name
+            save_folder = f'./results/{datetime.now().strftime("%Y%m%d_%H%M%S")}_scale_robustness_test_' + environment.name
 
         if not os.path.exists(save_folder):
             os.mkdir(save_folder)

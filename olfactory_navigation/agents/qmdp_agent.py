@@ -108,7 +108,7 @@ class QMDP_Agent(PBVI_Agent):
                                                print_progress = print_progress)
 
         # Record when it was trained
-        self.trained_at = datetime.now().strftime("%m%d%Y_%H%M%S")
+        self.trained_at = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.name += f'-trained_{self.trained_at}'
 
         self.value_function = value_function.to_cpu() if not self.on_gpu else value_function.to_gpu()

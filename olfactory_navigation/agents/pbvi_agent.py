@@ -727,7 +727,7 @@ class PBVI_Agent(Agent):
         training_history.add_prune_step(prune_time, alpha_vectors_pruned)
 
         # Record when it was trained
-        self.trained_at = datetime.now().strftime("%m%d%Y_%H%M%S")
+        self.trained_at = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.name += f'-trained_{self.trained_at}'
 
         # Saving value function
