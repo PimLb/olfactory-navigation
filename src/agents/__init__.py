@@ -25,4 +25,5 @@ __all__ = (
     'QAgent',
     'QMDP_Agent',
     'Infotaxis_Agent',
+    'FSC_model_based'
 )
