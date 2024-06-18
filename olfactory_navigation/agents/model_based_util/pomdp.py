@@ -154,14 +154,6 @@ class Model(MDP_Model):
             print()
             log('POMDP particular parameters:')
 
-        # TODO: Move this away from here to allow from different action sets
-        self.movement_vector = np.array([
-            [-1,  0], # North
-            [ 0,  1], # East
-            [ 1,  0], # South
-            [ 0, -1]  # West
-        ])
-
         # ------------------------- Observations -------------------------
         if isinstance(observations, int):
             self.observation_labels = [f'o_{i}' for i in range(observations)]

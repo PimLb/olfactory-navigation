@@ -268,6 +268,8 @@ class PBVI_Agent(Agent):
     environment : Environment
     threshold : float
     name : str
+    movement_vector : np.ndarray
+        The actions allowed of the agent. Formulated as movement vectors as [dy, dx].
     model : Model
         The environment converted to a POMDP model using the "from_environment" constructor of the Model class.
     saved_at : str
@@ -298,6 +300,14 @@ class PBVI_Agent(Agent):
             threshold=threshold,
             name=name
         )
+
+        # Allowed actions
+        self.movement_vector = np.array([
+            [-1,  0], # North
+            [ 0,  1], # East
+            [ 1,  0], # South
+            [ 0, -1]  # West
+        ])
 
         # Converting the olfactory environment to a POMDP Model
         if callable(environment_converter):
@@ -955,7 +965,7 @@ class PBVI_Agent(Agent):
         self.action_played = action
 
         # Converting action indexes to movement vectors
-        movemement_vector = self.model.movement_vector[action,:]
+        movemement_vector = self.movement_vector[action,:]
         
         return movemement_vector
 

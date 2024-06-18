@@ -38,6 +38,8 @@ class Infotaxis_Agent(Agent):
     environment : Environment
     threshold : float
     name : str
+    movement_vector : np.ndarray
+        The actions allowed of the agent. Formulated as movement vectors as [dy, dx].
     model : pomdp.Model
         The environment converted to a POMDP model using the "from_environment" constructor of the pomdp.Model class.
     saved_at : str
@@ -63,6 +65,14 @@ class Infotaxis_Agent(Agent):
             threshold = threshold,
             name = name
         )
+
+        # Allowed actions
+        self.movement_vector = np.array([
+            [-1,  0], # North
+            [ 0,  1], # East
+            [ 1,  0], # South
+            [ 0, -1]  # West
+        ])
 
         self.model = Model.from_environment(environment, threshold)
 
@@ -164,7 +174,7 @@ class Infotaxis_Agent(Agent):
         self.action_played = best_action
 
         # Converting action indexes to movement vectors
-        movemement_vector = self.model.movement_vector[best_action,:]
+        movemement_vector = self.movement_vector[best_action,:]
 
         return movemement_vector
 
