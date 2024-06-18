@@ -13,7 +13,7 @@ def exact_converter(environment: Environment,
     This version of the converter converts the environment in an exact manner.
     This mean the amount of states is equal to the grid points in the olfactory environment object.
 
-    It supports an environment in 2D and therefore defines 4 available actions for the agent.
+    It supports an environment in 2D and therefore defines 4 available actions for the agent. (north, east, south, west)
 
     It also defines at least different observations: Nothing, Something or Goal.
     However, if multiple thresholds are provided, the more observations will be available: |threshold| + 1 (Nothing) + 1 (Goal)
@@ -33,6 +33,7 @@ def exact_converter(environment: Environment,
         A generate POMDP model from the environment.
     '''
     # TODO: Implement different action sets for the POMDP Model Converter
+    # TODO: Implement the different boundary conditions here.
 
     state_count = np.prod(environment.shape)
 
@@ -110,4 +111,146 @@ def exact_converter(environment: Environment,
         end_states=end_states,
         start_probabilities=environment.start_probabilities.ravel()
     )
+    return model
+
+
+def minimal_converter(environment: Environment,
+                      threshold: float | list,
+                      partitions: list | np.ndarray = [3,6],
+                      partition_move_out_probabilities: int | list | np.ndarray | None = None
+                      ) -> Model:
+    '''
+    Method to create a POMDP Model based on an olfactory environment  object.
+
+    This version of the converted, attempts to build a minimal version of the environment with just a few partitions in the x and y direction.
+    This means the model will the a total of n states with n = ((|x-partitions| + 2) * (|y-partitions| + 2)).
+    The +2 corresponds to two margin cells in the x and y axes.
+
+    It supports an environment in 2D and therefore defines 4 available actions for the agent. (north, east, south, west)
+    But, since the model contains so few spaces, the transitions between states are not deterministic:
+    This means, if an agent takes a step in a direction, there is a chance the agent stays in the same state along with a lower chance the agent moves to a state in the actual direction it was meaning to go.
+
+    It also defines at least different observations: Nothing, Something or Goal.
+    However, if multiple thresholds are provided, the more observations will be available: |threshold| + 1 (Nothing) + 1 (Goal)
+
+    Parameters
+    ----------
+    environment : Environment
+        The olfactory environment object used to create the POMDP Model from.
+        The environment's data is mostly used to build the 
+    threshold : float or list
+        A threshold for the odor cues.
+        If a single is provided, the agent will smell something when an odor is above the threshold and nothing when it is bellow.
+        If a list is provided, the agent will able to distinguish different levels of smell.
+    partitions : list or np.ndarray, default=[3,6]
+        How many partitions to use in respectively the y and x directions.
+    partition_move_out_probabilities : int or list or np.ndarray, optional
+        A unique 'move_out' probability, or a list/array of the probabilities for respectively the horizontal and vertical movements.
+        If none is provided, the probabilities will be 1 over the cell shape in the y and x directions for the probabilities horizontally and vertically.
+
+    Returns
+    -------
+    model : Model
+        A generated POMDP model from the environment.
+    '''
+    # Getting probabilities of odor in the requested partitions
+    partitions = np.array(partitions)
+    y_partitions = partitions[0]
+    x_partitions = partitions[1]
+
+    cell_shape = (environment.data_shape / np.array([y_partitions, x_partitions])).astype(int)
+    cell_odor_probs = np.zeros((y_partitions, x_partitions))
+
+    for y_i in range(y_partitions):
+        for x_i in range(x_partitions):
+            cell = environment.data[:,
+                                    (y_i * cell_shape[0]) : ((y_i + 1) * cell_shape[0]),
+                                    (x_i * cell_shape[1]) : ((x_i + 1) * cell_shape[1])]
+
+            cell_odor_probs[y_i, x_i] = np.average(cell > threshold)
+
+    odor_probabilities = np.zeros(((y_partitions + 2), (x_partitions + 3)))
+    odor_probabilities[1:-1,2:-1] = cell_odor_probs
+
+    # General attributes
+    state_count = np.prod(odor_probabilities.shape)
+    shape = odor_probabilities.shape
+
+    # State grid
+    state_grid = [[f's_{x}_{y}' for x in range(shape[1])] for y in range(shape[0])]
+
+    # Computing move out probabilities
+    if partition_move_out_probabilities is None:
+        move_out_prob = 1 / cell_shape
+    elif isinstance(partition_move_out_probabilities, int):
+        move_out_prob = np.ones(2) * partition_move_out_probabilities
+    else:
+        move_out_prob = np.array(partition_move_out_probabilities)
+
+    # Transition probabilities of the model
+    width = shape[1]
+    transition_probabilities = np.zeros((state_count, 4, state_count))
+
+    for y in range(shape[0]):
+        for x in range(shape[1]):
+
+            # North
+            if y == 0:
+                transition_probabilities[(y * width) + x, 0, (y * width) + x] = 1.0
+            else:
+                transition_probabilities[(y * width) + x, 0, (y * width) + x] = (1 - move_out_prob[0])
+                transition_probabilities[(y * width) + x, 0, ((y - 1) * width) + x] = move_out_prob[0]
+
+            # East
+            if x == (shape[1] - 1):
+                transition_probabilities[(y * width) + x, 1, (y * width) + x] = 1.0
+            else:
+                transition_probabilities[(y * width) + x, 1, (y * width) + x] = (1 - move_out_prob[1])
+                transition_probabilities[(y * width) + x, 1, (y * width) + (x + 1)] = move_out_prob[1]
+            
+            # South
+            if y == (shape[0] - 1):
+                transition_probabilities[(y * width) + x, 2, (y * width) + x] = 1.0
+            else:
+                transition_probabilities[(y * width) + x, 2, (y * width) + x] = (1 - move_out_prob[1])
+                transition_probabilities[(y * width) + x, 2, ((y + 1) * width) + x] = move_out_prob[1]
+
+            # West
+            if x == 0:
+                transition_probabilities[(y * width) + x, 3, (y * width) + x] = 1.0
+            else:
+                transition_probabilities[(y * width) + x, 3, (y * width) + x] = (1 - move_out_prob[0])
+                transition_probabilities[(y * width) + x, 3, (y * width) + (x - 1)] = move_out_prob[0]
+
+    # Goal states
+    end_states = [int((int(shape[0] / 2) * width) + 1)]
+
+    # Observations
+    observation_labels = ['nothing', 'something', 'goal']
+
+    observations = np.zeros((state_count, 4, len(observation_labels)))
+
+    observations[:, :, 0] = (1 - odor_probabilities.flatten())[:,None]
+    observations[:, :, 1] = odor_probabilities.flatten()[:,None]
+
+    observations[end_states, :, -1] = 0.0
+    observations[end_states, :, :] = 0.0
+    observations[end_states, :, -1] = 1.0
+
+    # Start probabilities
+    start_probabilities = np.ones(state_count, dtype=float)
+    # start_probabilities = (odor_probabilities > 0).astype(float).flatten()
+    start_probabilities /= np.sum(start_probabilities)
+
+    # Creation of the Model
+    model = Model(
+        states = state_grid,
+        actions = ['N','E','S','W'],
+        observations = observation_labels,
+        transitions = transition_probabilities,
+        observation_table = observations,
+        end_states = end_states,
+        start_probabilities = start_probabilities
+    )
+
     return model
