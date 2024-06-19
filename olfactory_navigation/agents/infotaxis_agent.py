@@ -35,6 +35,11 @@ class Infotaxis_Agent(Agent):
         The olfactory sensitivity of the agent. Odor cues under this threshold will not be detected by the agent.
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    environment_converter : Callable, default=exact_converter
+        A function to convert the olfactory environment instance to a POMDP Model instance.
+        By default, we use an exact convertion that keeps the shape of the environment to make the amount of states of the POMDP Model.
+    converter_parameters : dict, optional
+        A set of additional parameters to be passed down to the environment converter.
 
     Attributes
     ---------
