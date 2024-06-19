@@ -1,12 +1,10 @@
-from olfactory_navigation import Environment
+from olfactory_navigation import Agent, Environment
 from olfactory_navigation.agents.model_based_util.pomdp import Model
 
 import numpy as np
 
 
-def exact_converter(environment: Environment,
-                    threshold : float | list
-                    ) -> Model:
+def exact_converter(agent : Agent) -> Model:
     '''
     Method to create a POMDP model based on an olfactory environment object.
 
@@ -18,23 +16,24 @@ def exact_converter(environment: Environment,
     It also defines at least different observations: Nothing, Something or Goal.
     However, if multiple thresholds are provided, the more observations will be available: |threshold| + 1 (Nothing) + 1 (Goal)
 
+    Note: The environment and the threshold parameters are gathered from the agent instance provided.
+
     Parameters
     ----------
-    environment : Environment
-        The olfactory environment object to create the POMDP model from.
-    threshold : float or list
-        A threshold for the odor cues.
-        If a single is provided, the agent will smell something when an odor is above the threshold and nothing when it is bellow.
-        If a list is provided, the agent will able to distinguish different levels of smell.
+    agent : Agent
+        The agent to use to get the environment and threshold parameters from.
 
     Returns
     -------
     model : Model
         A generate POMDP model from the environment.
     '''
-    # TODO: Implement different action sets for the POMDP Model Converter
-    # TODO: Implement the different boundary conditions here.
+    # Agent's parameters
+    environment = agent.environment
+    threshold = agent.threshold
+    action_set = agent.action_set
 
+    # Base Model parameters
     state_count = np.prod(environment.shape)
 
     state_grid = [[f's_{x}_{y}' for x in range(environment.shape[1])] for y in range(environment.shape[0])]
@@ -90,21 +89,27 @@ def exact_converter(environment: Environment,
     observation_labels.append('goal')
 
     # Compute reachable states
-    row_w = environment.shape[1]
+    shape = environment.shape
 
-    reachable_states = np.zeros((state_count, 4, 1), dtype=int)
-    for s in range(state_count):
-        reachable_states[s,0,0] = s - row_w if s - row_w >= 0 else (state_count - row_w) + s # North
-        reachable_states[s,1,0] = s + 1 if (s + 1) % row_w > 0 else s # East
-        reachable_states[s,2,0] = s + row_w if s + row_w < state_count else s % row_w # South
-        reachable_states[s,3,0] = s - 1 if (s - 1) % row_w < (row_w - 1) else s # West
+    points = np.array(np.unravel_index(np.arange(np.prod(shape)), shape)).T
 
-    reachable_states = np.array(reachable_states)
+    # For each actions compute all new grid points (using the environment.move method)
+    action_new_states = []
+    for action in action_set:
+        new_points = environment.move(points, movement=action[None,:])
+        new_states = np.ravel_multi_index((new_points[:,0], new_points[:,1]), dims=shape)
+        action_new_states.append(new_states)
+
+    # Forming it the reachable states array from the new states for each action
+    reachable_states = np.array(action_new_states).T[:,:,None]
+
+    # Action labels
+    action_labels = [f'a_{i}' for i in range(len(action_set))] # TODO: Allow action set to be a dict with labels
 
     # Instantiate the model object
     model = Model(
         states=state_grid,
-        actions=['N','E','S','W'],
+        actions=action_labels,
         observations=observation_labels,
         reachable_states=reachable_states,
         observation_table=observations,
@@ -114,8 +119,7 @@ def exact_converter(environment: Environment,
     return model
 
 
-def minimal_converter(environment: Environment,
-                      threshold: float | list,
+def minimal_converter(agent : Agent,
                       partitions: list | np.ndarray = [3,6],
                       partition_move_out_probabilities: int | list | np.ndarray | None = None
                       ) -> Model:
@@ -133,15 +137,12 @@ def minimal_converter(environment: Environment,
     It also defines at least different observations: Nothing, Something or Goal.
     However, if multiple thresholds are provided, the more observations will be available: |threshold| + 1 (Nothing) + 1 (Goal)
 
+    Note: The environment and the threshold parameters are gathered from the agent instance provided.
+
     Parameters
     ----------
-    environment : Environment
-        The olfactory environment object used to create the POMDP Model from.
-        The environment's data is mostly used to build the 
-    threshold : float or list
-        A threshold for the odor cues.
-        If a single is provided, the agent will smell something when an odor is above the threshold and nothing when it is bellow.
-        If a list is provided, the agent will able to distinguish different levels of smell.
+    agent : Agent
+        The agent to use to get the environment and threshold parameters from.
     partitions : list or np.ndarray, default=[3,6]
         How many partitions to use in respectively the y and x directions.
     partition_move_out_probabilities : int or list or np.ndarray, optional
@@ -153,6 +154,11 @@ def minimal_converter(environment: Environment,
     model : Model
         A generated POMDP model from the environment.
     '''
+    # Agent's parameters
+    environment = agent.environment
+    threshold = agent.threshold
+    action_set = agent.action_set
+
     # Getting probabilities of odor in the requested partitions
     partitions = np.array(partitions)
     y_partitions = partitions[0]
@@ -191,6 +197,7 @@ def minimal_converter(environment: Environment,
     width = shape[1]
     transition_probabilities = np.zeros((state_count, 4, state_count))
 
+    # TODO: Replace this by using the action set
     for y in range(shape[0]):
         for x in range(shape[1]):
 

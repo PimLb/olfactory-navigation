@@ -1,9 +1,12 @@
 import warnings
 
+from typing import Callable
+
 from olfactory_navigation.environment import Environment
 from olfactory_navigation.agent import Agent
 from olfactory_navigation.agents.model_based_util.pomdp import Model
 from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
+from olfactory_navigation.agents.model_based_util.environment_converter import exact_converter
 
 import numpy as np
 gpu_support = False
@@ -38,7 +41,7 @@ class Infotaxis_Agent(Agent):
     environment : Environment
     threshold : float
     name : str
-    movement_vector : np.ndarray
+    action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [dy, dx].
     model : pomdp.Model
         The environment converted to a POMDP model using the "from_environment" constructor of the pomdp.Model class.
@@ -58,7 +61,9 @@ class Infotaxis_Agent(Agent):
     def __init__(self,
                  environment: Environment,
                  threshold: float | None = 3e-6,
-                 name: str | None=None
+                 name: str | None=None,
+                 environment_converter: Callable | None = None,
+                 **converter_parameters
                  ) -> None:
         super().__init__(
             environment = environment,
@@ -66,15 +71,13 @@ class Infotaxis_Agent(Agent):
             name = name
         )
 
-        # Allowed actions
-        self.movement_vector = np.array([
-            [-1,  0], # North
-            [ 0,  1], # East
-            [ 1,  0], # South
-            [ 0, -1]  # West
-        ])
-
-        self.model = Model.from_environment(environment, threshold)
+        # Converting the olfactory environment to a POMDP Model
+        if callable(environment_converter):
+            loaded_model = environment_converter(agent=self, **converter_parameters)
+        else:
+            # Using the exact converter
+            loaded_model = exact_converter(agent=self)
+        self.model:Model = loaded_model
 
         # Status variables
         self.beliefs = None
@@ -174,7 +177,7 @@ class Infotaxis_Agent(Agent):
         self.action_played = best_action
 
         # Converting action indexes to movement vectors
-        movemement_vector = self.movement_vector[best_action,:]
+        movemement_vector = self.action_set[best_action,:]
 
         return movemement_vector
 

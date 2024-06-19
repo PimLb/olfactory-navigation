@@ -262,13 +262,15 @@ class PBVI_Agent(Agent):
     environment_converter : Callable, default=exact_converter
         A function to convert the olfactory environment instance to a POMDP Model instance.
         By default, we use an exact convertion that keeps the shape of the environment to make the amount of states of the POMDP Model.
+    converter_parameters : dict, optional
+        A set of additional parameters to be passed down to the environment converter.
 
     Attributes
     ---------
     environment : Environment
     threshold : float
     name : str
-    movement_vector : np.ndarray
+    action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [dy, dx].
     model : Model
         The environment converted to a POMDP model using the "from_environment" constructor of the Model class.
@@ -293,7 +295,8 @@ class PBVI_Agent(Agent):
                  environment: Environment,
                  threshold: float | None = 3e-6,
                  name: str | None = None,
-                 environment_converter: Callable | None = None
+                 environment_converter: Callable | None = None,
+                 **converter_parameters
                  ) -> None:
         super().__init__(
             environment=environment,
@@ -301,20 +304,13 @@ class PBVI_Agent(Agent):
             name=name
         )
 
-        # Allowed actions
-        self.movement_vector = np.array([
-            [-1,  0], # North
-            [ 0,  1], # East
-            [ 1,  0], # South
-            [ 0, -1]  # West
-        ])
-
         # Converting the olfactory environment to a POMDP Model
         if callable(environment_converter):
-            self.model = environment_converter(environment=environment, threshold=threshold)
+            loaded_model = environment_converter(agent=self, **converter_parameters)
         else:
             # Using the exact converter
-            self.model = exact_converter(environment=environment, threshold=threshold)
+            loaded_model = exact_converter(agent=self)
+        self.model:Model = loaded_model
 
         # Trainable variables
         self.trained_at = None
@@ -965,7 +961,7 @@ class PBVI_Agent(Agent):
         self.action_played = action
 
         # Converting action indexes to movement vectors
-        movemement_vector = self.movement_vector[action,:]
+        movemement_vector = self.action_set[action,:]
         
         return movemement_vector
 

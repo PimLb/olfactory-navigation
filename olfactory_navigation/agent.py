@@ -68,6 +68,8 @@ class Agent:
     ----------
     environment : Environment
     threshold : str
+    action_set : np.ndarray
+        The actions allowed of the agent. Formulated as movement vectors as [dy, dx].
     name : name
     saved_at : str
         If the agent has been saved, the path at which it is saved is recorded in this variable.
@@ -84,6 +86,14 @@ class Agent:
         self.environment = environment
         self.threshold = threshold
 
+        # Allowed actions # TODO: Make action_set an agent variable
+        self.action_set = np.array([
+            [-1,  0], # North
+            [ 0,  1], # East
+            [ 1,  0], # South
+            [ 0, -1]  # West
+        ])
+
         # setup name
         if name is None:
             self.name = self.class_name
@@ -91,6 +101,7 @@ class Agent:
         else:
             self.name = name
 
+        # Other variables
         self.saved_at = None
 
         self.on_gpu = False
