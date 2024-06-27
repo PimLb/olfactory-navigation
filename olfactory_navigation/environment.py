@@ -1,9 +1,11 @@
 import cv2
+import h5py
 import json
 import os
 import shutil
 
 from matplotlib import pyplot as plt
+from matplotlib.patches import Rectangle, Circle
 from typing import Literal
 
 import numpy as np
@@ -61,6 +63,11 @@ class Environment:
     interpolation_method : 'Nearest' or 'Linear' or 'Cubic', default='Linear'
         The interpolation method to be used in the case the data needs to be reshaped to fit the shape, margins and multiplier parameters.
         By default, it uses Bi-linear interpolation. The interpolation is performed using the OpenCV library.
+    preprocess_data : bool, default=False
+        Applicable only for data_file being a path to a h5 file.
+        Whether to reshape of the data at the creation of the environment.
+        Reshaping the data ahead of time will require more processing at the creation and more memory overall.
+        While if this is disabled, when gathering observations, more time will be required but less memory will need to be used at once.
     boundary_condition : 'stop' or 'wrap' or 'wrap_vertical' or 'wrap_horizontal' or 'clip', default='stop'
         How the agent should behave at the boundary.
         Stop means for the agent to stop at the boundary, if the agent tries to move north while being on the top edge, it will stay in the same state.
@@ -91,6 +98,8 @@ class Environment:
         The position of the source in the original data file (after modifications have been applied).
     margins : np.ndarray
         An array of the margins vertically and horizontally (after multiplier is applied).
+    timestamps : int
+        The amount of timeslices available in the environment.
     data_shape : tuple[int, int]
         The shape of the data's odor field (after modifications have been applied).
     data_height : int
@@ -111,6 +120,8 @@ class Environment:
         The radius of the source.
     interpolation_method : str
         The interpolation used to modify the shape of the original data.
+    data_processed : bool
+        Whether the data was processed (ie the shape is at it should be) or not.
     boundary_condition : str
         How the agent should behave when reaching the boundary.
     start_probabilities : np.ndarray
@@ -139,25 +150,39 @@ class Environment:
                  margins: int | list | np.ndarray = 0,
                  multiplier: list| np.ndarray = [1.0, 1.0],
                  interpolation_method: Literal['Nearest', 'Linear', 'Cubic'] = 'Linear',
+                 preprocess_data: bool = False,
                  boundary_condition: Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip', 'no'] = 'stop',
                  start_zone: Literal['odor_present', 'data_zone'] | np.ndarray = 'data_zone',
                  odor_present_threshold: float | None = None,
                  name: str | None = None,
                  seed: int = 12131415,
                  ) -> None:
-        self.saved_at = None
+        self.saved_at: str = None
 
         # Load from file if string provided
         self.data_file_path = None
+        self._preprocess_data: bool = preprocess_data
         loaded_data = None
         if isinstance(data_file, str):
             self.data_file_path = data_file
+
+            # NUMPY
             if data_file.endswith('.npy'):
                 loaded_data = np.load(data_file)
+
+            # H5
+            elif data_file.endswith('.h5'):
+                loaded_data = h5py.File(data_file,'r')
+                # if data_axes == 'tys':
+                loaded_data = [loaded_data[f"{i}"] for i in range(len(loaded_data))]
+
+            # Not supported
             else:
                 raise NotImplementedError('File format loading not implemented')
+        else:
+            assert isinstance(data_file, np.ndarray), "Data file should be either a path or a numpy array"
         
-        self.data: np.ndarray = data_file if isinstance(data_file, np.ndarray) else loaded_data
+        self._data: np.ndarray = loaded_data if loaded_data is not None else data_file
 
         # Making margins a 2x2 array
         if isinstance(margins, int):
@@ -172,11 +197,12 @@ class Environment:
                 raise ValueError('The array or lists of Margins provided have a shape not supported. (Supported formats (2,) or (2,2))')
         else:
             raise ValueError('margins argument should be either an integer or a 1D or 2D array with either shape (2) or (2,2)')
-        assert self.margins.dtype == int, 'margins should be integers'
+        assert (self.margins.dtype == int), 'margins should be integers'
 
         # Unmodified sizes
-        self.data_shape = self.data.shape[1:]
-        timesteps, self.data_height, self.data_width = self.data.shape
+        self.timesteps = len(self._data)
+        self.data_shape = self._data[0].shape
+        self.data_height, self.data_width = self.data_shape
         self.data_source_position = np.array(data_source_position)
         self.original_data_source_position = self.data_source_position
 
@@ -224,30 +250,30 @@ class Environment:
         # Re-Setting new source position
         self.data_source_position = new_source_position
 
-        # Reshape data is a new_shape if set by custom shape or multiplier
+        # Interpolation method choice
         self.interpolation_method = interpolation_method
+
+        # Input the new shape of the data if set by custom shape or multiplier
         if new_data_shape is not None:
-            # Interpolation of new data
-            interpolation_options = {
-                'Nearest': cv2.INTER_NEAREST,
-                'Linear': cv2.INTER_LINEAR,
-                'Cubic': cv2.INTER_CUBIC
-            }
-            interpolation_choice = interpolation_options[interpolation_method]
+            self.data_height: int = new_data_shape[0]
+            self.data_width: int = new_data_shape[1]
+            self.data_shape: tuple[int, int] = (self.data_height, self.data_width)
 
-            new_data = np.zeros((timesteps, *new_data_shape))
-            for i in range(timesteps):
-                new_data[i] = cv2.resize(self.data[i], dsize=new_data_shape[::-1], interpolation=interpolation_choice)
+        # Check if data is already processed by default
+        self.data_processed = (self.data_shape == self._data[0].shape)
 
-            self.data = new_data
-            self.data_height:int = new_data_shape[0]
-            self.data_width:int = new_data_shape[1]
-            self.data_shape:tuple[int, int] = (self.data_height, self.data_width)
+        # If requested process all the slices of data into a single
+        if preprocess_data and not self.data_processed:
+            new_data = np.zeros((self.timesteps, *self.data_shape))
+            for i in range(self.timesteps):
+                new_data[i] = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+            self._data = new_data
+            self.data_processed = True
 
         # Reading shape of data array
-        self.total_height:int = self.data_height + np.sum(self.margins[0])
-        self.total_width:int = self.data_width + np.sum(self.margins[1])
-        self.shape:tuple[int, int] = (self.total_height, self.total_width)
+        self.total_height: int = self.data_height + np.sum(self.margins[0])
+        self.total_width: int = self.data_width + np.sum(self.margins[1])
+        self.shape: tuple[int, int] = (self.total_height, self.total_width)
         
         # Building a data bounds
         self.data_bounds = np.array([[self.margins[0,0], self.margins[0,0]+self.data_height], [self.margins[1,0], self.margins[1,0]+self.data_width]])
@@ -269,11 +295,20 @@ class Environment:
                 self.start_probabilities = start_zone
             else:
                 raise ValueError('If an np.ndarray is provided for the start_zone it has to be 2x2...')
+
         elif start_zone == 'data_zone':
             self.start_probabilities[self.data_bounds[0,0]:self.data_bounds[0,1], self.data_bounds[1,0]:self.data_bounds[1,1]] = 1.0
+
         elif start_zone == 'odor_present':
-            odor_present_map = (np.mean((self.data > (odor_present_threshold if odor_present_threshold is not None else 0)).astype(int), axis=0) > 0).astype(float)
-            self.start_probabilities[self.data_bounds[0,0]:self.data_bounds[0,1], self.data_bounds[1,0]:self.data_bounds[1,1]] = odor_present_map
+            if self.data_processed and isinstance(self._data, np.ndarray):
+                odor_present_map = (np.mean((self._data > (odor_present_threshold if odor_present_threshold is not None else 0)).astype(int), axis=0) > 0).astype(float)
+                self.start_probabilities[self.data_bounds[0,0]:self.data_bounds[0,1], self.data_bounds[1,0]:self.data_bounds[1,1]] = odor_present_map
+            else:
+                odor_sum = np.zeros(self.data_shape, dtype=float)
+                for i in range(self.timesteps):
+                    data_slice = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+                    odor_sum += (data_slice > (odor_present_threshold if odor_present_threshold is not None else 0))
+                self.start_probabilities[self.data_bounds[0,0]:self.data_bounds[0,1], self.data_bounds[1,0]:self.data_bounds[1,1]] = (odor_sum / self.timesteps)
         else:
             raise ValueError('start_zone value is wrong')
 
@@ -304,17 +339,62 @@ class Environment:
         self.rnd_state = np.random.RandomState(seed = seed)
 
 
+    def _interpolation_id(self, interpolation_method) -> int:
+        '''
+        The cv2 id of the interpolation method.
+        '''
+        interpolation_options = {
+            'Nearest': cv2.INTER_NEAREST,
+            'Linear': cv2.INTER_LINEAR,
+            'Cubic': cv2.INTER_CUBIC
+        }
+        return interpolation_options[interpolation_method]
+    
+
+    @property
+    def data(self) -> np.ndarray:
+        '''
+        The whole dataset with the right shape. If not preprocessed to modify its shape the data will be processed when querrying this object.
+        '''
+        if not self._data_is_numpy or not self.data_processed:
+            xp = cp if self.on_gpu else np
+            print('[Warning] The whole dataset is being querried, it will be reshaped at this time. To avoid this, avoid querrying environment.data directly.')
+
+            # Reshaping data
+            new_data = np.zeros((self.timesteps, *self.data_shape))
+            for i in range(self.timesteps):
+                new_data[i] = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+            self._data = xp.array(new_data)
+
+            self.data_processed = True
+
+        return self._data
+    
+
+    @property
+    def _data_is_numpy(self) -> bool:
+        '''
+        Wheter or nor the data is a numpy array or not.
+        '''
+        xp = cp if self.on_gpu else np
+        return isinstance(self._data, xp.ndarray)
+
+
     def plot(self,
              frame: int = 0,
              ax: plt.Axes = None
              ) -> None:
         '''
-        Simple function to plot the environment
+        Simple function to plot the environment with a single frame of odor cues.
+        The starting zone is also market down with a blue contour.
+        The source of the odor is marked by a red circle.
 
         Parameters
         ----------
+        frame : int, default=0
+            The frame of odor cues to print.
         ax : plt.Axes, optional
-            An ax on which the environment can be plot
+            An ax on which the environment can be plot.
         '''
         # If on GPU use the CPU version to plot
         if self.on_gpu:
@@ -329,9 +409,17 @@ class Environment:
 
         legend_elements = [[],[]]
 
+        # Gather data frame
+        data_frame: np.ndarray = self._data[frame]
+        if not isinstance(data_frame, np.ndarray):
+            data_frame = np.array(data_frame)
+
+        if not self.data_processed:
+            data_frame = cv2.resize(data_frame, dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+
         # Odor grid
-        odor = plt.Rectangle([0,0], 1, 1, color='black', fill=True)
-        frame_data = (self.data[frame] > (self.odor_present_threshold if self.odor_present_threshold is not None else 0)).astype(float)
+        odor = Rectangle([0,0], 1, 1, color='black', fill=True)
+        frame_data = (data_frame > (self.odor_present_threshold if self.odor_present_threshold is not None else 0)).astype(float)
         environment_frame = np.zeros(self.shape, dtype=float)
         environment_frame[self.data_bounds[0,0]:self.data_bounds[0,1], self.data_bounds[1,0]:self.data_bounds[1,1]] = frame_data
         ax.imshow(environment_frame, cmap='Greys')
@@ -340,14 +428,14 @@ class Environment:
         legend_elements[1].append(f'Frame {frame} odor cues')
 
         # Start zone contour
-        start_zone = plt.Rectangle([0,0], 1, 1, color='blue', fill=False)
+        start_zone = Rectangle([0,0], 1, 1, color='blue', fill=False)
         ax.contour(self.start_probabilities, levels=[0.0], colors='blue')
 
         legend_elements[0].append(start_zone)
         legend_elements[1].append('Start zone')
 
         # Source circle
-        goal_circle = plt.Circle(self.source_position[::-1], self.source_radius, color='r', fill=False)
+        goal_circle = Circle(self.source_position[::-1], self.source_radius, color='r', fill=False)
         legend_elements[0].append(goal_circle)
         legend_elements[1].append('Source')
 
@@ -390,13 +478,43 @@ class Environment:
             pos = pos[None,:]
 
         # Time looping
-        time = time % len(self.data)
+        time = time % len(self._data)
+
+        # Handling the case where the data is a sequence of slices (h5, so not numpy array)
+        data = self._data
+
+        if not self._data_is_numpy or not self.data_processed:
+            # Gathering unique times
+            unique_times = xp.array([time]) if isinstance(time, int) else xp.unique(time)
+
+            # Selecting the required slices
+            if self._data_is_numpy:
+                data = data[unique_times]
+            else:
+                # Case where we are dealing with a h5 file
+                selected_slices = np.zeros((len(unique_times), *self.data_shape))
+                for i,t in enumerate(unique_times):
+                    selected_slices[i] = np.array(data[t])
+                data = xp.array(selected_slices)
+
+            # Re-indexing the time slices to be from 0
+            reindexed_time = unique_times[time]
+            time = reindexed_time
+
+        # Handle the case it needs to be processed on the fly
+        if not self.data_processed:
+            reshaped_data = np.zeros((len(data), *self.data_shape))
+            for data_slice in data:
+                reshaped_data[i] = cv2.resize(data_slice, dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+            data = xp.array(reshaped_data)
 
         # Return 0.0 if outside of data zone
         data_pos = pos - self.margins[:,0][None,:]
         data_pos_valid = xp.all((data_pos >= 0) & (data_pos < xp.array(self.data_shape)), axis=1)
         observation = xp.zeros(data_pos.shape[0], dtype=float)
-        observation[data_pos_valid] = self.data[time[data_pos_valid], data_pos[data_pos_valid,0], data_pos[data_pos_valid,1]]
+        observation[data_pos_valid] = data[(time if isinstance(time, int) else time[data_pos_valid]), # t
+                                           data_pos[data_pos_valid,0], # y
+                                           data_pos[data_pos_valid,1]] # x
 
         return float(observation[0]) if is_single_point else observation
 
@@ -447,7 +565,7 @@ class Environment:
         '''
         xp = cp if self.on_gpu else np
 
-        assert n>0, "n has to be a strictly positive number (>0)"
+        assert (n > 0), "n has to be a strictly positive number (>0)"
 
         random_states = self.rnd_state.choice(xp.arange(self.total_height * self.total_width), size=n, replace=True, p=self.start_probabilities.ravel())
         random_states_2d = xp.array(xp.unravel_index(random_states, (self.total_height, self.total_width))).T
@@ -574,7 +692,7 @@ class Environment:
                 save_arrays=save_arrays,
                 force=force
             )
-            return
+            return # Blank return
 
         # Assert either data_file is provided or save_arrays is enabled
         assert save_arrays or ((self.data_file_path is not None) and (self.start_type is not None)), "The environment was not created from a data file so 'save_arrays' has to be set to True."
@@ -602,6 +720,7 @@ class Environment:
         if self.data_file_path is not None:
             arguments['data_file_path'] = self.data_file_path
 
+        arguments['timesteps']                     = int(self.timesteps)
         arguments['data_width']                    = int(self.data_width)
         arguments['data_height']                   = int(self.data_height)
         arguments['margins']                       = self.margins.tolist()
@@ -614,6 +733,8 @@ class Environment:
         arguments['source_position']               = self.source_position.tolist()
         arguments['source_radius']                 = self.source_radius
         arguments['interpolation_method']          = self.interpolation_method
+        arguments['preprocess_data']               = self._preprocess_data
+        arguments['data_processed']                = self.data_processed
         arguments['boundary_condition']            = self.boundary_condition
         arguments['start_type']                    = self.start_type
         arguments['seed']                          = self.seed
@@ -631,7 +752,10 @@ class Environment:
 
         # Output the numpy arrays
         if save_arrays:
-            np.save(folder + '/data.npy', self.data)
+            if isinstance(self._data, np.ndarray):
+                np.save(folder + '/data.npy', self._data)
+            else:
+                raise NotImplementedError('The saving of data that is not a Numpy array was not implemented yet.')
             np.save(folder + '/start_probabilities.npy', self.start_probabilities)
 
         # Success print
@@ -660,7 +784,7 @@ class Environment:
         assert folder.split('/')[-1].startswith('Env-'), "The folder provided is not the data of en Environment object."
 
         # Load arguments
-        arguments = None
+        arguments: dict = None
         with open(folder + '/METADATA.json', 'r') as json_file:
             arguments = json.load(json_file)
 
@@ -673,6 +797,7 @@ class Environment:
 
             # Set the arguments
             loaded_env.name                          = arguments['name']
+            loaded_env.timesteps                     = arguments['timesteps']
             loaded_env.data_shape                    = {arguments['data_height'], arguments['data_width']}
             loaded_env.data_width                    = arguments['data_width']
             loaded_env.data_height                   = arguments['data_height']
@@ -686,6 +811,8 @@ class Environment:
             loaded_env.source_position               = np.array(arguments['source_position'])
             loaded_env.source_radius                 = arguments['source_radius']
             loaded_env.interpolation_method          = arguments['interpolation_method']
+            loaded_env._preprocess_data              = arguments['preprocess_data']
+            loaded_env.data_processed                = arguments['data_processed']
             loaded_env.boundary_condition            = arguments['boundary_condition']
             loaded_env.on_gpu                        = False
             loaded_env.seed                          = arguments['seed']
@@ -697,7 +824,7 @@ class Environment:
             loaded_env.start_type                    = arguments.get('start_type')
 
             # Arrays
-            loaded_env.data = data
+            loaded_env._data = data
             loaded_env.start_probabilities = start_probabilities
 
         else:
@@ -713,6 +840,7 @@ class Environment:
                 shape                  = arguments['shape'],
                 margins                = arguments['margins'],
                 interpolation_method   = arguments['interpolation_method'],
+                preprocess_data        = arguments['preprocess_data'],
                 boundary_condition     = arguments['boundary_condition'],
                 start_zone             = start_zone,
                 odor_present_threshold = arguments.get('odor_present_threshold'),
@@ -822,13 +950,14 @@ class Environment:
             )
 
         modified_environment = Environment(
-            data_file              = (self.data_file_path if (self.data_file_path is not None) else self.data),
+            data_file              = (self.data_file_path if (self.data_file_path is not None) else self._data),
             data_source_position   = (data_source_position if (data_source_position is not None) else self.original_data_source_position),
             source_radius          = (source_radius if (source_radius is not None) else self.source_radius),
             shape                  = (shape if (shape is not None) else self.shape),
             margins                = (margins if (margins is not None) else self.margins),
             multiplier             = (multiplier if (multiplier is not None) else [1.0,1.0]),
             interpolation_method   = (interpolation_method if (interpolation_method is not None) else self.interpolation_method),
+            preprocess_data        = self._preprocess_data,
             boundary_condition     = (boundary_condition if (boundary_condition is not None) else self.boundary_condition),
             start_zone             = self.start_type,
             odor_present_threshold = self.odor_present_threshold,
@@ -860,13 +989,14 @@ class Environment:
         modified_margins = (self.margins * scale_factor).astype(int)
 
         modified_environment = Environment(
-            data_file              = (self.data_file_path if (self.data_file_path is not None) else self.data),
+            data_file              = (self.data_file_path if (self.data_file_path is not None) else self._data),
             data_source_position   = self.original_data_source_position,
             source_radius          = modified_source_radius,
             shape                  = modified_shape,
             margins                = modified_margins,
             multiplier             = [1.0,1.0],
             interpolation_method   = self.interpolation_method,
+            preprocess_data        = self._preprocess_data,
             boundary_condition     = self.boundary_condition,
             start_zone             = self.start_type,
             odor_present_threshold = self.odor_present_threshold,

@@ -40,7 +40,7 @@ class QAgent(Agent):
         self.gamma = gamma
         self.delta = delta
         self.deterministic = True
-        self.MAX_T = environment.data.shape[0] 
+        self.MAX_T = environment.timesteps
         self.num_episodes = num_episodes
         self.Q = np.zeros((2, 4))
         self.action_set = self.xp.array([
@@ -167,7 +167,7 @@ class QAgent(Agent):
             # Initialization
             self.initialize_state(1)
             
-            init_time_idx = self.rnd_state.randint(0, self.environment.data.shape[0])
+            init_time_idx = self.rnd_state.randint(0, self.environment.timesteps)
             time_idx = init_time_idx
             init_pos = self.environment.random_start_points(1)
             pos = init_pos.copy()

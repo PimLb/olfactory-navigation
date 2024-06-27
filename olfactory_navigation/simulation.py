@@ -751,7 +751,7 @@ def run_test(agent: Agent,
             update_succeeded = xp.ones(len(source_reached) , dtype=bool)
 
         # Handling the case where simulations have reached the end
-        sims_at_end = ((time_shift + i + 1) >= (math.inf if time_loop else len(environment.grid)))
+        sims_at_end = ((time_shift + i + 1) >= (math.inf if time_loop else environment.timesteps))
 
         # Agents to terminate
         to_terminate = source_reached | sims_at_end | ~update_succeeded
