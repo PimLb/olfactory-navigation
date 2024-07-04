@@ -52,7 +52,7 @@ def exact_converter(agent : Agent) -> Model:
         threshold = threshold + [np.inf]
 
     # Computing odor probabilities
-    data_grid = environment.data[:,:,:,None]
+    data_grid = environment.data[0,:,:,:,None] if environment.has_layers else environment.data[:,:,:,None]
     threshs = np.array(threshold)
     data_odor_fields = np.average(((data_grid >= threshs[:-1][None,None,None,:]) & (data_grid < threshs[1:][None,None,None,:])), axis=0)
 
@@ -169,9 +169,15 @@ def minimal_converter(agent : Agent,
 
     for y_i in range(y_partitions):
         for x_i in range(x_partitions):
-            cell = environment.data[:,
-                                    (y_i * cell_shape[0]) : ((y_i + 1) * cell_shape[0]),
-                                    (x_i * cell_shape[1]) : ((x_i + 1) * cell_shape[1])]
+            if environment.has_layers:
+                cell = environment.data[0,
+                                        :,
+                                        (y_i * cell_shape[0]) : ((y_i + 1) * cell_shape[0]),
+                                        (x_i * cell_shape[1]) : ((x_i + 1) * cell_shape[1])]
+            else:
+                cell = environment.data[:,
+                                        (y_i * cell_shape[0]) : ((y_i + 1) * cell_shape[0]),
+                                        (x_i * cell_shape[1]) : ((x_i + 1) * cell_shape[1])]
 
             cell_odor_probs[y_i, x_i] = np.average(cell > threshold)
 

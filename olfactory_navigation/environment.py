@@ -47,6 +47,10 @@ class Environment:
         This position is computed in the olfactory data zone (so excluding the margins).
     source_radius : float, default=1.0
         The radius from the center point of the source in which we consider the agent has reached the source.
+    layers : bool or list[int] or list[str], default=False
+        Whether or not the data provided contains layers or not.
+        If a list of integers is provided, the numbers used will be used to determine the order of the layers based on how they appear on the numpy array or the h5 file.
+        If a list of strings is provided, it will be either used to name the layers found (if numpy data), or it is used to querry the datasets of the h5 file.
     shape : list or np.ndarray, optional
         A 2-element array or list of how many units should be kept in the final array (including the margins).
         As it should include the margins, the shape should be strictly larger than the sum of the margins in each direction.
@@ -96,6 +100,12 @@ class Environment:
         If the data is loaded from a path, the path will be recorded here.
     data_source_position : np.ndarray
         The position of the source in the original data file (after modifications have been applied).
+    layers : np.ndarray
+        A numbered list of the IDs of the layers.
+    layer_labels : list[str]
+        A list of how the layers are named.
+    has_layers : bool
+        Whether or not the environment is made up of layers.
     margins : np.ndarray
         An array of the margins vertically and horizontally (after multiplier is applied).
     timestamps : int
@@ -146,6 +156,7 @@ class Environment:
                  data_file: str | np.ndarray,
                  data_source_position: list | np.ndarray,
                  source_radius: float = 1.0,
+                 layers: bool | list[int] | list[str] = False,
                  shape: list | np.ndarray | None = None,
                  margins: int | list | np.ndarray = 0,
                  multiplier: list| np.ndarray = [1.0, 1.0],
@@ -159,9 +170,22 @@ class Environment:
                  ) -> None:
         self.saved_at: str = None
 
+        # Layer properties
+        self.layers = None
+        self.layer_labels = None
+        self.has_layers = False
+
+        if isinstance(layers, list):
+            self.has_layers = True
+            self.layers = np.arange(len(layers))
+            self.layer_labels = [(str(layer) if isinstance(layer, int) else layer) for layer in layers]
+        elif isinstance(layers, bool):
+            self.has_layers = layers
+
         # Load from file if string provided
         self.data_file_path = None
         self._preprocess_data: bool = preprocess_data
+
         loaded_data = None
         if isinstance(data_file, str):
             self.data_file_path = data_file
@@ -170,18 +194,47 @@ class Environment:
             if data_file.endswith('.npy'):
                 loaded_data = np.load(data_file)
 
+                # Layered data
+                if self.has_layers:
+                    if self.layers is None:
+                        self.layers = np.arange(len(loaded_data))
+                        self.layer_labels = [str(layer) for layer in range(len(loaded_data))]
+                    else:
+                        assert (len(self.layers) == len(loaded_data)), "The amount of layers provided dont match the amount in the dataset."
+                        
+                        # Re-ordering the layers
+                        loaded_data = loaded_data[self.layers]
+
             # H5
             elif data_file.endswith('.h5'):
                 loaded_data = h5py.File(data_file,'r')
-                # if data_axes == 'tys':
-                loaded_data = [loaded_data[f"{i}"] for i in range(len(loaded_data))]
+
+                # Layered data
+                if self.has_layers:
+
+                    # Converting layers to strings
+                    data_layer_labels = list(loaded_data.keys())
+                    if self.layers is None:
+                        self.layers = np.arange(len(data_layer_labels))
+                        self.layer_labels = data_layer_labels
+
+                    # Getting the labels based on the list of integers provided
+                    elif all(isinstance(layer, int) for layer in layers):
+                        self.layer_labels = [data_layer_labels[layer_id] for layer_id in self.layers]
+
+                    # Loading the list of slices from the data
+                    loaded_data = [[loaded_data[layer][f"{t}"] for t in range(len(loaded_data[layer]))] for layer in self.layer_labels]
+
+                else:
+                    loaded_data = [loaded_data[f"{t}"] for t in range(len(loaded_data))]
 
             # Not supported
             else:
                 raise NotImplementedError('File format loading not implemented')
-        else:
-            assert isinstance(data_file, np.ndarray), "Data file should be either a path or a numpy array"
-        
+
+        elif not isinstance(data_file, np.ndarray):
+            raise NotImplementedError("Data file should be either a path or an object that is either an h5 object or a numpy array")
+
         self._data: np.ndarray = loaded_data if loaded_data is not None else data_file
 
         # Making margins a 2x2 array
@@ -200,8 +253,8 @@ class Environment:
         assert (self.margins.dtype == int), 'margins should be integers'
 
         # Unmodified sizes
-        self.timesteps = len(self._data)
-        self.data_shape = self._data[0].shape
+        self.timesteps = len(self._data if not self.has_layers else self._data[0])
+        self.data_shape = (self._data[0] if not self.has_layers else self._data[0][0]).shape
         self.data_height, self.data_width = self.data_shape
         self.data_source_position = np.array(data_source_position)
         self.original_data_source_position = self.data_source_position
@@ -260,13 +313,19 @@ class Environment:
             self.data_shape: tuple[int, int] = (self.data_height, self.data_width)
 
         # Check if data is already processed by default
-        self.data_processed = (self.data_shape == self._data[0].shape)
+        self.data_processed = (self.data_shape == (self._data[0] if not self.has_layers else self._data[0][0]).shape)
 
         # If requested process all the slices of data into a single
         if preprocess_data and not self.data_processed:
-            new_data = np.zeros((self.timesteps, *self.data_shape))
-            for i in range(self.timesteps):
-                new_data[i] = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+            if self.has_layers:
+                new_data = np.zeros((len(self.layers), self.timesteps, *self.data_shape))
+                for layer in self.layers:
+                    for i in range(self.timesteps):
+                        new_data[layer, i] = cv2.resize(np.array(self._data[layer][i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+            else:
+                new_data = np.zeros((self.timesteps, *self.data_shape))
+                for i in range(self.timesteps):
+                    new_data[i] = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
             self._data = new_data
             self.data_processed = True
 
@@ -306,8 +365,9 @@ class Environment:
             else:
                 odor_sum = np.zeros(self.data_shape, dtype=float)
                 for i in range(self.timesteps):
-                    data_slice = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
-                    odor_sum += (data_slice > (odor_present_threshold if odor_present_threshold is not None else 0))
+                    data_slice = np.array(self._data[i]) if not self.has_layers else np.array(self._data[0][i])
+                    reshaped_data_slice = cv2.resize(data_slice, dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+                    odor_sum += (reshaped_data_slice > (odor_present_threshold if odor_present_threshold is not None else 0))
                 self.start_probabilities[self.data_bounds[0,0]:self.data_bounds[0,1], self.data_bounds[1,0]:self.data_bounds[1,1]] = (odor_sum / self.timesteps)
         else:
             raise ValueError('start_zone value is wrong')
@@ -349,7 +409,7 @@ class Environment:
             'Cubic': cv2.INTER_CUBIC
         }
         return interpolation_options[interpolation_method]
-    
+
 
     @property
     def data(self) -> np.ndarray:
@@ -361,15 +421,21 @@ class Environment:
             print('[Warning] The whole dataset is being querried, it will be reshaped at this time. To avoid this, avoid querrying environment.data directly.')
 
             # Reshaping data
-            new_data = np.zeros((self.timesteps, *self.data_shape))
-            for i in range(self.timesteps):
-                new_data[i] = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
-            self._data = xp.array(new_data)
+            if self.has_layers:
+                new_data = np.zeros((len(self.layers), self.timesteps, *self.data_shape))
+                for layer in self.layers:
+                    for i in range(self.timesteps):
+                        new_data[layer, i] = cv2.resize(np.array(self._data[layer][i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+            else:
+                new_data = np.zeros((self.timesteps, *self.data_shape))
+                for i in range(self.timesteps):
+                    new_data[i] = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
 
+            self._data = xp.array(new_data)
             self.data_processed = True
 
         return self._data
-    
+
 
     @property
     def _data_is_numpy(self) -> bool:
@@ -410,7 +476,7 @@ class Environment:
         legend_elements = [[],[]]
 
         # Gather data frame
-        data_frame: np.ndarray = self._data[frame]
+        data_frame: np.ndarray = self._data[0][frame] if self.has_layers else self._data[frame]
         if not isinstance(data_frame, np.ndarray):
             data_frame = np.array(data_frame)
 
@@ -435,7 +501,7 @@ class Environment:
         legend_elements[1].append('Start zone')
 
         # Source circle
-        goal_circle = Circle(self.source_position[::-1], self.source_radius, color='r', fill=False)
+        goal_circle = Circle(self.source_position[::-1], self.source_radius, color='r', fill=False, zorder=10)
         legend_elements[0].append(goal_circle)
         legend_elements[1].append('Source')
 
@@ -450,7 +516,8 @@ class Environment:
 
     def get_observation(self,
                         pos: np.ndarray,
-                        time: int | np.ndarray = 0
+                        time: int | np.ndarray = 0,
+                        layer: int | np.ndarray = 0 # TODO: Write documentation
                         ) -> float | np.ndarray:
         '''
         Function to get an observation at a given position on the grid at a given time.
@@ -476,45 +543,68 @@ class Environment:
         is_single_point = (len(pos.shape) == 1)
         if is_single_point:
             pos = pos[None,:]
+    
+        # Counting how many position points we are dealing with
+        pos_count = len(pos)
 
         # Time looping
-        time = time % len(self._data)
+        time = time % self.timesteps
+
+        # Determine unique layers and reindexing them if needed
+        unique_layers = xp.array([layer]) if isinstance(layer, int) else xp.unique(layer)
+        layer = 0 if isinstance(layer, int) else xp.where(layer == unique_layers[:,None])[0]
+        layer_count = len(unique_layers)
+
+        # Determine unique times and reindexing them if needed
+        unique_times = xp.array([time]) if isinstance(time, int) else xp.unique(time)
+        time = 0 if isinstance(time, int) else xp.where(time == unique_times[:,None])[0]
+        time_count = len(unique_times)
 
         # Handling the case where the data is a sequence of slices (h5, so not numpy array)
         data = self._data
 
-        if not self._data_is_numpy or not self.data_processed:
-            # Gathering unique times
-            unique_times = xp.array([time]) if isinstance(time, int) else xp.unique(time)
-
-            # Selecting the required slices
-            if self._data_is_numpy:
-                data = data[unique_times]
-            else:
-                # Case where we are dealing with a h5 file
-                selected_slices = np.zeros((len(unique_times), *self.data_shape))
-                for i,t in enumerate(unique_times):
+        # Selecting the required slices
+        if self._data_is_numpy:
+            data = data[unique_layers, unique_times] if self.has_layers else data[unique_times]
+        else:
+            # Case where we are dealing with a h5 file
+            selected_slices = np.zeros((layer_count, time_count, *self._data[0][0].shape)) if self.has_layers else np.zeros((time_count, *self._data[0].shape))
+            for i, t in enumerate(unique_times):
+                if self.has_layers:
+                    for j, l in enumerate(unique_layers):
+                        selected_slices[j,i] = np.array(data[l][t])
+                else:
                     selected_slices[i] = np.array(data[t])
-                data = xp.array(selected_slices)
-
-            # Re-indexing the time slices to be from 0
-            reindexed_time = unique_times[time]
-            time = reindexed_time
+            data = xp.array(selected_slices)
 
         # Handle the case it needs to be processed on the fly
         if not self.data_processed:
-            reshaped_data = np.zeros((len(data), *self.data_shape))
-            for data_slice in data:
-                reshaped_data[i] = cv2.resize(data_slice, dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+            reshaped_data = np.zeros((layer_count, time_count, *self.data_shape)) if self.has_layers else np.zeros((time_count, *self.data_shape))
+
+            for i in range(time_count):
+                if self.has_layers:
+                    for j in range(layer_count):
+                        reshaped_data[j,i] = cv2.resize(data[j,i], dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+                else:
+                    reshaped_data[i] = cv2.resize(data[i], dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+
             data = xp.array(reshaped_data)
 
         # Return 0.0 if outside of data zone
         data_pos = pos - self.margins[:,0][None,:]
         data_pos_valid = xp.all((data_pos >= 0) & (data_pos < xp.array(self.data_shape)), axis=1)
-        observation = xp.zeros(data_pos.shape[0], dtype=float)
-        observation[data_pos_valid] = data[(time if isinstance(time, int) else time[data_pos_valid]), # t
-                                           data_pos[data_pos_valid,0], # y
-                                           data_pos[data_pos_valid,1]] # x
+        observation = xp.zeros(pos_count, dtype=float)
+
+        # Gathering data on layered data on not
+        if self.has_layers:
+            observation[data_pos_valid] = data[(layer if isinstance(layer, int) else layer[data_pos_valid]), # layer
+                                               (time if isinstance(time, int) else time[data_pos_valid]), # t
+                                                data_pos[data_pos_valid,0], # y
+                                                data_pos[data_pos_valid,1]] # x
+        else:
+            observation[data_pos_valid] = data[(time if isinstance(time, int) else time[data_pos_valid]), # t
+                                                data_pos[data_pos_valid,0], # y
+                                                data_pos[data_pos_valid,1]] # x
 
         return float(observation[0]) if is_single_point else observation
 
