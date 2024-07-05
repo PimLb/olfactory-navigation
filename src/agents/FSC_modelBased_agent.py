@@ -65,7 +65,7 @@ class FSC_model_based(Agent):
     def _get_Transition_Matrix_(self):
         sc = self.model.state_count
         T = self.xp.zeros((sc * self.M, sc * self.M))
-        print(np.sum(self.pi, axis = 2))
+        assert np.allclose(np.sum(self.pi, axis = 2), 1), "Pi is not a probability"
         # print(T.shape)
         for s in self.model.states:
             reachable = self.model.reachable_states[s]
@@ -82,9 +82,6 @@ class FSC_model_based(Agent):
                                 # Also, for every s, obs_table[s, 0] == obs_table[s, 1] == obs_table[s, 2], which seems strange to me
 
                                 pObs = self.model.observation_table[s, a, o]
-                                # print(pObs.shape, pObs)
-                                # print(s, m, r, nextM)
-                                # print(o, m, a)
                                 T[ m * sc + s, nextM * sc + r] += self.pi[o, m, nextM * 4 + a] * pReachable[a, r_idx] * pObs
             # if s % 100:
             #     print(f"{s} out of {T.shape[0]}")
@@ -93,11 +90,11 @@ class FSC_model_based(Agent):
         # return T.reshape(T.shape[0] * T.shape[1], -1)
 
     def _solve_eta_(self, eta):
-        print("eta")
+        # print("eta")
         sp = self.environment.start_probabilities.ravel()
         rho = self.xp.tile(sp, self.M) / self.M # unfiform in all memories
         # rho = self.xp.append((sp, [0] * (self.M -1) * sp.shape )) # start only on the first memory
-        print(np.sum(rho))
+        assert np.sum(rho), "Rho is not normalized"
         T = self._get_Transition_Matrix_()
         for i in range(self.etaMaxIt):
             #print(rho.shape, T.shape, eta.shape)
@@ -107,7 +104,7 @@ class FSC_model_based(Agent):
                 return new_eta
             eta = new_eta
             if i % 100 == 0:
-                print(f"{i} out of maximum {self.etaMaxIt} iterations")
+                print(f"Eta: {i} out of maximum {self.etaMaxIt} iterations")
         print(f"eta not converged with {self.etaMaxIt} iteration and {self.tol_eta} tolerance")
         return eta
 
@@ -122,8 +119,20 @@ class FSC_model_based(Agent):
     #     for i in range(self.QMaxIt):
     #         new_Q = R + self.gamma * self.xp.matmul(T, V)
     
+    def _calc_Q_(self, V):
+        sc = self.model.state_count
+        ac = self.model.action_count
+        Q = self.xp.zeros((sc * self.M, ac * self.M))
+        for s in self.model.states:
+            for m in range(self.M):
+                for a in self.model.actions:
+                    for nextM in range(self.M):
+                        for r_idx, r in enumerate(self.model.reachable_states[s, a]):
+                            Q[s + sc * m, a + ac * nextM ] += self.model.reachable_probabilities[s, a, r_idx] * (self.R[sc*m + r] + self.gamma * V[sc*m + r])
+        return Q
+
     def _solve_V_(self, V):
-        print(f"calcultaing V with {self.VMaxIt} iterations and {self.tol_V} tolerance")
+        # print(f"calcultaing V with {self.VMaxIt} iterations and {self.tol_V} tolerance")
         T = self._get_Transition_Matrix_()
         # V = V.T
         for i in range(self.VMaxIt):
@@ -135,38 +144,38 @@ class FSC_model_based(Agent):
         return V
 
     def _find_grad_(self, Q, eta):
-        grad = self.xp.zeros_like(self.theta)
+        grad = np.zeros_like(self.theta)
         sc = self.model.state_count
         O, M, AM = self.theta.shape
         for o in range(O):
             for m in range(M):
                 for am in range(AM):
+                    a = am % self.model.action_count
                     for s in self.model.states:
-                        grad[o, m, am] += eta[sc * m + s] * self.model.observation_table[s, am]
+                        grad[o, m, am] += eta[sc * m + s] * self.model.observation_table[s, a, o] * Q[sc * m + s, am]
+        return grad
             
 
     def train(self) -> None:
         sc = self.model.state_count
         SM = sc * self.M
-        eta = self.xp.ones(SM)
-        V = self.xp.zeros(SM)
-        Q = self.xp.zeros((sc, self.M, self.M, self.model.action_count))
+        eta = self.xp.zeros(SM)
+        oldV = self.xp.zeros(SM)
+        self.pi = softmax(self.theta, axis = 2)
+        eta = self._solve_eta_(eta)
+        Q = self._calc_Q_(oldV)
 
         for i in range(self.maxIt):
-            pi = softmax(self.theta, axis = 2)
-            eta = self._solve_eta_(eta) # TODO
-            # Q = self._solve_Q_() # TODO
-            V = self._solve_V_(V)
-            for s in self.model.states:
-                for m in range(self.M):
-                    for a in self.model.actions:
-                        for nextM in range(self.M):
-                            for r_idx, r in enumerate(self.model.reachable_states[s, a]):
-                                Q[s, m, a, nextM ] += self.model.reachable_probabilities[s, a, r_idx] * (self.R[sc*m + s] + self.gamma * V[sc*m + s])
-            
-            
-            grad = self._find_grad_() # TODO
-            #grad -= np.max(grad, axis=2, keepdims=True) # I don't know why they do this, so it's commented
-            
-
-
+            grad = self._find_grad_(Q, eta)
+            #grad -= np.max(grad, axis=2, keepdims=True) # I don't know why they do this, so it's commented. probably same reason as below
+            self.theta += self.lr * grad
+            self.theta -= self.xp.mean(self.theta, axis = 2, keepdims=True) # Should improve numerical stability
+            self.pi = softmax(self.theta, axis= 2) # Softmax doesn't change if we add the same number to each operand
+            V = self._solve_V_(oldV)
+            if self.xp.max(self.xp.abs(V - oldV)) < self.tol_convergence:
+                print(f"Converged in {i} steps")
+                return
+            oldV = V
+            eta = self._solve_eta_(eta)
+            Q = self._calc_Q_(V)
+        
