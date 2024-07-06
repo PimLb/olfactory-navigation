@@ -2,6 +2,7 @@ from ..environment import Environment
 from ..agent import Agent
 from .model_based_util.pomdp import Model
 from scipy.special import softmax as softmax
+from tqdm import tqdm
 
 import numpy as np
 gpu_support = False
@@ -72,6 +73,9 @@ class FSC_model_based(Agent):
             pReachable = self.model.reachable_probabilities[s]
             # print(self.model.reachable_probabilities.shape, "<- total", reachable.shape)
             for m in range(self.M):
+                if s in self.model.end_states:
+                    T[ m * sc + s, m * sc + s] = 1
+                    continue
                 for a in self.model.actions:
                     for r_idx, r in enumerate(reachable[a]):
                         for nextM in range(self.M):
@@ -89,13 +93,14 @@ class FSC_model_based(Agent):
         # It's probably not consistent with the order I used for all other array
         # return T.reshape(T.shape[0] * T.shape[1], -1)
 
-    def _solve_eta_(self, eta):
+    def _solve_eta_(self, eta, T = None):
         # print("eta")
         sp = self.environment.start_probabilities.ravel()
         rho = self.xp.tile(sp, self.M) / self.M # unfiform in all memories
-        # rho = self.xp.append((sp, [0] * (self.M -1) * sp.shape )) # start only on the first memory
-        assert np.sum(rho), "Rho is not normalized"
-        T = self._get_Transition_Matrix_()
+        # rho = self.xp.append(sp, [0] * (self.M -1) * sp.shape[0] ) # start only on the first memory
+        assert self.xp.sum(rho), "Rho is not normalized"
+        if T is None:
+            T = self._get_Transition_Matrix_()
         for i in range(self.etaMaxIt):
             #print(rho.shape, T.shape, eta.shape)
             # The matmul is transposed in respect to the paper one Because we use a different convention for T
@@ -128,12 +133,13 @@ class FSC_model_based(Agent):
                 for a in self.model.actions:
                     for nextM in range(self.M):
                         for r_idx, r in enumerate(self.model.reachable_states[s, a]):
-                            Q[s + sc * m, a + ac * nextM ] += self.model.reachable_probabilities[s, a, r_idx] * (self.R[sc*m + r] + self.gamma * V[sc*m + r])
+                            Q[s + sc * m, a + ac * nextM ] += self.model.reachable_probabilities[s, a, r_idx] * (self.R[sc*nextM + r] + self.gamma * V[sc*nextM + r])
         return Q
 
-    def _solve_V_(self, V):
+    def _solve_V_(self, V, T = None):
         # print(f"calcultaing V with {self.VMaxIt} iterations and {self.tol_V} tolerance")
-        T = self._get_Transition_Matrix_()
+        if T is None:
+            T = self._get_Transition_Matrix_()
         # V = V.T
         for i in range(self.VMaxIt):
             new_V = self.R + self.gamma * self.xp.matmul(T, V) # TODO: is this efficent enough? Does it uses GPU if enabled?
@@ -163,19 +169,25 @@ class FSC_model_based(Agent):
         oldV = self.xp.zeros(SM)
         self.pi = softmax(self.theta, axis = 2)
         eta = self._solve_eta_(eta)
+        oldV = self._solve_V_(oldV)
         Q = self._calc_Q_(oldV)
 
-        for i in range(self.maxIt):
+        iterator = tqdm(range(self.maxIt))
+        for i in iterator:
             grad = self._find_grad_(Q, eta)
             #grad -= np.max(grad, axis=2, keepdims=True) # I don't know why they do this, so it's commented. probably same reason as below
             self.theta += self.lr * grad
-            self.theta -= self.xp.mean(self.theta, axis = 2, keepdims=True) # Should improve numerical stability
+            self.theta -= np.mean(self.theta, axis = 2, keepdims=True) # Should improve numerical stability
             self.pi = softmax(self.theta, axis= 2) # Softmax doesn't change if we add the same number to each operand
+            T = self._get_Transition_Matrix_()
             V = self._solve_V_(oldV)
             if self.xp.max(self.xp.abs(V - oldV)) < self.tol_convergence:
+            V = self._solve_V_(oldV, T)
+            delta = self.xp.max(self.xp.abs(V - oldV))
+            if delta < self.tol_convergence:
                 print(f"Converged in {i} steps")
                 return
             oldV = V
-            eta = self._solve_eta_(eta)
+            eta = self._solve_eta_(eta, T)
             Q = self._calc_Q_(V)
-        
+            iterator.set_postfix({"delta": f"{delta}/{self.tol_convergence}"})
