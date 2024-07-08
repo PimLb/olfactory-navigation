@@ -8,6 +8,7 @@ from olfactory_navigation.agents.pbvi_ssga_agent import PBVI_SSGA_Agent
 from olfactory_navigation.agents.pbvi_ssra_agent import PBVI_SSRA_Agent
 from olfactory_navigation.agents.perseus_agent import Perseus_Agent
 from olfactory_navigation.agents.q_agent import QAgent
+from olfactory_navigation.agents.qmem_agent import QMemAgent
 from olfactory_navigation.agents.qmdp_agent import QMDP_Agent
 from olfactory_navigation.agents.infotaxis_agent import Infotaxis_Agent
 
@@ -23,6 +24,7 @@ __all__ = (
     'PBVI_SSRA_Agent',
     'Perseus_Agent',
     'QAgent',
+    'QMemAgent',
     'QMDP_Agent',
     'Infotaxis_Agent',
 )

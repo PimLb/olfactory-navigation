@@ -2,12 +2,15 @@ import os
 from ..environment import Environment
 from ..agent import Agent
 
-from math import sqrt
+from math import sqrt, exp
 from tqdm import tqdm
 import json
-
+import time
 from typing import Tuple
-
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from IPython import display
 import numpy as np
 gpu_support = False
 try:
@@ -16,16 +19,22 @@ try:
 except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
+
+
 class QAgent(Agent):
     def __init__(self, environment: Environment, 
                  threshold: float  = 0.000003, 
                  horizon : int = 100,
                  num_episodes : int = 1000,
                  learning_rate  = lambda t : 1/sqrt(t + 1),
-                 eps_greedy = lambda t : 0.3,
+                 eps_init = 0.8,
+                 eps_end = 0.2,
+                 eps_decay = 10000,
+                 deterministic : bool = True,
                  gamma : float = 1.0,
                  delta : int = 100,
                  seed : int = 121314,
+                 rewards : Tuple[float, float] = (1.0, 0.0),
                  checkpoint_folder : str | None = None,
                  checkpoint_frequency : int | None = None
                  ) -> None:
@@ -36,19 +45,23 @@ class QAgent(Agent):
         self.horizon = horizon
         self.seed = seed
         self.rnd_state = np.random.RandomState(seed = seed)
-        self.eps_greedy = eps_greedy
+        self.eps_init = eps_init
+        self.eps_end = eps_end
+        self.eps_decay = eps_decay
         self.gamma = gamma
         self.delta = delta
-        self.deterministic = True
+        self.rewards = rewards
+        self.deterministic = deterministic
         self.MAX_T = environment.data.shape[0] 
         self.num_episodes = num_episodes
         self.Q = np.zeros((2, 4))
         self.action_set = self.xp.array([
             [ 0, -1],
             [ 1,  0],
-            [ 0,  1],
             [-1,  0],
+            [ 0,  1],
         ]).reshape(-1, 2)
+        self.action_labels = ['left', 'down', 'up', 'right']
         self.episode = 0
         self.checkpoint_folder = checkpoint_folder
         self.checkpoint_frequency = checkpoint_frequency
@@ -79,30 +92,24 @@ class QAgent(Agent):
         return gpu_agent
 
 
-
-
     def update_state(self,
                      observation : float|np.ndarray,
                      source_reached : bool|np.ndarray
                      ) -> None:
-        filtered_observations = (observation >= self.threshold).astype(bool)#.reshape(self.memory.shape[0]) # type: ignore
-        self.current_state[filtered_observations] += 1
-        self.current_state[~filtered_observations] = 0
-        if self.deterministic:
-            self.current_state = self.current_state[~source_reached]
-
-    def _update_q(self, s, a, s_prime, r):
-        alpha = self.learning_rate(self.episode)
-        self.Q[s, a] = (1 - alpha) * self.Q[s, a] + alpha * (r + self.gamma * self.Q[s_prime].max())
-
-
+        assert observation.shape[0] == source_reached.shape[0]
+        filtered_observations = (observation >= self.environment.odor_present_threshold ).astype(bool).reshape(self.current_state.shape[0]) # type: ignore
+        self.current_state[filtered_observations] = 0
+        self.current_state[~filtered_observations] += 1
+        self.current_state = self.current_state[~source_reached]
 
     def choose_action(self) -> np.ndarray:
         if self.deterministic:
+           # print("ACTION")
             return self.action_set[self.Q[self.current_state, :].argmax(axis=1)]
-        eps_mask = (self.rnd_state.rand(self.memory.shape[0]) < self.eps_greedy(self.episode) ).astype(bool)    
+        
+        eps_mask = (self.rnd_state.rand(self.current_state.shape[0]) < self.eps_end ).astype(bool)    
         if np.any(eps_mask):
-            action_indices = self.xp.zeros((self.memory.shape[0], ), dtype=np.int32)
+            action_indices = self.xp.zeros((self.current_state.shape[0], ), dtype=np.int32)
             action_indices[eps_mask] = self.rnd_state.randint(0, 4, eps_mask.sum())
             action_indices[~eps_mask] = self.Q[self.current_state[~eps_mask], :].argmax(axis=1)
             return self.action_set[action_indices]
@@ -121,27 +128,6 @@ class QAgent(Agent):
         with open(f"{self.checkpoint_folder}/agent_state_{self.episode}.json", 'w') as f:
             json.dump(self._get_agent_state(), f)
 
-    def _perform_single_step(self, pos : np.ndarray, time_idx : int):
-        if self.current_state[0] == 0:
-            a = 0
-        elif self.rnd_state.rand() < self.eps_greedy(self.episode):
-            a = self.rnd_state.choice(4, size=1)[0]
-        else: 
-            a = self.Q[self.current_state[0], :].argmax()
-        new_pos = self.environment.move(pos, self.action_set[a])
-        terminated = self.environment.source_reached(new_pos)
-        r = 1.0 if terminated else 0.0
-        time_idx = (time_idx + 1) % self.MAX_T
-        obs = self.environment.get_observation(new_pos, time_idx)
-        self.update_state(obs, terminated)
-        s_prime = self.current_state[0]
-        if s_prime >= self.Q.shape[0]:
-            self.Q = np.vstack((self.Q, np.zeros(4, dtype=np.float32)))
-
-        return new_pos, a, r, terminated, s_prime, time_idx
-
-
-
 
     def save(self, folder: str | None = None, force: bool = False) -> None:
         np.save(f"{folder}/QFunction", self.Q)
@@ -158,47 +144,135 @@ class QAgent(Agent):
                 setattr(self, k, v)
 
 
-    def train(self):
+    def train(self, set_best_Q = False, draw_Q = False, draw_iters = 1, delta_Q_draw = 50, delta_draw = 10):#, init_sampling_region):
         cumulative_rewards = []
         average_crewards = []
+        avg_max_void_steps = []
+        max_void_steps = []
+        episode_times = []
+        speed = []
+        avg_speed = []
+        best_Q, best_avg = self.Q.copy(), -np.inf
         iterator = tqdm(range(self.num_episodes))
-        self.deterministic = False
-        for _ in iterator:
+        if draw_Q:
+            fig = plt.figure(figsize=(10, 8))
+            fig.suptitle("Q-Agent Training", fontsize=20)
+            ax1 = fig.add_subplot(2, 3, 1)
+            ax2 = fig.add_subplot(2, 3, 2)
+            ax4 = fig.add_subplot(2, 3, 3)
+            ax3 = fig.add_subplot(2, 1, 2)
+            divider = make_axes_locatable(ax3)
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            dh = display.display(fig, display_id=True)
+
+            ax3.set_xlabel("time since observation")
+            ax1.set_title(f"Average Cumulative Reward [$\\Delta = {self.delta}$]", fontsize=10)
+            ax2.set_title(f"Average Maximum Steps in Void [$\\Delta = {self.delta}$]", fontsize=10)
+            ax4.set_title(f"Average T_min / T [$\\Delta = {self.delta}$]", fontsize=10)
+            ax3.set_title(f"Normalized Q-Function", fontsize=10)
+            p1, = ax1.plot(average_crewards[-delta_draw:], '-', lw=1, c='darkgreen')
+            p2, = ax2.plot(avg_max_void_steps[-delta_draw:], '-', lw=1, c='darkred')
+            p3, = ax4.plot(avg_speed[-delta_draw:], '-', lw=1, c='orange')
+            delta = min(delta_Q_draw, self.Q.shape[0])
+            im = ax3.imshow((self.Q.T[:, :delta] - self.Q.T[:, :delta].min(axis=0)) / (self.Q.T[:, :delta].max(axis=0) - self.Q.T[:, :delta].min(axis=0)), origin='lower', interpolation='bilinear', vmin=0.0, vmax=1.0)
+            fig.colorbar(im, cax=cax, orientation='vertical')
+
+            axes = [ax1, ax2, ax3, ax4]
+            fig.tight_layout()
+
+        for episode in iterator:
             # Initialization
-            self.initialize_state(1)
-            
+            self.initialize_state(1)            
             init_time_idx = self.rnd_state.randint(0, self.environment.data.shape[0])
             time_idx = init_time_idx
-            init_pos = self.environment.random_start_points(1)
+            init_pos = self.environment.random_start_points(1) #self.rnd_state.randint(sampling_region[:, 0], sampling_region[:, 1])
             pos = init_pos.copy()
             obs = self.environment.get_observation(pos, time_idx)
-            self.update_state(obs, source_reached=self.environment.source_reached(pos))
-            c_reward = 0.0
-            s = self.current_state[0]
-            alpha = self.learning_rate(self.episode)
+            s = 0 if obs >= self.environment.odor_present_threshold else 1 # current state (0 if odor observed, 1 otherwise)
+            c_reward = 0.0 # cumulative reward in episode
+            alpha = self.learning_rate(self.episode) 
+            eps = max(self.eps_end + (self.eps_init - self.eps_end) * exp(- episode / self.eps_decay), self.eps_end)
+            current_max_void = s
+            episode_time = time.time()
             for t in range(self.horizon):
-                pos, a, r, terminated, s_prime, time_idx = self._perform_single_step(pos, time_idx)
+                # compute and play action
+                if s == 0:
+                    a = 0
+                else:
+                    a = self.rnd_state.choice(self.action_set.shape[0]) if self.rnd_state.rand() <= eps else np.argmax(self.Q[s, :])
+                new_pos = self.environment.move(pos, self.action_set[a])
+                terminated = self.environment.source_reached(new_pos)
+                # receive reward and update Q
+                r = self.rewards[0] if terminated else self.rewards[1]
+                time_idx = (time_idx + 1) % self.MAX_T
+                obs = self.environment.get_observation(new_pos, time_idx)
+                s_prime = 0 if obs >= self.threshold else s + 1
+                if terminated:
+                    s_prime = None
+                if s_prime is not None and s_prime > current_max_void:
+                    current_max_void = s_prime
+                if s_prime is not None and s_prime >= self.Q.shape[0]:
+                    self.Q = np.vstack((self.Q, np.zeros(4, dtype=np.float32)))
                 c_reward += r * (self.gamma**t) if t > 0 else r        
-                self.Q[s, a] = (1 - alpha) * self.Q[s, a] + alpha * (r + self.gamma * self.Q[s_prime].max())
+                if s_prime is None:
+                    self.Q[s, a] = (1 - alpha) * self.Q[s, a] + alpha * r
+                else:
+                    self.Q[s, a] = (1 - alpha) * self.Q[s, a] + alpha * (r + self.gamma * self.Q[s_prime].max())
                 if terminated:
                     break
                 s = s_prime
+                pos = new_pos
+            episode_speed = self.environment.distance_to_source(init_pos)[0] / (t + 1) if terminated else 0.0
+            episode_time = time.time() - episode_time
+            episode_times.append(episode_time)
             self.episode += 1
             if self.checkpoint_folder is not None and self.episode % self.checkpoint_frequency == 0: # type: ignore
                 self._save_checkpoint()
             cumulative_rewards.append(c_reward)
+            average_crewards.append(np.mean(cumulative_rewards[-self.delta:]))
+            max_void_steps.append(current_max_void)
+            avg_max_void_steps.append(np.mean(max_void_steps[-self.delta:]))
+            speed.append(episode_speed)
+            avg_speed.append(np.mean(speed[-self.delta:]))
             iterator.set_postfix({
                                 'episode' : self.episode,
                                 'init_pos' : init_pos.flatten(),
                                 'init time slice' : init_time_idx,
-                                'avg R_t' : np.mean(cumulative_rewards[-self.delta:]), 
-                                'eps' : f'{self.eps_greedy(self.episode)}',
+                                'avg R_t' : average_crewards[-1], 
+                                'avg void' : avg_max_void_steps[-1],
+                                'eps' : f'{eps}',
                                 'alpha' : f'{self.learning_rate(self.episode )}'})
-            average_crewards.append(np.mean(cumulative_rewards[-self.delta:]))
-        self.deterministic = True
-        return {'average_cumulative_reward' : np.array(average_crewards), 'cumulative_rewards' : np.array(cumulative_rewards)}
+            if draw_Q and episode % draw_iters == 0 and episode > 0:
+                ax3.clear()
+                delta = min(delta_Q_draw, self.Q.shape[0])
+                ax1.set_title(f"Average Cumulative Reward [$\\Delta = {self.delta}$]", fontsize=10)
+                ax2.set_title(f"Average Maximum Steps in Void Q-Function [$\\Delta = {self.delta}$]", fontsize=10)
+                ax3.set_title(f"Normalized Q-Function", fontsize=10)
+                p1.set_data(range(min(delta_draw, len(average_crewards[-delta_draw:]))), average_crewards[-delta_draw:])
+                p2.set_data(range(min(delta_draw, len(avg_max_void_steps[-delta_draw:]))), avg_max_void_steps[-delta_draw:])
+                p3.set_data(range(min(delta_draw, len(avg_speed[-delta_draw:]))), avg_speed[-delta_draw:])
+                delta = min(delta_Q_draw, self.Q.shape[0])
+                im = ax3.imshow((self.Q.T[:, :delta] - self.Q.T[:, :delta].min(axis=0)) / (self.Q.T[:, :delta].max(axis=0) - self.Q.T[:, :delta].min(axis=0)), origin='lower', interpolation='bilinear', vmin=0.0, vmax=1.0)
+                for ax in axes:
+                    ax.relim()
+                    ax.autoscale_view()
+    
+                ax3.set_xticks(range(delta))
+                ax3.set_yticks(range(4), labels=self.action_labels)
+                dh.update(fig)
+
+            if best_avg < average_crewards[-1] and episode >= self.delta:
+                best_Q = self.Q.copy()
+                best_avg = average_crewards[-1]
+        if set_best_Q:
+            self.Q = best_Q
+        return {'average_cumulative_reward' : np.array(average_crewards), 
+                'cumulative_rewards' : np.array(cumulative_rewards), 
+                'best_Q' : best_Q,
+                'eps_decay' : self.eps_decay,
+                'avg_speed' : np.array(avg_speed),
+                'episode_times' : np.array(episode_times),
+                'average_max_void_steps' : np.array(avg_max_void_steps)}
 
     def kill(self, simulations_to_kill: np.ndarray) -> None:
-        self.memory = self.memory[~simulations_to_kill]
         self.current_state = self.current_state[~simulations_to_kill]
-#        self.current_memory_len = self.current_memory_len[~simulations_to_kill]

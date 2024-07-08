@@ -1,72 +1,76 @@
+
 import sys
 sys.path.append('..')
+import time
+from olfactory_navigation import Environment
 from olfactory_navigation.agents import QAgent
+from olfactory_navigation.simulation import run_test
+from olfactory_navigation.test_setups import run_all_starts_test
 
 from matplotlib import pyplot as plt
+#%matplotlib inline
 
 import pandas as pd
 import numpy as np
-import cupy as cp
-
-
-from olfactory_navigation import Environment
-
-data_path = "/storage/rando/data/nose_data_27_123.npy" # INSERT YOUR PATH
-
-env = Environment(data_file=data_path,
+env = Environment(data_file="/storage/rando/data/nose_data_27_123.npy",
                   data_source_position=[13, 0],
                   source_radius=2,
                   margins=[14, 62],
-                  boundary_condition='stop',
+                  boundary_condition='wrap_vertical',
                   start_zone='odor_present',
-                  odor_present_treshold=3e-6)
+                  odor_present_threshold=3e-6)
 
-
-memory_size = 10
-time_disc = 1000
 horizon = 1000
-num_episodes=100000
-delta = 500
-gamma = 1.0
-eps_decay = 0.0001
-alpha_decay = 0.0001
-eps = lambda t : 0.9 * np.exp(-eps_decay * t)  #if np.exp(-eps_decay * t)  > 0.3 else 0.3
-alpha = lambda t : 0.9 * np.exp(-alpha_decay * t) # if np.exp(-alpha_decay * t) > 0.0001 else 0.0001 #0.3 * np.exp(-alpha_decay * t) > 0.001 else 0.001
-
-checkpoint_folder = "./q_agent_training/clip/checkpoints"
-checkpoint_frequency = 5000
-
-
-ag = QAgent(env, 
-            memory_size=memory_size, 
-            treshold=3e-6,
-            time_disc=time_disc, 
-            horizon=horizon,
-            num_episodes=num_episodes,
-            delta=delta,
-            eps_greedy= eps,
-            learning_rate=alpha,
-            gamma = gamma,
-            seed=13141516,
-            checkpoint_folder=checkpoint_folder,
-            checkpoint_frequency=checkpoint_frequency
-            )
+num_episodes = 1000000
+eps_decay = 100000
+rewards = (1.0, -0.001)
+ag = QAgent(
+    environment=env,
+    horizon=horizon, 
+    eps_init=1.0,
+    eps_end=1e-5,
+    eps_decay=eps_decay,#int(num_episodes - num_episodes//10),
+    learning_rate=lambda t : 0.001 + (0.9 - 0.001) * np.exp(- t / eps_decay),
+#    learning_rate=lambda t : 1e-5 + (0.9 - 1e-5) * np.exp(- t / eps_decay),
+    gamma=1.0,
+    threshold=3e-6,
+    delta=500,
+    rewards=rewards,
+    num_episodes=num_episodes,
+    deterministic=True,
+    checkpoint_folder  = "./q_agent_training2/checkpoints",
+    checkpoint_frequency  = 10000
+)
 
 
-training_result = ag.train()
+tr_time = time.time()
+training_result = ag.train(set_best_Q=False, draw_Q=False)
+tr_time = time.time() - tr_time
+ag.save("./q_agent_training2/")
 
-average_cumulative_reward = training_result['average_cumulative_reward']
 
-fig, ax = plt.subplots()
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6))
+ax1.set_title("Average Cumulative Reward")
+ax2.set_title("Average Speed")
 
-ax.plot(range(average_cumulative_reward.shape[0]), average_cumulative_reward, '-', lw=3, c='black')
+ax1.plot(range(len(training_result['average_cumulative_reward'])), training_result['average_cumulative_reward'], '-', c='black')
+ax2.plot(range(len(training_result['avg_speed'])), training_result['avg_speed'], '-', c='orange')
 
-ax.set_xlabel("episode")
-ax.set_ylabel("average cumulative reward")
-
+ax1.set_xlabel("episode")
+ax2.set_xlabel("episode")
+ax1.set_ylabel("average cumulative reward")
+ax2.set_ylabel("average speed")
 fig.tight_layout()
-fig.savefig("./training_result.pdf", bbox_inches='tight')
+fig.savefig("./q_agent_training2/avg_crew.pdf")
 plt.close(fig)
 
+with open("./q_agent_training2/tr_info.log", 'w') as f:
+    f.write(f"decay: {eps_decay}\n")
+    f.write(f"episodes: {num_episodes}\n")
+    f.write(f"horizon: {horizon}\n")
+    f.write(f"rewards: {rewards}\n")
+    f.write(f"training time: {tr_time}\n")
 
-ag.save("./")
+with open("./q_agent_training2/tr_trace.log", 'w') as f:
+    for i in range(len(training_result['average_cumulative_reward'])):
+        f.write("{},{}\n".format(training_result['average_cumulative_reward'][i],training_result['avg_speed'][i]))

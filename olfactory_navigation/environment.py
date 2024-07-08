@@ -349,8 +349,13 @@ class Environment:
         data_pos = pos - self.margins[:,0][None,:]
         data_pos_valid = xp.all((data_pos >= 0) & (data_pos < self.data.shape[1:]), axis=1)
         observation = xp.zeros(data_pos.shape[0])
-        observation[data_pos_valid] = self.data[time, data_pos[data_pos_valid,0], data_pos[data_pos_valid,1]]
-#        observation = xp.where(data_pos_valid, self.data[time, data_pos[data_pos_valid,0], data_pos[data_pos_valid,1]], 0.0)
+#        print(observation.shape, data_pos.shape, data_pos_valid.shape, data_pos[data_pos_valid].shape )
+#        print("OBS: ", observation[data_pos_valid].shape, data_pos[data_pos_valid, 0].shape, data_pos[data_pos_valid,1].shape)
+#        print(self.data.shape, self.data[time].shape, self.data[0].shape, time)
+        if isinstance(time, int):
+            observation[data_pos_valid] = self.data[time, data_pos[data_pos_valid,0], data_pos[data_pos_valid,1]]
+        else:
+            observation[data_pos_valid] = self.data[time[data_pos_valid], data_pos[data_pos_valid,0], data_pos[data_pos_valid,1]]
 
         return float(observation[0]) if is_single_point else observation
 
