@@ -33,6 +33,9 @@ class Infotaxis_Agent(Agent):
         The olfactory environment to train the agent with.
     threshold : float, optional, default=3e-6
         The olfactory sensitivity of the agent. Odor cues under this threshold will not be detected by the agent.
+    action_set : np.ndarray, optional
+        The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
+        If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
     environment_converter : Callable, default=exact_converter
@@ -66,6 +69,7 @@ class Infotaxis_Agent(Agent):
     def __init__(self,
                  environment: Environment,
                  threshold: float | None = 3e-6,
+                 action_set: np.ndarray | None = None,
                  name: str | None=None,
                  environment_converter: Callable | None = None,
                  **converter_parameters
@@ -73,6 +77,7 @@ class Infotaxis_Agent(Agent):
         super().__init__(
             environment = environment,
             threshold = threshold,
+            action_set = action_set,
             name = name
         )
 
