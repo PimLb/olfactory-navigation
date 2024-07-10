@@ -49,7 +49,6 @@ class Environment:
         The radius from the center point of the source in which we consider the agent has reached the source.
     layers : bool or list[int] or list[str], default=False
         Whether or not the data provided contains layers or not.
-        If a list of integers is provided, the numbers used will be used to determine the order of the layers based on how they appear on the numpy array or the h5 file.
         If a list of strings is provided, it will be either used to name the layers found (if numpy data), or it is used to querry the datasets of the h5 file.
     shape : list or np.ndarray, optional
         A 2-element array or list of how many units should be kept in the final array (including the margins).
@@ -156,7 +155,7 @@ class Environment:
                  data_file: str | np.ndarray,
                  data_source_position: list | np.ndarray,
                  source_radius: float = 1.0,
-                 layers: bool | list[int] | list[str] = False,
+                 layers: bool | list[str] = False,
                  shape: list | np.ndarray | None = None,
                  margins: int | list | np.ndarray = 0,
                  multiplier: list| np.ndarray = [1.0, 1.0],
@@ -178,7 +177,7 @@ class Environment:
         if isinstance(layers, list):
             self.has_layers = True
             self.layers = np.arange(len(layers))
-            self.layer_labels = [(str(layer) if isinstance(layer, int) else layer) for layer in layers]
+            self.layer_labels = [layer for layer in layers]
         elif isinstance(layers, bool):
             self.has_layers = layers
 
@@ -517,7 +516,7 @@ class Environment:
     def get_observation(self,
                         pos: np.ndarray,
                         time: int | np.ndarray = 0,
-                        layer: int | np.ndarray = 0 # TODO: Write documentation
+                        layer: int | np.ndarray = 0
                         ) -> float | np.ndarray:
         '''
         Function to get an observation at a given position on the grid at a given time.
@@ -531,6 +530,9 @@ class Environment:
             The position or list of positions to get observations at.
         time : int or np.ndarray, default=0
             A timestamp or list of timestamps to get the observations at.
+        layer : int or np.ndarray, default=0
+            A layer or list of timestamps to get the observations at.
+            Note: If the environment doesnt have layers, this parameter will be ignored.
 
         Returns
         -------
@@ -820,6 +822,7 @@ class Environment:
         arguments['data_bounds']                   = self.data_bounds.tolist()
         arguments['original_data_source_position'] = self.original_data_source_position.tolist()
         arguments['data_source_position']          = self.data_source_position.tolist()
+        arguments['layers']                        = (self.layer_labels if self.has_layers else False)
         arguments['source_position']               = self.source_position.tolist()
         arguments['source_radius']                 = self.source_radius
         arguments['interpolation_method']          = self.interpolation_method
@@ -900,6 +903,9 @@ class Environment:
             loaded_env.data_source_position          = np.array(arguments['data_source_position'])
             loaded_env.source_position               = np.array(arguments['source_position'])
             loaded_env.source_radius                 = arguments['source_radius']
+            loaded_env.has_layers                    = isinstance(arguments['layers'], list)
+            loaded_env.layers                        = np.arange(len(arguments['layers'])) if loaded_env.has_layers else None
+            loaded_env.layer_labels                  = arguments['layers']
             loaded_env.interpolation_method          = arguments['interpolation_method']
             loaded_env._preprocess_data              = arguments['preprocess_data']
             loaded_env.data_processed                = arguments['data_processed']
@@ -927,6 +933,7 @@ class Environment:
                 data_file              = arguments['data_file_path'],
                 data_source_position   = arguments['original_data_source_position'],
                 source_radius          = arguments['source_radius'],
+                layers                 = arguments['layers'],
                 shape                  = arguments['shape'],
                 margins                = arguments['margins'],
                 interpolation_method   = arguments['interpolation_method'],
@@ -1043,6 +1050,7 @@ class Environment:
             data_file              = (self.data_file_path if (self.data_file_path is not None) else self._data),
             data_source_position   = (data_source_position if (data_source_position is not None) else self.original_data_source_position),
             source_radius          = (source_radius if (source_radius is not None) else self.source_radius),
+            layers                 = (self.layer_labels if self.has_layers else False),
             shape                  = (shape if (shape is not None) else self.shape),
             margins                = (margins if (margins is not None) else self.margins),
             multiplier             = (multiplier if (multiplier is not None) else [1.0,1.0]),
@@ -1082,6 +1090,7 @@ class Environment:
             data_file              = (self.data_file_path if (self.data_file_path is not None) else self._data),
             data_source_position   = self.original_data_source_position,
             source_radius          = modified_source_radius,
+            layers                 = (self.layer_labels if self.has_layers else False),
             shape                  = modified_shape,
             margins                = modified_margins,
             multiplier             = [1.0,1.0],
