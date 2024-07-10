@@ -135,6 +135,10 @@ class SimulationHistory:
         # Time tracking
         self.timestamps.append(datetime.now())
 
+        # Check if environment if layered and/or 3D
+        third_d = 0 # if not self.environment.is_3d else 1 # TODO
+        layered = 0 if not self.environment.has_layers else 1
+
         # Handle case cupy arrays are provided
         if gpu_support:
             actions = actions if cp.get_array_module(actions) == np else cp.asnumpy(actions)
@@ -144,12 +148,12 @@ class SimulationHistory:
             interupt = interupt if cp.get_array_module(interupt) == np else cp.asnumpy(interupt)
 
         # Actions tracking
-        action_all_sims = np.full((self.n,2), fill_value=-1)
+        action_all_sims = np.full((self.n, (layered + third_d + 2)), fill_value=-1)
         action_all_sims[self._running_sims] = actions
         self.actions.append(action_all_sims)
 
         # Next states tracking
-        next_position_all_sims = np.full((self.n, 2), fill_value=-1)
+        next_position_all_sims = np.full((self.n, (third_d + 2)), fill_value=-1)
         next_position_all_sims[self._running_sims] = next_positions
         self.positions.append(next_position_all_sims)
 
@@ -182,7 +186,8 @@ class SimulationHistory:
         For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
         '''
         # Dataframe creation
-        df = pd.DataFrame(self.start_points, columns=['y_start', 'x_start'])
+        # df = pd.DataFrame(self.start_points, columns=[f'{ax}_start' for ax in (([] if self.environment.is_3d else ['z']) + ['y', 'x'])]) # TODO
+        df = pd.DataFrame(self.start_points, columns=[f'{ax}_start' for ax in ([] + ['y', 'x'])])
         df['optimal_steps_count'] = self.environment.distance_to_source(self.start_points)
         df['converged'] = self.done_at_step >= 0
         df['reached_horizon'] = np.all(self.positions[-1] != -1, axis=1) & (self.done_at_step == -1) & (len(self.positions) == self.horizon)
@@ -279,15 +284,27 @@ class SimulationHistory:
             for i in range(self.n):
                 length = self.done_at_step[i] if self.done_at_step[i] >= 0 else len(states_array)
 
-                df = {
-                    'time':  np.arange(length+1) + self.time_shift[i],
-                    'y':     np.hstack([self.start_points[i,0], states_array[:length, i, 0]]),
-                    'x':     np.hstack([self.start_points[i,1], states_array[:length, i, 1]]),
-                    'dy':    np.hstack([[None], action_array[:length, i, 0]]),
-                    'dx':    np.hstack([[None], action_array[:length, i, 1]]),
-                    'o':     np.hstack([[None], observation_array[:length, i]]),
-                    'done':  np.hstack([[None], np.where(np.arange(1,length+1) == self.done_at_step[i], 1, 0)])
-                }
+                # Creation of the dataframe
+                df = {}
+                df['time'] = np.arange(length+1) + self.time_shift[i]
+
+                # - Position variables
+                # for axis_i, axis in enumerate(([] if self.environment.is_3d else ['z']) + ['y', 'x']): # TODO
+                for axis_i, axis in enumerate([] + ['y', 'x']):
+                    df[axis] = np.hstack([self.start_points[i, axis_i], states_array[:length, i, axis_i]])
+
+                # - Action variables
+                if self.environment.has_layers:
+                    df['layer'] = np.hstack([[None], action_array[:length, i, 0]])
+
+                # for axis_i, axis in enumerate(([] if self.environment.is_3d else ['z']) + ['y', 'x']): # TODO
+                for axis_i, axis in enumerate([] + ['y', 'x']):
+                    axis_i += (0 if not self.environment.has_layers else 1)
+                    df['d' + axis]   = np.hstack([[None], action_array[:length, i, axis_i]])
+
+                # - Other variables
+                df['o'] = np.hstack([[None], observation_array[:length, i]])
+                df['done'] = np.hstack([[None], np.where(np.arange(1,length+1) == self.done_at_step[i], 1, 0)])
 
                 # Append
                 self._simulation_dfs.append(pd.DataFrame(df))
@@ -404,20 +421,22 @@ class SimulationHistory:
         hist : SimulationHistory
             The loaded instance of a simulation history object.
         '''
-        combined_df = pd.read_csv(file, dtype={
-            'time':             int,
-            'y':                float,
-            'x':                float,
-            'dy':               float,
-            'dx':               float,
-            'o':                float,
-            'done':             float,
-            'timestamps':       str,
-            'horizon':          float,
-            'reward_discount':  float,
-            'environment':      str,
-            'agent':            str
-        })
+        # Retrieving columns
+        with open(file, 'r') as f:
+            header = f.readline()
+        columns = header.replace('\n','').split(',')
+
+        # Setting the datatypes of columns
+        column_dtypes = {col: float for col in columns}
+        column_dtypes['time'] = int
+        if 'layer' in columns:
+            column_dtypes['layer'] = int
+        column_dtypes['timestamps'] = str
+        column_dtypes['environment'] = str
+        column_dtypes['agent'] = str
+        
+        # Retrieving the combined dataframe
+        combined_df = pd.read_csv(file, dtype=column_dtypes)
 
         # Retrieving horizon and reward discount
         horizon = int(combined_df['horizon'][0])
@@ -456,15 +475,7 @@ class SimulationHistory:
                 print(f'Failed to retrieve "{agent_name}" agent from memory')
 
         # Columns to retrieve
-        columns = [
-            'time',
-            'y',
-            'x',
-            'dy',
-            'dx',
-            'o',
-            'done'
-        ]
+        columns = [col for col in columns if col not in ['reward_discount', 'environment', 'agent']]
 
         # Recreation of list of simulations
         sim_start_rows = np.argwhere(combined_df[['done']].isnull())[1:,0].tolist()
@@ -510,7 +521,6 @@ class SimulationHistory:
         hist.observations = [*observations]
         hist.done_at_step = done_at_step
         hist.timestamps = [datetime.strptime(ts, '%H%M%S%f') for ts in combined_df['timestamps'][1:max_length]]
-        # hist.timestamps = [datetime.strptime(str(int(ts)), '%H%M%S%f') for ts in combined_df['timestamps'][:max_length-1]]
 
         # Saving simulation dfs back
         hist._simulation_dfs = simulation_dfs
@@ -520,7 +530,7 @@ class SimulationHistory:
 
     def plot(self,
              sim_id: int = 0,
-             ax: plt.Axes = None
+             ax: plt.Axes | None = None
              ) -> None:
         '''
         Function to plot a the trajectory of a given simulation.
@@ -534,6 +544,8 @@ class SimulationHistory:
             The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
         # TODO: Make environment and agent optional for plotting
+        # TODO: Setup plotting for layers
+        # TODO: Setup 3D plotting
         assert (self.environment is not None) and (self.agent is not None), "Plot function not available as the environment and/or the agent used during the simulation is not linked to the simulation history."
 
         # Generate ax is not provided
@@ -576,7 +588,7 @@ class SimulationHistory:
 
 
     def plot_runtimes(self,
-                      ax: plt.Axes = None
+                      ax: plt.Axes | None = None
                       ) -> None:
         '''
         Function to plot the runtimes over the iterations.
@@ -709,6 +721,7 @@ def run_test(agent: Agent,
     agent_position = None
     if start_points is not None:
         assert start_points.shape == (n, 2), 'The provided start_points are of the wrong shape'
+        # assert start_points.shape == (n, (2 if not environment.is_3d else 3)), 'The provided start_points are of the wrong shape' #TODO
         agent_position = start_points
     else:
         # Generating random starts
@@ -740,7 +753,9 @@ def run_test(agent: Agent,
         new_agent_position = environment.move(agent_position, action)
 
         # Get an observation based on the new position of the agent
-        observation = environment.get_observation(new_agent_position, time=(time_shift + i))
+        observation = environment.get_observation(pos=new_agent_position,
+                                                  time=(time_shift + i),
+                                                  layer=(0 if not environment.has_layers else action[:,0])) # Getting the layer information column of the action matrix
 
         # Check if the source is reached
         source_reached = environment.source_reached(new_agent_position)

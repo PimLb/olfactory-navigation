@@ -100,7 +100,7 @@ class Agent:
             ])
 
             # 3D
-            # if environment.is_3d:
+            # if environment.is_3d: # TODO
             #     self.action_set = np.array([
             #         [ 0, -1,  0], # North
             #         [ 0,  0,  1], # East
