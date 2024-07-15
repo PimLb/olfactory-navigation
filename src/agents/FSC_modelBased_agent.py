@@ -96,8 +96,8 @@ class FSC_model_based(Agent):
     def _solve_eta_(self, eta, T = None):
         # print("eta")
         sp = self.environment.start_probabilities.ravel()
-        rho = self.xp.tile(sp, self.M) / self.M # unfiform in all memories
-        # rho = self.xp.append(sp, [0] * (self.M -1) * sp.shape[0] ) # start only on the first memory
+        # rho = self.xp.tile(sp, self.M) / self.M # unfiform in all memories
+        rho = self.xp.append(sp, [0] * (self.M -1) * sp.shape[0] ) # start only on the first memory
         assert self.xp.sum(rho), "Rho is not normalized"
         if T is None:
             T = self._get_Transition_Matrix_()
@@ -180,8 +180,6 @@ class FSC_model_based(Agent):
             self.theta -= np.mean(self.theta, axis = 2, keepdims=True) # Should improve numerical stability
             self.pi = softmax(self.theta, axis= 2) # Softmax doesn't change if we add the same number to each operand
             T = self._get_Transition_Matrix_()
-            V = self._solve_V_(oldV)
-            if self.xp.max(self.xp.abs(V - oldV)) < self.tol_convergence:
             V = self._solve_V_(oldV, T)
             delta = self.xp.max(self.xp.abs(V - oldV))
             if delta < self.tol_convergence:
