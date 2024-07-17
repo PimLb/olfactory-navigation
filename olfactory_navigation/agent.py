@@ -90,7 +90,7 @@ class Agent:
         self.environment = environment
         self.threshold = threshold
 
-        # Allowed actions 
+        # Allowed actions # TODO: Add action labels
         if action_set is None:
             self.action_set = np.array([
                 [-1,  0], # North
@@ -99,17 +99,13 @@ class Agent:
                 [ 0, -1]  # West
             ])
 
-            # 3D
-            # if environment.is_3d: # TODO
-            #     self.action_set = np.array([
-            #         [ 0, -1,  0], # North
-            #         [ 0,  0,  1], # East
-            #         [ 0,  1,  0], # South
-            #         [ 0,  0, -1], # West
-            #         [ 1,  0,  0], # Up
-            #         [-1,  0,  0]  # Down
-            #     ])
-            
+            # ND
+            if environment.dimensions > 2:
+                self.action_set = np.zeros((2*environment.dimensions, environment.dimensions))
+                for dim in range(environment.dimensions):
+                    self.action_set[dim*2, -dim-1] = 1
+                    self.action_set[(dim*2) + 1, -dim-1] = -1
+
             # Layered
             if environment.has_layers:
                 self.action_set = np.array([[layer, *action_vector] for layer in environment.layers for action_vector in self.action_set])
@@ -117,9 +113,8 @@ class Agent:
             self.action_set = action_set
 
             # Asertion that the shape if right
-            third_d = 0 # if not environment.is_3d else 1
             layered = 0 if not environment.has_layers else 1
-            assert self.action_set.shape[1] == (2 + layered + third_d), f"The shape of the action_set provided is not right. (Found {self.action_set.shape}; expected (., {2 + layered + third_d}))"
+            assert self.action_set.shape[1] == (layered + environment.dimensions), f"The shape of the action_set provided is not right. (Found {self.action_set.shape}; expected (., {layered + environment.dimensions}))"
 
         # setup name
         if name is None:

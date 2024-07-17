@@ -98,7 +98,7 @@ class SimulationHistory:
         self.actions = []
         self.positions = []
         self.observations = []
-        self.timestamps = []
+        self.timestamps: list[datetime] = []
 
         self._running_sims = np.arange(self.n)
         self.done_at_step = np.full(self.n, fill_value=-1)
@@ -136,7 +136,6 @@ class SimulationHistory:
         self.timestamps.append(datetime.now())
 
         # Check if environment if layered and/or 3D
-        third_d = 0 # if not self.environment.is_3d else 1 # TODO
         layered = 0 if not self.environment.has_layers else 1
 
         # Handle case cupy arrays are provided
@@ -148,12 +147,12 @@ class SimulationHistory:
             interupt = interupt if cp.get_array_module(interupt) == np else cp.asnumpy(interupt)
 
         # Actions tracking
-        action_all_sims = np.full((self.n, (layered + third_d + 2)), fill_value=-1)
+        action_all_sims = np.full((self.n, (layered + self.environment.dimensions)), fill_value=-1)
         action_all_sims[self._running_sims] = actions
         self.actions.append(action_all_sims)
 
         # Next states tracking
-        next_position_all_sims = np.full((self.n, (third_d + 2)), fill_value=-1)
+        next_position_all_sims = np.full((self.n, self.environment.dimensions), fill_value=-1)
         next_position_all_sims[self._running_sims] = next_positions
         self.positions.append(next_position_all_sims)
 
@@ -174,7 +173,8 @@ class SimulationHistory:
         '''
         A Pandas DataFrame analyzing the results of the simulations.
         It aggregates the simulations in single rows, recording:
-         - y_start and x_start: The x, y starting positions
+
+         - <axis>:              The starting positions at the given axis
          - optimal_steps_count: The minimal amount of steps to reach the source
          - converged:           Whether or not the simulation reached the source
          - reached_horizon:     Whether the failed simulation reached to horizon
@@ -185,9 +185,15 @@ class SimulationHistory:
 
         For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
         '''
+        # Get axes labels
+        axes_labels = None
+        if self.environment.dimensions <= 3:
+            axes_labels = ['z', 'y', 'x'][-self.environment.dimensions:]
+        else:
+            axes_labels = [f'x{i}' for i in range(self.environment.dimensions)]
+
         # Dataframe creation
-        # df = pd.DataFrame(self.start_points, columns=[f'{ax}_start' for ax in (([] if self.environment.is_3d else ['z']) + ['y', 'x'])]) # TODO
-        df = pd.DataFrame(self.start_points, columns=[f'{ax}_start' for ax in ([] + ['y', 'x'])])
+        df = pd.DataFrame(self.start_points, columns=axes_labels)
         df['optimal_steps_count'] = self.environment.distance_to_source(self.start_points)
         df['converged'] = self.done_at_step >= 0
         df['reached_horizon'] = np.all(self.positions[-1] != -1, axis=1) & (self.done_at_step == -1) & (len(self.positions) == self.horizon)
@@ -227,6 +233,7 @@ class SimulationHistory:
         '''
         A string summarizing the performances of all the simulations.
         The metrics used are averages of:
+
          - Step count
          - Extra steps
          - Discounted rewards
@@ -265,11 +272,11 @@ class SimulationHistory:
         '''
         A list of the pandas DataFrame where each dataframe is a single simulation history.
         Each row is a different time instant of simulation process with each column being:
+
          - time (of the simulation data)
-         - x
-         - y
-         - dx
-         - dy
+         - [position] (z,) y, x  OR  x0, x1, ... xn 
+         - (layer)
+         - [movement] (dz,) dy, dx  OR  dx0, dx1, ... dxn
          - o (pure, not thresholded)
          - done (boolean)
         '''
@@ -281,6 +288,14 @@ class SimulationHistory:
             action_array = np.array(self.actions)
             observation_array = np.array(self.observations)
 
+            # Get axes labels
+            axes_labels = None
+            if self.environment.dimensions <= 3:
+                axes_labels = ['z', 'y', 'x'][-self.environment.dimensions:]
+            else:
+                axes_labels = [f'x{i}' for i in range(self.environment.dimensions)]
+
+            # Loop through the n simulations
             for i in range(self.n):
                 length = self.done_at_step[i] if self.done_at_step[i] >= 0 else len(states_array)
 
@@ -289,16 +304,14 @@ class SimulationHistory:
                 df['time'] = np.arange(length+1) + self.time_shift[i]
 
                 # - Position variables
-                # for axis_i, axis in enumerate(([] if self.environment.is_3d else ['z']) + ['y', 'x']): # TODO
-                for axis_i, axis in enumerate([] + ['y', 'x']):
+                for axis_i, axis in enumerate(axes_labels):
                     df[axis] = np.hstack([self.start_points[i, axis_i], states_array[:length, i, axis_i]])
 
                 # - Action variables
                 if self.environment.has_layers:
                     df['layer'] = np.hstack([[None], action_array[:length, i, 0]])
 
-                # for axis_i, axis in enumerate(([] if self.environment.is_3d else ['z']) + ['y', 'x']): # TODO
-                for axis_i, axis in enumerate([] + ['y', 'x']):
+                for axis_i, axis in enumerate(axes_labels):
                     axis_i += (0 if not self.environment.has_layers else 1)
                     df['d' + axis]   = np.hstack([[None], action_array[:length, i, axis_i]])
 
@@ -343,7 +356,7 @@ class SimulationHistory:
 
         # Handle file name
         if file is None:
-            env_name = f's_{self.environment.shape[0]}_{self.environment.shape[1]}'
+            env_name = f's_' + '_'.join([str(axis_shape) for axis_shape in self.environment.shape])
             file = f'Simulations-{env_name}-n_{self.n}-{self.start_time.strftime("%Y%m%d_%H%M%S")}-horizon_{len(self.positions)}.csv'
 
         if not file.endswith('.csv'):
@@ -477,9 +490,13 @@ class SimulationHistory:
         # Columns to retrieve
         columns = [col for col in columns if col not in ['reward_discount', 'environment', 'agent']]
 
+        # Checking how many dimensions there are
+        has_layers = (((len(columns) - 5) % 2) == 1)
+        dimensions = int((len(columns) - 5) / 2) 
+
         # Recreation of list of simulations
         sim_start_rows = np.argwhere(combined_df[['done']].isnull())[1:,0].tolist()
-        n = len(sim_start_rows)+1
+        n = (len(sim_start_rows) + 1)
 
         simulation_arrays = np.split(combined_df[columns].to_numpy(), sim_start_rows)
         simulation_dfs = [pd.DataFrame(sim_array, columns=columns) for sim_array in simulation_arrays]
@@ -492,15 +509,17 @@ class SimulationHistory:
         padded_simulation_arrays = [np.pad(sim_arr, ((0,pad),(0,0)), constant_values=-1) for sim_arr, pad in zip(simulation_arrays, paddings)]
         all_simulation_arrays = np.array(padded_simulation_arrays).transpose((1,0,2))
 
-        # Gathering start states
-        start_points = all_simulation_arrays[0,:,1:3].astype(int)
+        # Timeshift
         time_shift = all_simulation_arrays[0,:,0].astype(int)
 
+        # Gathering start states
+        start_points = all_simulation_arrays[0,:,1:(1+dimensions)].astype(int)
+
         # Recreating action, state and observations
-        positions = all_simulation_arrays[1:,:,1:3]
-        actions = all_simulation_arrays[1:,:,3:5]
-        observations = all_simulation_arrays[1:,:,5]
-        done_at_step = np.where(all_simulation_arrays[sizes-1,np.arange(n),6], sizes-1, -1)
+        positions = all_simulation_arrays[1:, :, 1:(1+dimensions)]
+        actions = all_simulation_arrays[1:, :, (1+dimensions):((1+dimensions) + (1 if has_layers else 0) + dimensions)]
+        observations = all_simulation_arrays[1:, :, ((1+dimensions) + (1 if has_layers else 0) + dimensions)]
+        done_at_step = np.where(all_simulation_arrays[sizes-1, np.arange(n), ((1+dimensions) + (1 if has_layers else 0) + dimensions + 1)], sizes-1, -1)
 
         # Building SimulationHistory instance
         hist = cls.__new__(cls)
@@ -547,6 +566,7 @@ class SimulationHistory:
         # TODO: Setup plotting for layers
         # TODO: Setup 3D plotting
         assert (self.environment is not None) and (self.agent is not None), "Plot function not available as the environment and/or the agent used during the simulation is not linked to the simulation history."
+        assert self.environment.dimensions == 2, "Plotting function only available for 2D environments for now..."
 
         # Generate ax is not provided
         if ax is None:
@@ -720,8 +740,7 @@ def run_test(agent: Agent,
     # Set start positions
     agent_position = None
     if start_points is not None:
-        assert start_points.shape == (n, 2), 'The provided start_points are of the wrong shape'
-        # assert start_points.shape == (n, (2 if not environment.is_3d else 3)), 'The provided start_points are of the wrong shape' #TODO
+        assert start_points.shape == (n, environment.dimensions), f'The provided start_points are of the wrong shape (expected {environment.dimensions}; received {start_points.shape[1]})'
         agent_position = start_points
     else:
         # Generating random starts
@@ -750,12 +769,13 @@ def run_test(agent: Agent,
         action = agent.choose_action()
 
         # Updating the agent's actual position (hidden to him)
-        new_agent_position = environment.move(agent_position, action)
+        new_agent_position = environment.move(pos=agent_position, 
+                                              movement=(action if not environment.has_layers else action[:,1:])) # Getting only the physical component of the action vector if environment has layers.
 
         # Get an observation based on the new position of the agent
         observation = environment.get_observation(pos=new_agent_position,
                                                   time=(time_shift + i),
-                                                  layer=(0 if not environment.has_layers else action[:,0])) # Getting the layer information column of the action matrix
+                                                  layer=(0 if not environment.has_layers else action[:,0])) # Getting the layer information column of the action matrix.
 
         # Check if the source is reached
         source_reached = environment.source_reached(new_agent_position)
