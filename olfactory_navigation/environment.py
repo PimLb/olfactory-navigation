@@ -310,6 +310,7 @@ class Environment:
 
         # If requested process all the slices of data into a single
         if preprocess_data and not self.data_processed:
+            assert self.dimensions == 2, "Higher dimensional data doesnt support reshaping yet, ensure it is done beforehand.."
             if self.has_layers:
                 new_data = np.zeros((len(self.layers), self.timesteps, *self.data_shape))
                 for layer in self.layers:
@@ -324,7 +325,12 @@ class Environment:
             self.data_processed = True
 
         # Reading shape of data array
-        self.shape: tuple[int] = (*(self.data_shape + np.sum(self.margins, axis=1)),)
+        self.shape = (*(self.data_shape + np.sum(self.margins, axis=1)),)
+
+        # Converting the shape tuple to integer sets
+        self.shape: tuple[int] = tuple([int(el) for el in self.shape])
+        self.data_shape: tuple[int] = tuple([int(el) for el in self.data_shape])
+
         
         # Building a data bounds
         self.data_bounds = np.array([self.margins[:,0], self.margins[:,0] + np.array(self.data_shape)]).T
@@ -373,7 +379,7 @@ class Environment:
         self.odor_present_threshold = odor_present_threshold
 
         # Removing the source area from the starting zone
-        source_mask = np.fromfunction((lambda *points: np.sum((np.array(points).T - self.source_position[None,:])**2, axis=-1) <= self.source_radius**2), shape=self.shape)
+        source_mask = np.fromfunction((lambda *points: np.sum((np.array(points).transpose([i+1 for i in range(len(self.shape))] + [0]) - self.source_position[None,:])**2, axis=-1) <= self.source_radius**2), shape=self.shape)
         self.start_probabilities[source_mask] = 0
         self.start_probabilities /= np.sum(self.start_probabilities) # Normalization
 
@@ -384,7 +390,7 @@ class Environment:
             self.name += f'-marg_' + '_'.join(['_'.join([str(marg) for marg in dim_margins]) for dim_margins in self.margins]) # margins
             self.name += f'-edge_{self.boundary_condition}' # Boundary condition
             self.name += f'-start_{self.start_type}' # Start zone
-            self.name += f'-source_' + '_'.join([str(pos) for pos in self.source_position]) + '_radius{self.source_radius}' # Source
+            self.name += f'-source_' + '_'.join([str(pos) for pos in self.source_position]) + f'_radius{self.source_radius}' # Source
 
         # gpu support
         self._alternate_version = None
