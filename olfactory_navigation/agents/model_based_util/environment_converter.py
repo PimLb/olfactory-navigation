@@ -51,7 +51,7 @@ def exact_converter(agent : Agent) -> Model:
     if threshold[-1] != np.inf:
         threshold = threshold + [np.inf]
 
-    # Computing odor probabilities
+    # Computing odor probabilities # TODO: allow for more layers
     data_grid = environment.data[0,:,:,:,None] if environment.has_layers else environment.data[:,:,:,None]
     threshs = np.array(threshold)
     data_odor_fields = np.average(((data_grid >= threshs[:-1][None,None,None,:]) & (data_grid < threshs[1:][None,None,None,:])), axis=0)
@@ -60,7 +60,7 @@ def exact_converter(agent : Agent) -> Model:
     odor_fields = np.zeros(environment.shape + ((len(threshold)-1),))
     odor_fields[environment.data_bounds[0,0]:environment.data_bounds[0,1], environment.data_bounds[1,0]:environment.data_bounds[1,1], :] = data_odor_fields
 
-    # Building observation matrix
+    # Building observation matrix # TODO: modify to allow for more action
     observations = np.empty((state_count, 4, len(threshold)), dtype=float) # 4-actions, observations: |thresholds|-1 + goal 
 
     for i in range(len(threshold)-1):
@@ -95,21 +95,19 @@ def exact_converter(agent : Agent) -> Model:
 
     # For each actions compute all new grid points (using the environment.move method)
     action_new_states = []
-    for action in action_set:
-        new_points = environment.move(points, movement=action[None,:])
+    movements = action_set if not environment.has_layers else action_set[:,1:]
+    for move_vector in movements:
+        new_points = environment.move(points, movement=move_vector[None,:])
         new_states = np.ravel_multi_index((new_points[:,0], new_points[:,1]), dims=shape)
         action_new_states.append(new_states)
 
     # Forming it the reachable states array from the new states for each action
     reachable_states = np.array(action_new_states).T[:,:,None]
 
-    # Action labels
-    action_labels = [f'a_{i}' for i in range(len(action_set))] # TODO: Allow action set to be a dict with labels
-
     # Instantiate the model object
     model = Model(
         states=state_grid,
-        actions=action_labels,
+        actions=agent.action_labels,
         observations=observation_labels,
         reachable_states=reachable_states,
         observation_table=observations,

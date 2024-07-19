@@ -61,8 +61,9 @@ class Agent:
         The olfactory environment the agent is meant to evolve in.
     threshold : float, default=3e-6
         The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
-    action_set : np.ndarray, optional
+    actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
+        Else, a dict of strings and action vectors where the strings represent the action labels.
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name for the agent. If it is not provided it will be named like "<class_name>-thresh_<threshold>".
@@ -71,9 +72,11 @@ class Agent:
     ----------
     environment : Environment
     threshold : str
+    name : name
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
-    name : name
+    action_labels : list[str]
+        The labels associated to the action vectors present in the action set.
     saved_at : str
         If the agent has been saved, the path at which it is saved is recorded in this variable.
     on_gpu : bool
@@ -84,37 +87,75 @@ class Agent:
     def __init__(self,
                  environment: Environment,
                  threshold: float = 3e-6,
-                 action_set: np.ndarray | None = None,
+                 actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None = None
                  ) -> None:
         self.environment = environment
         self.threshold = threshold
 
-        # Allowed actions # TODO: Add action labels
-        if action_set is None:
-            self.action_set = np.array([
-                [-1,  0], # North
-                [ 0,  1], # East
-                [ 1,  0], # South
-                [ 0, -1]  # West
-            ])
-
-            # ND
-            if environment.dimensions > 2:
+        # Allowed actions
+        self.action_labels = None
+        if actions is None:
+            if environment.dimensions == 2:
+                self.action_set = np.array([
+                    [-1,  0], # North
+                    [ 0,  1], # East
+                    [ 1,  0], # South
+                    [ 0, -1]  # West
+                ])
+                self.action_labels = [
+                    'North',
+                    'East',
+                    'South',
+                    'West'
+                ]
+            elif environment.dimensions == 3:
+                self.action_set = np.array([
+                    [ 0, -1,  0], # North
+                    [ 0,  0,  1], # East
+                    [ 0,  1,  0], # South
+                    [ 0,  0, -1], # West
+                    [ 1,  0,  0], # Up
+                    [-1,  0,  0]  # Down
+                ])
+                self.action_labels = [
+                    'North',
+                    'East',
+                    'South',
+                    'West',
+                    'Up',
+                    'Down'
+                ]
+            else: # ND
                 self.action_set = np.zeros((2*environment.dimensions, environment.dimensions))
+                self.action_labels = []
                 for dim in range(environment.dimensions):
+                    # Increase in dimension 'dim'
                     self.action_set[dim*2, -dim-1] = 1
+                    self.action_labels.append(f'd{dim}+1')
+
+                    # Decrease in dimension 'dim'
                     self.action_set[(dim*2) + 1, -dim-1] = -1
+                    self.action_labels.append(f'd{dim}-1')
 
             # Layered
             if environment.has_layers:
                 self.action_set = np.array([[layer, *action_vector] for layer in environment.layers for action_vector in self.action_set])
-        else:
-            self.action_set = action_set
+                self.action_labels = [f'l_{layer}_{action}' for  layer in environment.layer_labels for action in self.action_labels]
 
-            # Asertion that the shape if right
-            layered = 0 if not environment.has_layers else 1
-            assert self.action_set.shape[1] == (layered + environment.dimensions), f"The shape of the action_set provided is not right. (Found {self.action_set.shape}; expected (., {layered + environment.dimensions}))"
+        # Actions provided as numpy array
+        elif isinstance(actions, np.ndarray):
+            self.action_set = actions
+            self.action_labels = ['a_' + '_'.join([str(dim_a) for dim_a in action_vector]) for action_vector in self.action_set]
+
+        # Actions provided as dict
+        else:
+            self.action_set = np.ndarray(list(actions.values()))
+            self.action_labels = list(actions.keys())
+            
+        # Asertion that the shape of the actions set if right
+        layered = 0 if not environment.has_layers else 1
+        assert self.action_set.shape[1] == (layered + environment.dimensions), f"The shape of the action_set provided is not right. (Found {self.action_set.shape}; expected (., {layered + environment.dimensions}))"
 
         # setup name
         if name is None:
