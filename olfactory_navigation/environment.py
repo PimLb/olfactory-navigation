@@ -330,7 +330,6 @@ class Environment:
         # Converting the shape tuple to integer sets
         self.shape: tuple[int] = tuple([int(el) for el in self.shape])
         self.data_shape: tuple[int] = tuple([int(el) for el in self.data_shape])
-
         
         # Building a data bounds
         self.data_bounds = np.array([self.margins[:,0], self.margins[:,0] + np.array(self.data_shape)]).T

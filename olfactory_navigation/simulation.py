@@ -5,7 +5,8 @@ import pandas as pd
 import sys
 
 from datetime import datetime
-from matplotlib import pyplot as plt 
+from matplotlib import pyplot as plt
+from matplotlib.patches import Circle
 from tqdm.auto import trange
 
 from olfactory_navigation import Agent
@@ -586,14 +587,14 @@ class SimulationHistory:
         ax.scatter(start_coord[0], start_coord[1], c='green', label='Start')
 
         # Source circle
-        goal_circle = plt.Circle(self.environment.source_position[::-1], self.environment.source_radius, color='r', fill=False, label='Source')
+        goal_circle = Circle(self.environment.source_position[::-1], self.environment.source_radius, color='r', fill=False, label='Source')
         ax.add_patch(goal_circle)
 
         # Until step
         seq = sim[['x','y']][1:].to_numpy()
 
         # Path
-        ax.plot(seq[:,0], seq[:,1], zorder=-1, c='black', label='Path')
+        ax.plot(seq[:,0], seq[:,1], zorder=-1, c='black', label='Path' + (f' ({self.environment.layer_labels[0]})' if self.environment.has_layers else ''))
 
         # Something sensed
         if self.agent is not None:

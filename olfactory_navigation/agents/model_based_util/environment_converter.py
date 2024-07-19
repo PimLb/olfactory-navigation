@@ -11,7 +11,7 @@ def exact_converter(agent : Agent) -> Model:
     This version of the converter converts the environment in an exact manner.
     This mean the amount of states is equal to the grid points in the olfactory environment object.
 
-    It supports an environment in 2D and therefore defines 4 available actions for the agent. (north, east, south, west)
+    It supports an environment in 2D, with or without layers. It supports a variety of different action sets from the agent.
 
     It also defines at least different observations: Nothing, Something or Goal.
     However, if multiple thresholds are provided, the more observations will be available: |threshold| + 1 (Nothing) + 1 (Goal)
@@ -33,6 +33,9 @@ def exact_converter(agent : Agent) -> Model:
     threshold = agent.threshold
     action_set = agent.action_set
 
+    # Assertion
+    assert environment.dimensions == 2, "This converter only works for 2D environments..." # TODO: implement for ND
+
     # Base Model parameters
     state_count = np.prod(environment.shape)
 
@@ -51,24 +54,48 @@ def exact_converter(agent : Agent) -> Model:
     if threshold[-1] != np.inf:
         threshold = threshold + [np.inf]
 
-    # Computing odor probabilities # TODO: allow for more layers
-    data_grid = environment.data[0,:,:,:,None] if environment.has_layers else environment.data[:,:,:,None]
-    threshs = np.array(threshold)
-    data_odor_fields = np.average(((data_grid >= threshs[:-1][None,None,None,:]) & (data_grid < threshs[1:][None,None,None,:])), axis=0)
+    # Counts
+    action_count = len(agent.action_set)
+    observation_count = len(threshold) # Thresholds minus 1; plus 1 for the goal.
 
-    # Increasing it to the full environment
-    odor_fields = np.zeros(environment.shape + ((len(threshold)-1),))
-    odor_fields[environment.data_bounds[0,0]:environment.data_bounds[0,1], environment.data_bounds[1,0]:environment.data_bounds[1,1], :] = data_odor_fields
+    # Computing odor probabilities
+    odor_fields = None
+    data_bounds_slices = tuple(slice(low, high) for low, high in environment.data_bounds)
+    if environment.has_layers:
+        odor_fields = []
+        for layer in environment.layers:
+            data_grid = environment.data[layer,:,:,:,None]
+            threshs = np.array(threshold)
+            data_odor_fields = np.average(((data_grid >= threshs[:-1][None,None,None,:]) & (data_grid < threshs[1:][None,None,None,:])), axis=0)
+            
+            # Increasing it to the full environment
+            field = np.zeros(environment.shape + (observation_count-1,))
+            field[*data_bounds_slices, :] = data_odor_fields
 
-    # Building observation matrix # TODO: modify to allow for more action
-    observations = np.empty((state_count, 4, len(threshold)), dtype=float) # 4-actions, observations: |thresholds|-1 + goal 
+            odor_fields.append(field)
 
-    for i in range(len(threshold)-1):
-        observations[:,:,i] = odor_fields[:,:,i].ravel()[:,None]
+    else:
+        data_grid = environment.data[:,:,:,None]
+        threshs = np.array(threshold)
+        data_odor_fields = np.average(((data_grid >= threshs[:-1][None,None,None,:]) & (data_grid < threshs[1:][None,None,None,:])), axis=0)
+
+        # Increasing it to the full environment
+        odor_fields = np.zeros(environment.shape + (observation_count-1,))
+        odor_fields[*data_bounds_slices, :] = data_odor_fields
+
+    # Building observation matrix
+    observations = np.empty((state_count, action_count, observation_count), dtype=float)
+    for o in range(observation_count-1): # Skipping the goal observation
+        for a, action_vector in enumerate(action_set):
+            if environment.has_layers:
+                action_layer = action_vector[0]
+                observations[:,a,o] = odor_fields[action_layer][:,:,o].ravel()
+            else:
+                observations[:,a,o] = odor_fields[:,:,o].ravel()
 
     # Setting 'Nothing' observation in the margins to 1
     data_margins_mask = np.ones(environment.shape, dtype=bool)
-    data_margins_mask[environment.data_bounds[0,0]:environment.data_bounds[0,1], environment.data_bounds[1,0]:environment.data_bounds[1,1]] = False
+    data_margins_mask[data_bounds_slices] = False
     observations[data_margins_mask.ravel(),:,0] = 1.0
 
     # Goal observation
