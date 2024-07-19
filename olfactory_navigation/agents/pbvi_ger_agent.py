@@ -19,8 +19,9 @@ class PBVI_GER_Agent(PBVI_Agent):
     ----------
     environment : Environment
         The olfactory environment to train the agent with.
-    threshold : float, optional, default=3e-6
-        The olfactory sensitivity of the agent. Odor cues under this threshold will not be detected by the agent.
+    threshold : float or list[float], default=3e-6
+        The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
+        If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
@@ -36,8 +37,8 @@ class PBVI_GER_Agent(PBVI_Agent):
     Attributes
     ---------
     environment : Environment
-    threshold : float
-    name : name
+    threshold : float or list[float]
+    name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
     action_labels : list[str]

@@ -59,8 +59,9 @@ class Agent:
     ----------
     environment : Environment
         The olfactory environment the agent is meant to evolve in.
-    threshold : float, default=3e-6
+    threshold : float or list[float], default=3e-6
         The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
+        If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
@@ -71,8 +72,8 @@ class Agent:
     Attributes
     ----------
     environment : Environment
-    threshold : str
-    name : name
+    threshold : float or list[float]
+    name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
     action_labels : list[str]
@@ -86,7 +87,7 @@ class Agent:
     '''
     def __init__(self,
                  environment: Environment,
-                 threshold: float = 3e-6,
+                 threshold: float | list[float] = 3e-6,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None = None
                  ) -> None:
