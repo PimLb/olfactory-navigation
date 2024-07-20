@@ -1,4 +1,3 @@
-import cv2
 import h5py
 import json
 import os
@@ -6,6 +5,7 @@ import shutil
 
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle, Circle
+from scipy.interpolate import RegularGridInterpolator
 from typing import Literal
 
 import numpy as np
@@ -15,6 +15,27 @@ try:
     gpu_support = True
 except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
+
+
+def _resize_array(array: np.ndarray,
+                  new_shape: tuple,
+                  interpolation: str
+                  ) -> np.ndarray:
+    # Gathering initial shape and indices along each axis
+    shape = array.shape
+    indices = [np.linspace(start=0, stop=(ax_shape-1), num=ax_shape) for ax_shape in shape]
+
+    # Building the Interpolator
+    interp = RegularGridInterpolator((*indices,), array , method=interpolation)
+
+    # Building new indices along each axis and building all gridpoints
+    new_indices = [np.linspace(start=0, stop=(ax_shape-1), num=ax_new_shape) for ax_shape, ax_new_shape in zip(shape, new_shape)]
+    new_grid_points =  np.meshgrid(*new_indices, indexing='ij')
+
+    # Generating new data points on this new grid
+    new_array = interp((*new_grid_points,))
+
+    return new_array
 
 
 class Environment:
@@ -87,7 +108,7 @@ class Environment:
     name : str, optional
         A custom name to be given to the agent.
         If it is not provided, by default it will have the format:
-        <shape>-edge_<boundary_condition>-start_<start_zone>-source_<source_y>_<source_x>_radius<source_radius> # TODO update name
+        <shape>-marg_<margins>-edge_<boundary_condition>-start_<start_zone>-source_<source_point>_radius<source_radius>
     seed : int, default=12131415
         For reproducible randomness.
 
@@ -315,12 +336,15 @@ class Environment:
                 new_data = np.zeros((len(self.layers), self.timesteps, *self.data_shape))
                 for layer in self.layers:
                     for i in range(self.timesteps):
-                        # TODO: Replace cv2 resize with nd interpolations
-                        new_data[layer, i] = cv2.resize(np.array(self._data[layer][i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+                        new_data[layer, i] = _resize_array(np.array(self._data[layer][i]),
+                                                           new_shape=self.data_shape[::-1],
+                                                           interpolation=self.interpolation_method.lower())
             else:
                 new_data = np.zeros((self.timesteps, *self.data_shape))
                 for i in range(self.timesteps):
-                    new_data[i] = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+                    new_data[i] = _resize_array(np.array(self._data[i]),
+                                                new_shape=self.data_shape[::-1],
+                                                interpolation=self.interpolation_method.lower())
             self._data = new_data
             self.data_processed = True
 
@@ -368,7 +392,9 @@ class Environment:
                 odor_sum = np.zeros(self.data_shape, dtype=float)
                 for i in range(self.timesteps):
                     data_slice = np.array(self._data[i]) if not self.has_layers else np.array(self._data[0][i])
-                    reshaped_data_slice = cv2.resize(data_slice, dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method)) # TODO: Modify to allow for nd
+                    reshaped_data_slice = _resize_array(data_slice,
+                                                        new_shape=self.data_shape[::-1],
+                                                        interpolation=self.interpolation_method.lower())
                     odor_sum += (reshaped_data_slice > (odor_present_threshold if odor_present_threshold is not None else 0))
                 self.start_probabilities[tuple(slice(low, high) for low, high in self.data_bounds)] = (odor_sum / self.timesteps)
         else:
@@ -400,18 +426,6 @@ class Environment:
         self.rnd_state = np.random.RandomState(seed = seed)
 
 
-    def _interpolation_id(self, interpolation_method) -> int:
-        '''
-        The cv2 id of the interpolation method.
-        '''
-        interpolation_options = {
-            'Nearest': cv2.INTER_NEAREST,
-            'Linear': cv2.INTER_LINEAR,
-            'Cubic': cv2.INTER_CUBIC
-        }
-        return interpolation_options[interpolation_method]
-
-
     @property
     def data(self) -> np.ndarray:
         '''
@@ -421,16 +435,20 @@ class Environment:
             xp = cp if self.on_gpu else np
             print('[Warning] The whole dataset is being querried, it will be reshaped at this time. To avoid this, avoid querrying environment.data directly.')
 
-            # Reshaping # TODO: Modify to allow for nd
+            # Reshaping
             if self.has_layers:
                 new_data = np.zeros((len(self.layers), self.timesteps, *self.data_shape))
                 for layer in self.layers:
                     for i in range(self.timesteps):
-                        new_data[layer, i] = cv2.resize(np.array(self._data[layer][i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+                        new_data[layer, i] = _resize_array(np.array(self._data[layer][i]),
+                                                           new_shape=self.data_shape[::-1],
+                                                           interpolation=self.interpolation_method.lower())
             else:
                 new_data = np.zeros((self.timesteps, *self.data_shape))
                 for i in range(self.timesteps):
-                    new_data[i] = cv2.resize(np.array(self._data[i]), dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+                    new_data[i] = _resize_array(np.array(self._data[i]),
+                                                new_shape=self.data_shape[::-1],
+                                                interpolation=self.interpolation_method.lower())
 
             self._data = xp.array(new_data)
             self.data_processed = True
@@ -486,7 +504,9 @@ class Environment:
             data_frame = np.array(data_frame)
 
         if not self.data_processed:
-            data_frame = cv2.resize(data_frame, dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+            data_frame = _resize_array(data_frame,
+                                       new_shape=self.data_shape[::-1],
+                                       interpolation=self.interpolation_method.lower())
 
         # Odor grid
         odor = Rectangle([0,0], 1, 1, color='black', fill=True)
@@ -593,10 +613,13 @@ class Environment:
             for i in range(time_count):
                 if self.has_layers:
                     for j in range(layer_count):
-                        # TODO: Change cv2.resize
-                        reshaped_data[j,i] = cv2.resize(data[j,i], dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+                        reshaped_data[j,i] = _resize_array(data[j,i],
+                                                           new_shape=self.data_shape[::-1],
+                                                           interpolation=self.interpolation_method.lower())
                 else:
-                    reshaped_data[i] = cv2.resize(data[i], dsize=self.data_shape[::-1], interpolation=self._interpolation_id(self.interpolation_method))
+                    reshaped_data[i] = _resize_array(data[i],
+                                                     new_shape=self.data_shape[::-1],
+                                                     interpolation=self.interpolation_method.lower())
 
             data = xp.array(reshaped_data)
 
