@@ -337,13 +337,13 @@ class Environment:
                 for layer in self.layers:
                     for i in range(self.timesteps):
                         new_data[layer, i] = _resize_array(np.array(self._data[layer][i]),
-                                                           new_shape=self.data_shape[::-1],
+                                                           new_shape=self.data_shape,
                                                            interpolation=self.interpolation_method.lower())
             else:
                 new_data = np.zeros((self.timesteps, *self.data_shape))
                 for i in range(self.timesteps):
                     new_data[i] = _resize_array(np.array(self._data[i]),
-                                                new_shape=self.data_shape[::-1],
+                                                new_shape=self.data_shape,
                                                 interpolation=self.interpolation_method.lower())
             self._data = new_data
             self.data_processed = True
@@ -393,7 +393,7 @@ class Environment:
                 for i in range(self.timesteps):
                     data_slice = np.array(self._data[i]) if not self.has_layers else np.array(self._data[0][i])
                     reshaped_data_slice = _resize_array(data_slice,
-                                                        new_shape=self.data_shape[::-1],
+                                                        new_shape=self.data_shape,
                                                         interpolation=self.interpolation_method.lower())
                     odor_sum += (reshaped_data_slice > (odor_present_threshold if odor_present_threshold is not None else 0))
                 self.start_probabilities[tuple(slice(low, high) for low, high in self.data_bounds)] = (odor_sum / self.timesteps)
@@ -441,13 +441,13 @@ class Environment:
                 for layer in self.layers:
                     for i in range(self.timesteps):
                         new_data[layer, i] = _resize_array(np.array(self._data[layer][i]),
-                                                           new_shape=self.data_shape[::-1],
+                                                           new_shape=self.data_shape,
                                                            interpolation=self.interpolation_method.lower())
             else:
                 new_data = np.zeros((self.timesteps, *self.data_shape))
                 for i in range(self.timesteps):
                     new_data[i] = _resize_array(np.array(self._data[i]),
-                                                new_shape=self.data_shape[::-1],
+                                                new_shape=self.data_shape,
                                                 interpolation=self.interpolation_method.lower())
 
             self._data = xp.array(new_data)
@@ -505,7 +505,7 @@ class Environment:
 
         if not self.data_processed:
             data_frame = _resize_array(data_frame,
-                                       new_shape=self.data_shape[::-1],
+                                       new_shape=self.data_shape,
                                        interpolation=self.interpolation_method.lower())
 
         # Odor grid
@@ -614,11 +614,11 @@ class Environment:
                 if self.has_layers:
                     for j in range(layer_count):
                         reshaped_data[j,i] = _resize_array(data[j,i],
-                                                           new_shape=self.data_shape[::-1],
+                                                           new_shape=self.data_shape,
                                                            interpolation=self.interpolation_method.lower())
                 else:
                     reshaped_data[i] = _resize_array(data[i],
-                                                     new_shape=self.data_shape[::-1],
+                                                     new_shape=self.data_shape,
                                                      interpolation=self.interpolation_method.lower())
 
             data = xp.array(reshaped_data)
