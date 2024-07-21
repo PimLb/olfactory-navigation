@@ -92,7 +92,7 @@ class Agent:
                  name: str | None = None
                  ) -> None:
         self.environment = environment
-        self.threshold = threshold
+        self.threshold = sorted(threshold) # Ensuring they are sorted
 
         # Allowed actions
         self.action_labels = None
@@ -161,7 +161,7 @@ class Agent:
         # setup name
         if name is None:
             self.name = self.class_name
-            self.name += f'-tresh_{self.threshold}'
+            self.name += f'-tresh_' + (str(self.threshold) if not isinstance(self.threshold) else '_'.join(self.threshold))
         else:
             self.name = name
 

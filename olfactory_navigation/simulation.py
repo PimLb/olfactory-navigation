@@ -6,6 +6,7 @@ import sys
 
 from datetime import datetime
 from matplotlib import pyplot as plt
+from matplotlib import colors
 from matplotlib.patches import Circle
 from tqdm.auto import trange
 
@@ -564,7 +565,6 @@ class SimulationHistory:
             The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
         # TODO: Make environment and agent optional for plotting
-        # TODO: Setup plotting for layers
         # TODO: Setup 3D plotting
         assert (self.environment is not None) and (self.agent is not None), "Plot function not available as the environment and/or the agent used during the simulation is not linked to the simulation history."
         assert self.environment.dimensions == 2, "Plotting function only available for 2D environments for now..."
@@ -594,15 +594,37 @@ class SimulationHistory:
         seq = sim[['x','y']][1:].to_numpy()
 
         # Path
-        ax.plot(seq[:,0], seq[:,1], zorder=-1, c='black', label='Path' + (f' ({self.environment.layer_labels[0]})' if self.environment.has_layers else ''))
+        ax.plot(seq[:,0], seq[:,1], zorder=-1, c='black', label='Path')
+
+        # Layer observations
+        if self.environment.has_layers:
+            obs_layer = sim[['layer']][1:].to_numpy()
+            layer_colors = np.array(list(colors.TABLEAU_COLORS.values()))
+
+            for layer_i in self.environment.layers[1:]:
+                layer_label = self.environment.layer_labels[layer_i]
+                layer_mask = (obs_layer == layer_i)
+                ax.scatter(seq[layer_mask,0], seq[layer_mask,1], # X, Y
+                           marker='x',
+                           color=layer_colors[(layer_i-1) % len(layer_colors)], # Looping over the colors in case there are more layers than colors
+                           zorder=2,
+                           label=layer_label)
 
         # Something sensed
-        if self.agent is not None:
-            something_sensed = sim['o'][1:].to_numpy() > self.agent.threshold
-            points_obs = seq[something_sensed,:]
-            ax.scatter(points_obs[:,0], points_obs[:,1], zorder=1, label='Something observed')
+        if isinstance(self.agent.threshold, list):
+            thresholds = self.agent.threshold + [np.inf]
+            odor_cues = sim['o'][1:].to_numpy()
+            for level_i, (lower_threshold, upper_lower_threshold) in enumerate(zip(thresholds[:-1], lower_threshold[1:])):
+                cues_at_level = ((odor_cues >= lower_threshold) & (odor_cues < upper_lower_threshold))
+                ax.scatter(seq[cues_at_level,0], seq[cues_at_level,1],
+                           zorder=1,
+                           alpha=((1/len(thresholds)) * (1+level_i)),
+                           label=f'Sensed level {level_i}')
         else:
-            print('Agent used is not tracked')
+            something_sensed = (sim['o'][1:].to_numpy() > self.agent.threshold)
+            ax.scatter(seq[something_sensed,0], seq[something_sensed,1],
+                       zorder=1,
+                       label='Something observed')
 
         # Generate legend
         ax.legend()

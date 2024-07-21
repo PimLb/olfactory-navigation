@@ -378,7 +378,7 @@ class Environment:
             elif start_zone.shape == self.shape:
                 self.start_probabilities = start_zone
             else:
-                raise ValueError('If an np.ndarray is provided for the start_zone it has to be 2x2...')
+                raise ValueError('If an np.ndarray is provided for the start_zone it has to be |dim| x 2...')
 
         elif start_zone == 'data_zone':
             slices = tuple(slice(low, high) for low, high in self.data_bounds)
@@ -467,6 +467,7 @@ class Environment:
 
     def plot(self,
              frame: int = 0,
+             layer: int = 0,
              ax: plt.Axes | None = None
              ) -> None:
         '''
@@ -478,10 +479,11 @@ class Environment:
         ----------
         frame : int, default=0
             The frame of odor cues to print.
+        layer : int, default=0
+            The layer of the odor cues to print. (Ignored if the environment is not layered.)
         ax : plt.Axes, optional
             An ax on which the environment can be plot.
         '''
-        # TODO: Implement layers in plots
         # If on GPU use the CPU version to plot
         if self.on_gpu:
             self._alternate_version.plot(
@@ -499,7 +501,7 @@ class Environment:
         legend_elements = [[],[]]
 
         # Gather data frame
-        data_frame: np.ndarray = self._data[0][frame] if self.has_layers else self._data[frame]
+        data_frame: np.ndarray = self._data[layer][frame] if self.has_layers else self._data[frame]
         if not isinstance(data_frame, np.ndarray):
             data_frame = np.array(data_frame)
 
@@ -516,7 +518,7 @@ class Environment:
         ax.imshow(environment_frame, cmap='Greys')
 
         legend_elements[0].append(odor)
-        legend_elements[1].append(f'Frame {frame} odor cues')
+        legend_elements[1].append(f'Frame {frame}' + ('' if not self.has_layers else f' (layer {layer})') + ' odor cues')
 
         # Start zone contour
         start_zone = Rectangle([0,0], 1, 1, color='blue', fill=False)
@@ -959,9 +961,9 @@ class Environment:
 
         else:
             start_zone: str = arguments['start_type']
+            start_zone_boundaries = None
             if start_zone.startswith('custom'):
-                start_zone_boundaries = np.array(start_zone.split('_')[1:]).reshape((2,2)).astype(int) # TODO: Rehandle to allow for nd
-                start_zone = start_zone_boundaries
+                start_zone_boundaries = np.array(start_zone.split('_')[1:]).reshape((arguments['dimensions'],2)).astype(int)
 
             loaded_env = Environment(
                 data_file              = arguments['data_file_path'],
@@ -973,7 +975,7 @@ class Environment:
                 interpolation_method   = arguments['interpolation_method'],
                 preprocess_data        = arguments['preprocess_data'],
                 boundary_condition     = arguments['boundary_condition'],
-                start_zone             = start_zone,
+                start_zone             = (start_zone_boundaries if start_zone_boundaries is not None else start_zone),
                 odor_present_threshold = arguments.get('odor_present_threshold'),
                 name                   = arguments['name'],
                 seed                   = arguments['seed']
