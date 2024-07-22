@@ -61,6 +61,18 @@ class SimulationHistory:
     time_shift : np.ndarray
     horizon : int
     reward_discount : float
+    environment_dimensions : int
+        The amount of dimensions of the environment.
+    environment_shape : tuple[int]
+        The shape of the environment.
+    environment_source_position : np.ndarray
+        The position of the odor source in the environment.
+    environment_source_radius : float
+        The radius of the odor source in the environment.
+    environment_layer_labels : list[str] or None
+        A list of the layer labels if the environment has layers.
+    agent_threshold : float or list[float]
+        The olfaction threshold of the agent.
     n : int
         The amount of simulations.
     start_time : datetime
@@ -104,6 +116,14 @@ class SimulationHistory:
 
         self._running_sims = np.arange(self.n)
         self.done_at_step = np.full(self.n, fill_value=-1)
+
+        # Environment and agent attributes
+        self.environment_dimensions = self.environment.dimensions
+        self.environment_shape = self.environment.shape
+        self.environment_source_position = self.environment.source_position
+        self.environment_source_radius = self.environment.source_radius
+        self.environment_layer_labels = self.environment.layer_labels
+        self.agent_threshold = self.agent.threshold
 
         # Other parameters
         self._simulation_dfs = None
@@ -388,13 +408,30 @@ class SimulationHistory:
         # Create csv file
         combined_df = pd.concat(self.simulation_dfs)
 
-        # Adding Environment and Agent info
+        # Adding other useful info
         padding = [None] * len(combined_df)
         combined_df['timestamps'] = [self.start_time.strftime('%Y%m%d_%H%M%S%f')] + [ts.strftime('%H%M%S%f') for ts in self.timestamps] + padding[:-(len(self.timestamps)+1)]
         combined_df['horizon'] = [self.horizon] + padding[:-1]
         combined_df['reward_discount'] = [self.reward_discount] + padding[:-1]
-        combined_df['environment'] = [self.environment.name, self.environment.saved_at] + padding[:-2]
-        combined_df['agent'] = [self.agent.name, self.agent.class_name, self.agent.saved_at] + padding[:-3]
+
+        environment_info = [
+            self.environment.name,
+            self.environment.saved_at,
+            str(self.environment_dimensions), # int
+            '_'.join(str(axis_size) for axis_size in self.environment_shape),
+            '_'.join(str(axis_position) for axis_position in self.environment_source_position),
+            str(self.environment_source_radius), # float
+            '' if (self.environment_layer_labels is None) else '&'.join(self.environment_layer_labels) # Using '&' as splitter as '_' could be used in the labels themselves
+        ]
+        combined_df['environment'] = (environment_info + padding[:-len(environment_info)])
+
+        agent_info = [
+            self.agent.name,
+            self.agent.class_name,
+            self.agent.saved_at,
+            (str(self.agent_threshold) if not isinstance(self.agent_threshold, list) else '_'.join(str(t) for t in self.agent_threshold))
+        ]
+        combined_df['agent'] = (agent_info + padding[:-len(agent_info)])
 
         # Saving csv
         combined_df.to_csv(folder + file, index=False)
@@ -489,6 +526,18 @@ class SimulationHistory:
             except:
                 print(f'Failed to retrieve "{agent_name}" agent from memory')
 
+        # Other attributes
+        environment_dimensions = int(combined_df['environment'][2])
+        environment_shape = tuple([int(axis_shape) for axis_shape in combined_df['environment'][3].split('_')])
+        environment_source_position = np.array([float(pos_axis) for pos_axis in combined_df['environment'][4].split('_')])
+        environment_source_radius = float(combined_df['environment'][5])
+        layer_entery = combined_df['environment'][6]
+        environment_layer_labels = (None if ((not isinstance(layer_entery, str)) or (len(layer_entery) == 0)) else layer_entery.split('&'))
+        
+        agent_threshold = [float(t) for t in combined_df['agent'][3].split('_')]
+        if len(agent_threshold) == 1:
+            agent_threshold = agent_threshold[0]
+
         # Columns to retrieve
         columns = [col for col in columns if col not in ['reward_discount', 'environment', 'agent']]
 
@@ -543,6 +592,14 @@ class SimulationHistory:
         hist.done_at_step = done_at_step
         hist.timestamps = [datetime.strptime(ts, '%H%M%S%f') for ts in combined_df['timestamps'][1:max_length]]
 
+        # Other attributes
+        hist.environment_dimensions = environment_dimensions
+        hist.environment_shape = environment_shape
+        hist.environment_source_position = environment_source_position
+        hist.environment_source_radius = environment_source_radius
+        hist.environment_layer_labels = environment_layer_labels
+        hist.agent_threshold = agent_threshold
+
         # Saving simulation dfs back
         hist._simulation_dfs = simulation_dfs
         
@@ -564,10 +621,8 @@ class SimulationHistory:
         ax : plt.Axes, optional
             The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
-        # TODO: Make environment and agent optional for plotting
         # TODO: Setup 3D plotting
-        assert (self.environment is not None) and (self.agent is not None), "Plot function not available as the environment and/or the agent used during the simulation is not linked to the simulation history."
-        assert self.environment.dimensions == 2, "Plotting function only available for 2D environments for now..."
+        assert self.environment_dimensions == 2, "Plotting function only available for 2D environments for now..."
 
         # Generate ax is not provided
         if ax is None:
@@ -577,8 +632,8 @@ class SimulationHistory:
         sim = self.simulation_dfs[sim_id]
 
         # Plot setup
-        env_shape = self.environment.shape
-        ax.imshow(np.zeros(self.environment.shape), cmap='Greys', zorder=-100)
+        env_shape = self.environment_shape
+        ax.imshow(np.zeros(self.environment_shape), cmap='Greys', zorder=-100)
         ax.set_xlim(0, env_shape[1])
         ax.set_ylim(env_shape[0], 0)
 
@@ -587,7 +642,7 @@ class SimulationHistory:
         ax.scatter(start_coord[0], start_coord[1], c='green', label='Start')
 
         # Source circle
-        goal_circle = Circle(self.environment.source_position[::-1], self.environment.source_radius, color='r', fill=False, label='Source')
+        goal_circle = Circle(self.environment_source_position[::-1], self.environment_source_radius, color='r', fill=False, label='Source')
         ax.add_patch(goal_circle)
 
         # Until step
@@ -597,12 +652,13 @@ class SimulationHistory:
         ax.plot(seq[:,0], seq[:,1], zorder=-1, c='black', label='Path')
 
         # Layer observations
-        if self.environment.has_layers:
+        if self.environment_layer_labels is not None:
             obs_layer = sim[['layer']][1:].to_numpy()
             layer_colors = np.array(list(colors.TABLEAU_COLORS.values()))
 
-            for layer_i in self.environment.layers[1:]:
-                layer_label = self.environment.layer_labels[layer_i]
+            for layer_i in range(len(self.environment_layer_labels)):
+                layer_i += 1
+                layer_label = self.environment_layer_labels[layer_i]
                 layer_mask = (obs_layer == layer_i)
                 ax.scatter(seq[layer_mask,0], seq[layer_mask,1], # X, Y
                            marker='x',
@@ -611,8 +667,8 @@ class SimulationHistory:
                            label=layer_label)
 
         # Something sensed
-        if isinstance(self.agent.threshold, list):
-            thresholds = self.agent.threshold + [np.inf]
+        if isinstance(self.agent_threshold, list):
+            thresholds = self.agent_threshold + [np.inf]
             odor_cues = sim['o'][1:].to_numpy()
             for level_i, (lower_threshold, upper_lower_threshold) in enumerate(zip(thresholds[:-1], lower_threshold[1:])):
                 cues_at_level = ((odor_cues >= lower_threshold) & (odor_cues < upper_lower_threshold))
@@ -621,7 +677,7 @@ class SimulationHistory:
                            alpha=((1/len(thresholds)) * (1+level_i)),
                            label=f'Sensed level {level_i}')
         else:
-            something_sensed = (sim['o'][1:].to_numpy() > self.agent.threshold)
+            something_sensed = (sim['o'][1:].to_numpy() > self.agent_threshold)
             ax.scatter(seq[something_sensed,0], seq[something_sensed,1],
                        zorder=1,
                        label='Something observed')
