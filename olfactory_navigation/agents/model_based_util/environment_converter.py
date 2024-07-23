@@ -146,7 +146,6 @@ def exact_converter(agent : Agent) -> Model:
 
 def minimal_converter(agent : Agent,
                       partitions: list | np.ndarray = [3,6],
-                      partition_move_out_probabilities: int | list | np.ndarray | None = None
                       ) -> Model:
     '''
     Method to create a POMDP Model based on an olfactory environment  object.
@@ -170,9 +169,6 @@ def minimal_converter(agent : Agent,
         The agent to use to get the environment and threshold parameters from.
     partitions : list or np.ndarray, default=[3,6]
         How many partitions to use in respectively the y and x directions.
-    partition_move_out_probabilities : int or list or np.ndarray, optional
-        A unique 'move_out' probability, or a list/array of the probabilities for respectively the horizontal and vertical movements.
-        If none is provided, the probabilities will be 1 over the cell shape in the y and x directions for the probabilities horizontally and vertically.
 
     Returns
     -------
@@ -184,110 +180,121 @@ def minimal_converter(agent : Agent,
     threshold = agent.threshold
     action_set = agent.action_set
 
-    # Getting probabilities of odor in the requested partitions
+    shape = environment.shape
+
+    # Getting probabilities of odor in the requested partitions and mapping grid to cells
     partitions = np.array(partitions)
-    y_partitions = partitions[0]
-    x_partitions = partitions[1]
 
-    cell_shape = (environment.data_shape / np.array([y_partitions, x_partitions])).astype(int)
-    cell_odor_probs = np.zeros((y_partitions, x_partitions))
+    cell_shape = (environment.data_shape / partitions).astype(int)
 
-    for y_i in range(y_partitions):
-        for x_i in range(x_partitions):
-            if environment.has_layers:
-                cell = environment.data[0,
-                                        :,
-                                        (y_i * cell_shape[0]) : ((y_i + 1) * cell_shape[0]),
-                                        (x_i * cell_shape[1]) : ((x_i + 1) * cell_shape[1])]
-            else:
-                cell = environment.data[:,
-                                        (y_i * cell_shape[0]) : ((y_i + 1) * cell_shape[0]),
-                                        (x_i * cell_shape[1]) : ((x_i + 1) * cell_shape[1])]
+    # Building cell bounds
+    grid_cells = np.ones(shape) * -1
+    cell_bounds = [np.array([0, *((np.arange(ax_part+1) * cell_shape[ax_i]) + environment.margins[ax_i, 0]), shape[ax_i]]) for ax_i, ax_part in enumerate(partitions)]
 
-            cell_odor_probs[y_i, x_i] = np.average(cell > threshold)
+    lower_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[:-1] for bounds_arr in cell_bounds], indexing='xy')]).T
+    upper_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[1 :] for bounds_arr in cell_bounds], indexing='xy')]).T
 
-    odor_probabilities = np.zeros(((y_partitions + 2), (x_partitions + 3)))
-    odor_probabilities[1:-1,2:-1] = cell_odor_probs
+    for i, (lower_b, upper_b) in enumerate(zip(lower_bounds, upper_bounds)):
+        slices = [slice(ax_lower, ax_upper) for ax_lower, ax_upper in zip(lower_b, upper_b)]
+        
+        # Grid to cell mapping
+        grid_cells[*slices] = i
 
-    # General attributes
-    state_count = np.prod(odor_probabilities.shape)
-    shape = odor_probabilities.shape
+    # Building transition probabilities
+    cell_counts = int(np.prod(partitions+2))
+    points = np.array(np.unravel_index(np.arange(np.prod(shape)), shape)).T
+    transition_probabilities = np.full((cell_counts+1, len(action_set), cell_counts+1), -1, dtype=float)
 
-    # State grid
-    state_grid = [[f's_{x}_{y}' for x in range(shape[1])] for y in range(shape[0])]
+    movements = (action_set if not environment.has_layers else action_set[:,1:])
+    for a, move_vector in enumerate(movements):
+        new_points = environment.move(points, movement=move_vector[None,:])
+        for state_cell in np.arange(cell_counts):
+            points_in_cell = (grid_cells[*points.T] == state_cell)[:,None]
+            count_in_cell = np.sum(points_in_cell)
 
-    # Computing move out probabilities
-    if partition_move_out_probabilities is None:
-        move_out_prob = 1 / cell_shape
-    elif isinstance(partition_move_out_probabilities, int):
-        move_out_prob = np.ones(2) * partition_move_out_probabilities
+            next_cells = np.arange(cell_counts)
+            points_in_next_cell = (grid_cells[*new_points.T,None] == next_cells[None,:])
+
+            at_source = environment.source_reached(new_points)[:,None]
+
+            transition_probabilities[state_cell, a, next_cells] = np.sum(((points_in_cell & (~at_source)) & points_in_next_cell), axis=0) / count_in_cell
+            transition_probabilities[state_cell, a, -1] = np.sum(points_in_cell & at_source) / count_in_cell
+
+    transition_probabilities[-1,:,:] = 0.0
+    transition_probabilities[-1,:,-1] = 1.0
+
+    # Compute observation matrix
+    if not isinstance(threshold, list):
+        threshold = [threshold]
+
+    # Ensure 0.0 and 1.0 begin and end the threshold list
+    if threshold[0] != -np.inf:
+        threshold = [-np.inf] + threshold
+
+    if threshold[-1] != np.inf:
+        threshold = threshold + [np.inf]
+
+    #  Observation labels
+    observation_labels = ['nothing']
+    if len(threshold) > 3:
+        for i,_ in enumerate(threshold[1:-1]):
+            observation_labels.append(f'something_l{i}')
     else:
-        move_out_prob = np.array(partition_move_out_probabilities)
+        observation_labels.append('something')
+    observation_labels.append('goal')
 
-    # Transition probabilities of the model
-    width = shape[1]
-    transition_probabilities = np.zeros((state_count, 4, state_count))
+    # Observation probabilities
+    observations = np.zeros((cell_counts+1, len(action_set), len(observation_labels)))
 
-    # TODO: Replace this by using the action set
-    for y in range(shape[0]):
-        for x in range(shape[1]):
+    # Recomputing bounds for data zone only
+    data_cell_bounds = [np.array([*(np.arange(ax_part+1) * cell_shape[ax_i])]) for ax_i, ax_part in enumerate(partitions)]
 
-            # North
-            if y == 0:
-                transition_probabilities[(y * width) + x, 0, (y * width) + x] = 1.0
+    data_lower_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[:-1] for bounds_arr in data_cell_bounds], indexing='xy')]).T
+    data_upper_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[1 :] for bounds_arr in data_cell_bounds], indexing='xy')]).T
+
+    cell_observations = []
+    for lower_b, upper_b in zip(data_lower_bounds, data_upper_bounds):
+        slices = [slice(ax_lower, ax_upper) for ax_lower, ax_upper in zip(lower_b, upper_b)]
+        
+        observations_levels = []
+        for min_thresh, max_thresh in zip(threshold[:-1], threshold[1:]):
+            if environment.has_layers:
+                odor_within_thresh = (environment.data[:,:,*slices] > min_thresh) & (environment.data[:,:,*slices] < max_thresh)
+                observations_levels.append(np.average(odor_within_thresh, axis=(a+1 for a in range(environment.dimensions))))
             else:
-                transition_probabilities[(y * width) + x, 0, (y * width) + x] = (1 - move_out_prob[0])
-                transition_probabilities[(y * width) + x, 0, ((y - 1) * width) + x] = move_out_prob[0]
+                odor_within_thresh = (environment.data[:,*slices] > min_thresh) & (environment.data[:,*slices] < max_thresh)
+                observations_levels.append(np.average(odor_within_thresh))
 
-            # East
-            if x == (shape[1] - 1):
-                transition_probabilities[(y * width) + x, 1, (y * width) + x] = 1.0
-            else:
-                transition_probabilities[(y * width) + x, 1, (y * width) + x] = (1 - move_out_prob[1])
-                transition_probabilities[(y * width) + x, 1, (y * width) + (x + 1)] = move_out_prob[1]
-            
-            # South
-            if y == (shape[0] - 1):
-                transition_probabilities[(y * width) + x, 2, (y * width) + x] = 1.0
-            else:
-                transition_probabilities[(y * width) + x, 2, (y * width) + x] = (1 - move_out_prob[1])
-                transition_probabilities[(y * width) + x, 2, ((y + 1) * width) + x] = move_out_prob[1]
+        cell_observations.append(observations_levels)
 
-            # West
-            if x == 0:
-                transition_probabilities[(y * width) + x, 3, (y * width) + x] = 1.0
-            else:
-                transition_probabilities[(y * width) + x, 3, (y * width) + x] = (1 - move_out_prob[0])
-                transition_probabilities[(y * width) + x, 3, (y * width) + (x - 1)] = move_out_prob[0]
+    # Placing observation probabilities in observation matrix
+    data_cell_ids = np.arange(cell_counts).reshape(partitions+2)[1:-1,1:-1].ravel()
+    observations[:-1,:,0] = 1.0 # Nothing at 1 everywhere
+    if environment.has_layers:
+        action_layers = action_set[:,0]
+        for i, cell_id in enumerate(data_cell_ids):
+            for o in range(len(observation_labels) - 1):
+                for layer in action_layers:
+                    observations[cell_id,layer,o] = cell_observations[i][o][layer]
+    else:
+        for i, cell_id in enumerate(data_cell_ids):
+            observations[cell_id,:,:-1] = cell_observations[i]
 
-    # Goal states
-    end_states = [int((int(shape[0] / 2) * width) + 1)]
+    observations[-1,:,-1] = 1.0 # Goal
 
-    # Observations
-    observation_labels = ['nothing', 'something', 'goal']
-
-    observations = np.zeros((state_count, 4, len(observation_labels)))
-
-    observations[:, :, 0] = (1 - odor_probabilities.flatten())[:,None]
-    observations[:, :, 1] = odor_probabilities.flatten()[:,None]
-
-    observations[end_states, :, -1] = 0.0
-    observations[end_states, :, :] = 0.0
-    observations[end_states, :, -1] = 1.0
-
-    # Start probabilities
-    start_probabilities = np.ones(state_count, dtype=float)
+    # Start probabilities # TODO Match data zone
+    start_probabilities = np.ones(cell_counts+1, dtype=float)
     # start_probabilities = (odor_probabilities > 0).astype(float).flatten()
     start_probabilities /= np.sum(start_probabilities)
 
     # Creation of the Model
     model = Model(
-        states = state_grid,
-        actions = ['N','E','S','W'],
+        states = [f'cell_{cell}' for cell in range(cell_counts)] + ['goal'],
+        actions = agent.action_labels,
         observations = observation_labels,
         transitions = transition_probabilities,
         observation_table = observations,
-        end_states = end_states,
+        end_states = [cell_counts], # The very last state is the goal state
         start_probabilities = start_probabilities
     )
 
