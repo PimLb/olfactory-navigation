@@ -648,6 +648,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../agents/model_based_util/environment_converter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    environment_converter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../agents/model_based_util/mdp/" class="md-nav__link">
         
   
@@ -1438,10 +1459,7 @@ The results analyzed are the following:</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\test_setups.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">352</span>
-<span class="normal">353</span>
-<span class="normal">354</span>
-<span class="normal">355</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">355</span>
 <span class="normal">356</span>
 <span class="normal">357</span>
 <span class="normal">358</span>
@@ -1485,7 +1503,13 @@ The results analyzed are the following:</p>
 <span class="normal">396</span>
 <span class="normal">397</span>
 <span class="normal">398</span>
-<span class="normal">399</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">analyse_scale_robustness</span><span class="p">(</span><span class="n">all_histories</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SimulationHistory</span><span class="p">],</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">analyse_scale_robustness</span><span class="p">(</span><span class="n">all_histories</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SimulationHistory</span><span class="p">],</span>
                              <span class="n">multipliers</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
                              <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
@@ -1520,7 +1544,7 @@ The results analyzed are the following:</p>
 
         <span class="c1"># Then the summarized metrics are collapsed on a single row</span>
         <span class="n">col_metric_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;multiplier&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">multiplier</span><span class="p">)}</span>
-        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;converged&#39;</span><span class="p">,</span> <span class="s1">&#39;steps_taken&#39;</span><span class="p">,</span> <span class="s1">&#39;discounted_rewards&#39;</span><span class="p">,</span> <span class="s1">&#39;extra_steps&#39;</span><span class="p">,</span> <span class="s1">&#39;t_min_over_t&#39;</span><span class="p">]:</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;converged&#39;</span><span class="p">,</span> <span class="s1">&#39;reached_horizon&#39;</span><span class="p">,</span> <span class="s1">&#39;steps_taken&#39;</span><span class="p">,</span> <span class="s1">&#39;discounted_rewards&#39;</span><span class="p">,</span> <span class="s1">&#39;extra_steps&#39;</span><span class="p">,</span> <span class="s1">&#39;t_min_over_t&#39;</span><span class="p">]:</span>
             <span class="k">for</span> <span class="n">metric</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;standard_deviation&#39;</span><span class="p">,</span> <span class="s1">&#39;success_mean&#39;</span><span class="p">,</span> <span class="s1">&#39;success_standard_deviation&#39;</span><span class="p">]:</span>
                 <span class="n">col_metric_dict</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">metric</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">metric</span><span class="p">,</span> <span class="n">col</span><span class="p">]</span>
 
@@ -1529,8 +1553,11 @@ The results analyzed are the following:</p>
     <span class="c1"># Creating the dataframe from all the rows</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
 
-    <span class="c1"># Removal of 2 unnecessary columns</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;converged_success_mean&#39;</span><span class="p">,</span> <span class="s1">&#39;converged_success_standard_deviation&#39;</span><span class="p">])</span>
+    <span class="c1"># Removal of 4 unnecessary columns</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;converged_success_mean&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;converged_success_standard_deviation&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;reached_horizon_success_mean&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;reached_horizon_success_standard_deviation&#39;</span><span class="p">])</span>
 
     <span class="k">return</span> <span class="n">df</span>
 </code></pre></div></td></tr></table></div>
@@ -1681,7 +1708,10 @@ The results analyzed are the following:</p>
 <span class="normal">221</span>
 <span class="normal">222</span>
 <span class="normal">223</span>
-<span class="normal">224</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">analyse_shape_robustness</span><span class="p">(</span><span class="n">all_histories</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SimulationHistory</span><span class="p">],</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">analyse_shape_robustness</span><span class="p">(</span><span class="n">all_histories</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SimulationHistory</span><span class="p">],</span>
                              <span class="n">multipliers</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
                              <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
@@ -1716,7 +1746,7 @@ The results analyzed are the following:</p>
 
         <span class="c1"># Then the summarized metrics are collapsed on a single row</span>
         <span class="n">col_metric_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;y_multiplier&#39;</span><span class="p">:</span> <span class="n">multiplier_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="s1">&#39;x_multiplier&#39;</span><span class="p">:</span> <span class="n">multiplier_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)}</span>
-        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;converged&#39;</span><span class="p">,</span> <span class="s1">&#39;steps_taken&#39;</span><span class="p">,</span> <span class="s1">&#39;discounted_rewards&#39;</span><span class="p">,</span> <span class="s1">&#39;extra_steps&#39;</span><span class="p">,</span> <span class="s1">&#39;t_min_over_t&#39;</span><span class="p">]:</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;converged&#39;</span><span class="p">,</span> <span class="s1">&#39;reached_horizon&#39;</span><span class="p">,</span> <span class="s1">&#39;steps_taken&#39;</span><span class="p">,</span> <span class="s1">&#39;discounted_rewards&#39;</span><span class="p">,</span> <span class="s1">&#39;extra_steps&#39;</span><span class="p">,</span> <span class="s1">&#39;t_min_over_t&#39;</span><span class="p">]:</span>
             <span class="k">for</span> <span class="n">metric</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;standard_deviation&#39;</span><span class="p">,</span> <span class="s1">&#39;success_mean&#39;</span><span class="p">,</span> <span class="s1">&#39;success_standard_deviation&#39;</span><span class="p">]:</span>
                 <span class="n">col_metric_dict</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">metric</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">metric</span><span class="p">,</span> <span class="n">col</span><span class="p">]</span>
 
@@ -1725,8 +1755,11 @@ The results analyzed are the following:</p>
     <span class="c1"># Creating the dataframe from all the rows</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
 
-    <span class="c1"># Removal of 2 unnecessary columns</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;converged_success_mean&#39;</span><span class="p">,</span> <span class="s1">&#39;converged_success_standard_deviation&#39;</span><span class="p">])</span>
+    <span class="c1"># Removal of 4 unnecessary columns</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;converged_success_mean&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;converged_success_standard_deviation&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;reached_horizon_success_mean&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;reached_horizon_success_standard_deviation&#39;</span><span class="p">])</span>
 
     <span class="k">return</span> <span class="n">df</span>
 </code></pre></div></td></tr></table></div>
@@ -2687,13 +2720,7 @@ It will be saved under a file named '_analysis.csv' in the save_folder.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\test_setups.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">402</span>
-<span class="normal">403</span>
-<span class="normal">404</span>
-<span class="normal">405</span>
-<span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">408</span>
 <span class="normal">409</span>
 <span class="normal">410</span>
 <span class="normal">411</span>
@@ -2802,7 +2829,13 @@ It will be saved under a file named '_analysis.csv' in the save_folder.</p>
 <span class="normal">514</span>
 <span class="normal">515</span>
 <span class="normal">516</span>
-<span class="normal">517</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">test_scale_robustness</span><span class="p">(</span><span class="n">agent</span><span class="p">:</span> <span class="n">Agent</span><span class="p">,</span>
+<span class="normal">517</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">test_scale_robustness</span><span class="p">(</span><span class="n">agent</span><span class="p">:</span> <span class="n">Agent</span><span class="p">,</span>
                           <span class="n">step_percentage</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
                           <span class="n">min_percentage</span><span class="p">:</span><span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
                           <span class="n">max_percentage</span><span class="p">:</span><span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
@@ -2877,7 +2910,7 @@ It will be saved under a file named '_analysis.csv' in the save_folder.</p>
     <span class="c1"># Save Folder name and creation</span>
     <span class="k">if</span> <span class="n">save</span> <span class="ow">or</span> <span class="n">save_analysis</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">save_folder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">save_folder</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;./results/</span><span class="si">{</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%m</span><span class="si">%d</span><span class="s2">%Y_%H%M%S&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1">_scale_robustness_test_&#39;</span> <span class="o">+</span> <span class="n">environment</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">save_folder</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;./results/</span><span class="si">{</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">_%H%M%S&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1">_scale_robustness_test_&#39;</span> <span class="o">+</span> <span class="n">environment</span><span class="o">.</span><span class="n">name</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">save_folder</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">save_folder</span><span class="p">)</span>
@@ -3143,10 +3176,7 @@ It will be saved under a file named '_analysis.csv' in the save_folder.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\test_setups.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span>
-<span class="normal">230</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">230</span>
 <span class="normal">231</span>
 <span class="normal">232</span>
 <span class="normal">233</span>
@@ -3265,7 +3295,10 @@ It will be saved under a file named '_analysis.csv' in the save_folder.</p>
 <span class="normal">346</span>
 <span class="normal">347</span>
 <span class="normal">348</span>
-<span class="normal">349</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">test_shape_robustness</span><span class="p">(</span><span class="n">agent</span><span class="p">:</span> <span class="n">Agent</span><span class="p">,</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">test_shape_robustness</span><span class="p">(</span><span class="n">agent</span><span class="p">:</span> <span class="n">Agent</span><span class="p">,</span>
                           <span class="n">step_percentage</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
                           <span class="n">min_percentage</span><span class="p">:</span><span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
                           <span class="n">max_percentage</span><span class="p">:</span><span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
@@ -3345,7 +3378,7 @@ It will be saved under a file named '_analysis.csv' in the save_folder.</p>
     <span class="c1"># Save Folder name and creation</span>
     <span class="k">if</span> <span class="n">save</span> <span class="ow">or</span> <span class="n">save_analysis</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">save_folder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">save_folder</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;./results/</span><span class="si">{</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%m</span><span class="si">%d</span><span class="s2">%Y_%H%M%S&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1">_shape_robustness_test_&#39;</span> <span class="o">+</span> <span class="n">environment</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">save_folder</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;./results/</span><span class="si">{</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">_%H%M%S&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1">_shape_robustness_test_&#39;</span> <span class="o">+</span> <span class="n">environment</span><span class="o">.</span><span class="n">name</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">save_folder</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">save_folder</span><span class="p">)</span>

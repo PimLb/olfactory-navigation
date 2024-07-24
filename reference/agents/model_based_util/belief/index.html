@@ -876,6 +876,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../environment_converter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    environment_converter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../mdp/" class="md-nav__link">
         
   
@@ -1618,7 +1639,6 @@
 eg:
     - In a 2 state POMDP: a belief of (0.5, 0.5) represent the complete ignorance of which state we are in. Where a (1.0, 0.0) belief is the certainty to be in state 0.</p>
 <p>The belief update function has been implemented based on the belief update define in the paper of J. Pineau, G. Gordon, and S. Thrun, 'Point-based approximations for fast POMDP solving'</p>
-<p>...</p>
 
 
 
@@ -1919,7 +1939,9 @@ If not specified, it will be set as the start probabilities of the model.</p>
 <span class="normal">217</span>
 <span class="normal">218</span>
 <span class="normal">219</span>
-<span class="normal">220</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Belief</span><span class="p">:</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Belief</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    A class representing a belief in the space of a given model. It is the belief to be in any combination of states:</span>
 <span class="sd">    eg:</span>
@@ -1927,7 +1949,6 @@ If not specified, it will be set as the start probabilities of the model.</p>
 
 <span class="sd">    The belief update function has been implemented based on the belief update define in the paper of J. Pineau, G. Gordon, and S. Thrun, &#39;Point-based approximations for fast POMDP solving&#39;</span>
 
-<span class="sd">    ...</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -1944,7 +1965,10 @@ If not specified, it will be set as the start probabilities of the model.</p>
 <span class="sd">    bytes_repr : bytes</span>
 <span class="sd">        A representation in bytes of the value of the belief</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span><span class="n">Model</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span><span class="kc">None</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
+                 <span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">assert</span> <span class="n">model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
 
@@ -1998,9 +2022,9 @@ If not specified, it will be set as the start probabilities of the model.</p>
 
 
     <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-               <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-               <span class="n">o</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-               <span class="n">throw_error</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+               <span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+               <span class="n">o</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+               <span class="n">throw_error</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
                <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Belief&#39;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).</span>
@@ -2093,7 +2117,7 @@ If not specified, it will be set as the start probabilities of the model.</p>
         <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">entropy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_values</span><span class="p">)</span> <span class="k">if</span> <span class="n">xp</span> <span class="o">==</span> <span class="n">np</span> <span class="k">else</span> <span class="n">cupy_entropy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_values</span><span class="p">))</span>
 
 
-    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to plot a heatmap of the belief distribution if the belief is of a grid model.</span>
 
@@ -2220,12 +2244,12 @@ The byte representation of each belief point is compared.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">78</span>
-<span class="normal">79</span>
-<span class="normal">80</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">80</span>
 <span class="normal">81</span>
 <span class="normal">82</span>
-<span class="normal">83</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    A way to check the equality between two belief points.</span>
 <span class="sd">    The byte representation of each belief point is compared.</span>
@@ -2278,9 +2302,7 @@ The byte representation of each belief point is compared.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">149</span>
 <span class="normal">150</span>
 <span class="normal">151</span>
 <span class="normal">152</span>
@@ -2293,7 +2315,9 @@ The byte representation of each belief point is compared.</p>
 <span class="normal">159</span>
 <span class="normal">160</span>
 <span class="normal">161</span>
-<span class="normal">162</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">generate_successors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="s1">&#39;Belief&#39;</span><span class="p">]:</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">generate_successors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="s1">&#39;Belief&#39;</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to generate a set of belief that can be reached for each actions and observations available in the model.</span>
 
@@ -2362,9 +2386,7 @@ The byte representation of each belief point is compared.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">192</span>
 <span class="normal">193</span>
 <span class="normal">194</span>
 <span class="normal">195</span>
@@ -2392,7 +2414,9 @@ The byte representation of each belief point is compared.</p>
 <span class="normal">217</span>
 <span class="normal">218</span>
 <span class="normal">219</span>
-<span class="normal">220</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span><span class="nb">int</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to plot a heatmap of the belief distribution if the belief is of a grid model.</span>
 
@@ -2470,9 +2494,7 @@ The byte representation of each belief point is compared.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">165</span>
-<span class="normal">166</span>
-<span class="normal">167</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">167</span>
 <span class="normal">168</span>
 <span class="normal">169</span>
 <span class="normal">170</span>
@@ -2482,7 +2504,9 @@ The byte representation of each belief point is compared.</p>
 <span class="normal">174</span>
 <span class="normal">175</span>
 <span class="normal">176</span>
-<span class="normal">177</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">random_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">random_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Returns a random state of the model weighted by the belief probabily.</span>
 
@@ -2600,9 +2624,7 @@ The byte representation of each belief point is compared.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 94</span>
-<span class="normal"> 95</span>
-<span class="normal"> 96</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 96</span>
 <span class="normal"> 97</span>
 <span class="normal"> 98</span>
 <span class="normal"> 99</span>
@@ -2650,10 +2672,12 @@ The byte representation of each belief point is compared.</p>
 <span class="normal">141</span>
 <span class="normal">142</span>
 <span class="normal">143</span>
-<span class="normal">144</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-           <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-           <span class="n">o</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span>
-           <span class="n">throw_error</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+           <span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+           <span class="n">o</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+           <span class="n">throw_error</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
            <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Belief&#39;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).</span>
@@ -2732,7 +2756,6 @@ The byte representation of each belief point is compared.</p>
   
       <p>Class to represent a set of beliefs with regard to a POMDP model.
 It has the purpose to store the beliefs in a numpy array format and be able to conver it to a list of Belief class objects.</p>
-<p>...</p>
 
 
 
@@ -2764,7 +2787,7 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
         <tr class="doc-section-item">
           <td><code>beliefs</code></td>
           <td>
-                <code>list[<a class="autorefs autorefs-internal" title="olfactory_navigation.agents.model_based_util.belief.Belief" href="#olfactory_navigation.agents.model_based_util.belief.Belief">Belief</a>] | <span title="numpy.ndarray">ndarray</span></code>
+                <code>list[<a class="autorefs autorefs-internal" title="olfactory_navigation.agents.model_based_util.belief.Belief" href="#olfactory_navigation.agents.model_based_util.belief.Belief">Belief</a>] or <span title="numpy.ndarray">ndarray</span></code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2828,9 +2851,7 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 
             <details class="quote">
               <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">223</span>
-<span class="normal">224</span>
-<span class="normal">225</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">225</span>
 <span class="normal">226</span>
 <span class="normal">227</span>
 <span class="normal">228</span>
@@ -3061,18 +3082,21 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 <span class="normal">453</span>
 <span class="normal">454</span>
 <span class="normal">455</span>
-<span class="normal">456</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">BeliefSet</span><span class="p">:</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">BeliefSet</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Class to represent a set of beliefs with regard to a POMDP model.</span>
 <span class="sd">    It has the purpose to store the beliefs in a numpy array format and be able to conver it to a list of Belief class objects.</span>
 
-<span class="sd">    ...</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    model : pomdp.Model</span>
 <span class="sd">        The model on which the beliefs apply.</span>
-<span class="sd">    beliefs : list[Belief] | np.ndarray</span>
+<span class="sd">    beliefs : list[Belief] or np.ndarray</span>
 <span class="sd">        The actual set of beliefs.</span>
 
 <span class="sd">    Attributes</span>
@@ -3083,7 +3107,10 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 <span class="sd">    belief_list : list[Belief]</span>
 <span class="sd">        A list of N Belief object.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span><span class="n">Model</span><span class="p">,</span> <span class="n">beliefs</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Belief</span><span class="p">],</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">model</span><span class="p">:</span> <span class="n">Model</span><span class="p">,</span>
+                 <span class="n">beliefs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Belief</span><span class="p">]</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_belief_list</span> <span class="o">=</span> <span class="kc">None</span>
@@ -3148,9 +3175,9 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 
 
     <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-               <span class="n">actions</span><span class="p">:</span><span class="nb">list</span><span class="o">|</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
-               <span class="n">observations</span><span class="p">:</span><span class="nb">list</span><span class="o">|</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
-               <span class="n">throw_error</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+               <span class="n">actions</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+               <span class="n">observations</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+               <span class="n">throw_error</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
                <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).</span>
@@ -3210,7 +3237,7 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uniqueness_dict</span>
 
 
-    <span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_belief_set</span><span class="p">:</span><span class="s1">&#39;BeliefSet&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_belief_set</span><span class="p">:</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to make the union between two belief set objects.</span>
 
@@ -3435,11 +3462,7 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">294</span>
-<span class="normal">295</span>
-<span class="normal">296</span>
-<span class="normal">297</span>
-<span class="normal">298</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">298</span>
 <span class="normal">299</span>
 <span class="normal">300</span>
 <span class="normal">301</span>
@@ -3447,7 +3470,11 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 <span class="normal">303</span>
 <span class="normal">304</span>
 <span class="normal">305</span>
-<span class="normal">306</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">generate_all_successors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">generate_all_successors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to generate the successors beliefs of all the beliefs in the belief set.</span>
 
@@ -3507,11 +3534,7 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">434</span>
-<span class="normal">435</span>
-<span class="normal">436</span>
-<span class="normal">437</span>
-<span class="normal">438</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">438</span>
 <span class="normal">439</span>
 <span class="normal">440</span>
 <span class="normal">441</span>
@@ -3529,7 +3552,11 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 <span class="normal">453</span>
 <span class="normal">454</span>
 <span class="normal">455</span>
-<span class="normal">456</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">to_cpu</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">to_cpu</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function returning an equivalent belief set object with the array of values stored on CPU instead of GPU.</span>
 
@@ -3599,11 +3626,7 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">410</span>
-<span class="normal">411</span>
-<span class="normal">412</span>
-<span class="normal">413</span>
-<span class="normal">414</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">414</span>
 <span class="normal">415</span>
 <span class="normal">416</span>
 <span class="normal">417</span>
@@ -3620,7 +3643,11 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 <span class="normal">428</span>
 <span class="normal">429</span>
 <span class="normal">430</span>
-<span class="normal">431</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">to_gpu</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">to_gpu</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function returning an equivalent belief set object with the array of values stored on GPU instead of CPU.</span>
 
@@ -3719,11 +3746,7 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">372</span>
-<span class="normal">373</span>
-<span class="normal">374</span>
-<span class="normal">375</span>
-<span class="normal">376</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">376</span>
 <span class="normal">377</span>
 <span class="normal">378</span>
 <span class="normal">379</span>
@@ -3740,7 +3763,11 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 <span class="normal">390</span>
 <span class="normal">391</span>
 <span class="normal">392</span>
-<span class="normal">393</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_belief_set</span><span class="p">:</span><span class="s1">&#39;BeliefSet&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">union</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_belief_set</span><span class="p">:</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to make the union between two belief set objects.</span>
 
@@ -3867,11 +3894,7 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\belief.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">309</span>
-<span class="normal">310</span>
-<span class="normal">311</span>
-<span class="normal">312</span>
-<span class="normal">313</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">313</span>
 <span class="normal">314</span>
 <span class="normal">315</span>
 <span class="normal">316</span>
@@ -3917,10 +3940,14 @@ It has the purpose to store the beliefs in a numpy array format and be able to c
 <span class="normal">356</span>
 <span class="normal">357</span>
 <span class="normal">358</span>
-<span class="normal">359</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-           <span class="n">actions</span><span class="p">:</span><span class="nb">list</span><span class="o">|</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
-           <span class="n">observations</span><span class="p">:</span><span class="nb">list</span><span class="o">|</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
-           <span class="n">throw_error</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+           <span class="n">actions</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+           <span class="n">observations</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+           <span class="n">throw_error</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
            <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;BeliefSet&#39;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Returns a new belief based on this current belief, the most recent action (a) and the most recent observation (o).</span>
