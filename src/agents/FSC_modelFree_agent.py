@@ -63,8 +63,8 @@ class FSC_model_free(Agent):
             [ 1,  0], # South
             [ 0, -1]  # West
         ])
-
-        self.environment = self.environment.to_gpu()
+        if gpu_support:
+            self.environment = self.environment.to_gpu()
     
     #Returns the chosen action and memory as integers
     def choose_action(self, obs, curM):
