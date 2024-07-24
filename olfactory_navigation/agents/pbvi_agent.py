@@ -264,9 +264,13 @@ class PBVI_Agent(Agent):
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    model : Model, optional
+        A POMDP model to use to represent the olfactory environment.
+        If not provided, the environment_converter parameter will be used.
     environment_converter : Callable, default=exact_converter
         A function to convert the olfactory environment instance to a POMDP Model instance.
         By default, we use an exact convertion that keeps the shape of the environment to make the amount of states of the POMDP Model.
+        This parameter will be ignored if the model parameter is provided.
     converter_parameters : dict, optional
         A set of additional parameters to be passed down to the environment converter.
 
@@ -303,6 +307,7 @@ class PBVI_Agent(Agent):
                  threshold: float | None = 3e-6,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None = None,
+                 model: Model | None = None, # TODO: Update documentation
                  environment_converter: Callable | None = None,
                  **converter_parameters
                  ) -> None:
@@ -314,7 +319,9 @@ class PBVI_Agent(Agent):
         )
 
         # Converting the olfactory environment to a POMDP Model
-        if callable(environment_converter):
+        if model is not None:
+            loaded_model = model
+        elif callable(environment_converter):
             loaded_model = environment_converter(agent=self, **converter_parameters)
         else:
             # Using the exact converter
