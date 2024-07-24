@@ -603,7 +603,7 @@ class Environment:
             for i, t in enumerate(unique_times):
                 if self.has_layers:
                     for j, l in enumerate(unique_layers):
-                        selected_slices[j,i] = np.array(data[l][t])
+                        selected_slices[j,i] = np.array(data[int(l)][int(t)])
                 else:
                     selected_slices[i] = np.array(data[t])
             data = xp.array(selected_slices)
