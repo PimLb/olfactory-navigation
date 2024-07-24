@@ -648,6 +648,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../environment_converter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    environment_converter
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../mdp/" class="md-nav__link">
         
   
@@ -728,30 +749,6 @@
   
     <nav class="md-nav" aria-label="Model">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#olfactory_navigation.agents.model_based_util.pomdp.Model.from_environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      from_environment
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="from_environment">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#olfactory_navigation.agents.model_based_util.pomdp.Model.from_environment--todo-implement-different-action-sets" class="md-nav__link">
-    <span class="md-ellipsis">
-      TODO: Implement different action sets
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#olfactory_navigation.agents.model_based_util.pomdp.Model.observe" class="md-nav__link">
@@ -1264,30 +1261,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#olfactory_navigation.agents.model_based_util.pomdp.Model.from_environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      from_environment
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="from_environment">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#olfactory_navigation.agents.model_based_util.pomdp.Model.from_environment--todo-implement-different-action-sets" class="md-nav__link">
-    <span class="md-ellipsis">
-      TODO: Implement different action sets
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#olfactory_navigation.agents.model_based_util.pomdp.Model.observe" class="md-nav__link">
     <span class="md-ellipsis">
       observe
@@ -1365,7 +1338,6 @@
 
   
       <p>POMDP Model class. Partially Observable Markov Decision Process Model.</p>
-<p>...</p>
 
 
 
@@ -1551,6 +1523,20 @@ If provided, it will be use in combination with the transition matrix to fill to
           </td>
           <td>
                 <code>[]</code>
+          </td>
+        </tr>
+        <tr class="doc-section-item">
+          <td><code>print_debug</code></td>
+          <td>
+                <code>bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Whether to print debug logs about the creation progress of the POMDP Model.</p>
+            </div>
+          </td>
+          <td>
+                <code>False</code>
           </td>
         </tr>
     </tbody>
@@ -1878,7 +1864,9 @@ It is made by taking the weighted average of immediate rewards with the transiti
 
             <details class="quote">
               <summary>Source code in <code>olfactory_navigation\agents\model_based_util\pomdp.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 20</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 18</span>
+<span class="normal"> 19</span>
+<span class="normal"> 20</span>
 <span class="normal"> 21</span>
 <span class="normal"> 22</span>
 <span class="normal"> 23</span>
@@ -2159,103 +2147,10 @@ It is made by taking the weighted average of immediate rewards with the transiti
 <span class="normal">298</span>
 <span class="normal">299</span>
 <span class="normal">300</span>
-<span class="normal">301</span>
-<span class="normal">302</span>
-<span class="normal">303</span>
-<span class="normal">304</span>
-<span class="normal">305</span>
-<span class="normal">306</span>
-<span class="normal">307</span>
-<span class="normal">308</span>
-<span class="normal">309</span>
-<span class="normal">310</span>
-<span class="normal">311</span>
-<span class="normal">312</span>
-<span class="normal">313</span>
-<span class="normal">314</span>
-<span class="normal">315</span>
-<span class="normal">316</span>
-<span class="normal">317</span>
-<span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
-<span class="normal">322</span>
-<span class="normal">323</span>
-<span class="normal">324</span>
-<span class="normal">325</span>
-<span class="normal">326</span>
-<span class="normal">327</span>
-<span class="normal">328</span>
-<span class="normal">329</span>
-<span class="normal">330</span>
-<span class="normal">331</span>
-<span class="normal">332</span>
-<span class="normal">333</span>
-<span class="normal">334</span>
-<span class="normal">335</span>
-<span class="normal">336</span>
-<span class="normal">337</span>
-<span class="normal">338</span>
-<span class="normal">339</span>
-<span class="normal">340</span>
-<span class="normal">341</span>
-<span class="normal">342</span>
-<span class="normal">343</span>
-<span class="normal">344</span>
-<span class="normal">345</span>
-<span class="normal">346</span>
-<span class="normal">347</span>
-<span class="normal">348</span>
-<span class="normal">349</span>
-<span class="normal">350</span>
-<span class="normal">351</span>
-<span class="normal">352</span>
-<span class="normal">353</span>
-<span class="normal">354</span>
-<span class="normal">355</span>
-<span class="normal">356</span>
-<span class="normal">357</span>
-<span class="normal">358</span>
-<span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
-<span class="normal">362</span>
-<span class="normal">363</span>
-<span class="normal">364</span>
-<span class="normal">365</span>
-<span class="normal">366</span>
-<span class="normal">367</span>
-<span class="normal">368</span>
-<span class="normal">369</span>
-<span class="normal">370</span>
-<span class="normal">371</span>
-<span class="normal">372</span>
-<span class="normal">373</span>
-<span class="normal">374</span>
-<span class="normal">375</span>
-<span class="normal">376</span>
-<span class="normal">377</span>
-<span class="normal">378</span>
-<span class="normal">379</span>
-<span class="normal">380</span>
-<span class="normal">381</span>
-<span class="normal">382</span>
-<span class="normal">383</span>
-<span class="normal">384</span>
-<span class="normal">385</span>
-<span class="normal">386</span>
-<span class="normal">387</span>
-<span class="normal">388</span>
-<span class="normal">389</span>
-<span class="normal">390</span>
-<span class="normal">391</span>
-<span class="normal">392</span>
-<span class="normal">393</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="n">MDP_Model</span><span class="p">):</span>
+<span class="normal">301</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Model</span><span class="p">(</span><span class="n">MDP_Model</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    POMDP Model class. Partially Observable Markov Decision Process Model.</span>
 
-<span class="sd">    ...</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -2288,6 +2183,8 @@ It is made by taking the weighted average of immediate rewards with the transiti
 <span class="sd">        Entering either state in the list during a simulation will end the simulation.</span>
 <span class="sd">    end_actions : list, optional</span>
 <span class="sd">        Playing action of the list during a simulation will end the simulation.</span>
+<span class="sd">    print_debug : bool, default=False</span>
+<span class="sd">        Whether to print debug logs about the creation progress of the POMDP Model.</span>
 
 <span class="sd">    Attributes</span>
 <span class="sd">    ----------</span>
@@ -2354,22 +2251,21 @@ It is made by taking the weighted average of immediate rewards with the transiti
 <span class="sd">    cpu_model : mdp.Model</span>
 <span class="sd">        An equivalent model with the np.ndarray objects on CPU. (If already on CPU, returns self)</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                 <span class="n">states</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]],</span>
-                 <span class="n">actions</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">],</span>
-                 <span class="n">observations</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">],</span>
-                 <span class="n">transitions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">reachable_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">rewards</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">observation_table</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">rewards_are_probabilistic</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">state_grid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">start_probabilities</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">,</span><span class="kc">None</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">end_states</span><span class="p">:</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="p">[],</span>
-                 <span class="n">end_actions</span><span class="p">:</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="p">[]</span>
-                 <span class="p">):</span>
-
+                 <span class="n">states</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+                 <span class="n">actions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">list</span><span class="p">,</span>
+                 <span class="n">observations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">list</span><span class="p">,</span>
+                 <span class="n">transitions</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">reachable_states</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">rewards</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">observation_table</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">rewards_are_probabilistic</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">state_grid</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">start_probabilities</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">end_states</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
+                 <span class="n">end_actions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
+                 <span class="n">print_debug</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">states</span><span class="o">=</span><span class="n">states</span><span class="p">,</span>
                          <span class="n">actions</span><span class="o">=</span><span class="n">actions</span><span class="p">,</span>
                          <span class="n">transitions</span><span class="o">=</span><span class="n">transitions</span><span class="p">,</span>
@@ -2379,17 +2275,16 @@ It is made by taking the weighted average of immediate rewards with the transiti
                          <span class="n">state_grid</span><span class="o">=</span><span class="n">state_grid</span><span class="p">,</span>
                          <span class="n">start_probabilities</span><span class="o">=</span><span class="n">start_probabilities</span><span class="p">,</span>
                          <span class="n">end_states</span><span class="o">=</span><span class="n">end_states</span><span class="p">,</span>
-                         <span class="n">end_actions</span><span class="o">=</span><span class="n">end_actions</span><span class="p">)</span>
+                         <span class="n">end_actions</span><span class="o">=</span><span class="n">end_actions</span><span class="p">,</span>
+                         <span class="n">print_debug</span><span class="o">=</span><span class="n">print_debug</span><span class="p">)</span>
+        <span class="c1"># Debug logger</span>
+        <span class="k">def</span> <span class="nf">logger</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">print_debug</span><span class="p">:</span>
+                <span class="n">log</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">content</span><span class="p">)</span>
 
-        <span class="nb">print</span><span class="p">()</span>
-        <span class="n">log</span><span class="p">(</span><span class="s1">&#39;POMDP particular parameters:&#39;</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">movement_vector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
-            <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>  <span class="mi">0</span><span class="p">],</span> <span class="c1"># North</span>
-            <span class="p">[</span> <span class="mi">0</span><span class="p">,</span>  <span class="mi">1</span><span class="p">],</span> <span class="c1"># East</span>
-            <span class="p">[</span> <span class="mi">1</span><span class="p">,</span>  <span class="mi">0</span><span class="p">],</span> <span class="c1"># South</span>
-            <span class="p">[</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># West</span>
-        <span class="p">])</span>
+        <span class="k">if</span> <span class="n">print_debug</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">()</span>
+            <span class="n">log</span><span class="p">(</span><span class="s1">&#39;POMDP particular parameters:&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- Observations -------------------------</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">observations</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
@@ -2410,17 +2305,17 @@ It is made by taking the weighted average of immediate rewards with the transiti
             <span class="n">exp_shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation_count</span><span class="p">)</span>
             <span class="k">assert</span> <span class="n">o_shape</span> <span class="o">==</span> <span class="n">exp_shape</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Observations table doesnt have the right shape, it should be SxAxO (expected: </span><span class="si">{</span><span class="n">exp_shape</span><span class="si">}</span><span class="s2">, received: </span><span class="si">{</span><span class="n">o_shape</span><span class="si">}</span><span class="s2">).&quot;</span>
 
-        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">observation_count</span><span class="si">}</span><span class="s1"> observations&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">observation_count</span><span class="si">}</span><span class="s1"> observations&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- Reachable transitional observation probabilities -------------------------</span>
-        <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- Starting of transitional observations for reachable states table&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- Starting of transitional observations for reachable states table&#39;</span><span class="p">)</span>
         <span class="n">start_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
 
         <span class="n">reachable_observations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation_table</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span><span class="p">[:,:,</span><span class="kc">None</span><span class="p">,:],</span> <span class="bp">self</span><span class="o">.</span><span class="n">actions</span><span class="p">[</span><span class="kc">None</span><span class="p">,:,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">observations</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,:,</span><span class="kc">None</span><span class="p">]]</span> <span class="c1"># SAOR</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reachable_transitional_observation_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;sar,saor-&gt;saor&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reachable_probabilities</span><span class="p">,</span> <span class="n">reachable_observations</span><span class="p">)</span>
 
         <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_ts</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
-        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- Rewards -------------------------</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">immediate_reward_table</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2428,15 +2323,15 @@ It is made by taking the weighted average of immediate rewards with the transiti
 
         <span class="k">if</span> <span class="n">rewards</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end_states</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end_actions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
-                <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- [Warning] Rewards are not define but end states/actions are, reaching an end state or doing an end action will give a reward of 1.&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- [Warning] Rewards are not define but end states/actions are, reaching an end state or doing an end action will give a reward of 1.&#39;</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">immediate_reward_function</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end_reward_function</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># If no reward matrix given, generate random one</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">immediate_reward_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">observation_count</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">rewards</span><span class="p">):</span>
             <span class="c1"># Rewards is a function</span>
-            <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- [Warning] The rewards are provided as a function, if the model is saved, the rewards will need to be defined before loading model.&#39;</span><span class="p">)</span>
-            <span class="n">log</span><span class="p">(</span><span class="s1">&#39;    &gt; Alternative: Setting end states/actions and leaving the rewards can be done to make the end states/action giving a reward of 1 by default.&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- [Warning] The rewards are provided as a function, if the model is saved, the rewards will need to be defined before loading model.&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;    &gt; Alternative: Setting end states/actions and leaving the rewards can be done to make the end states/action giving a reward of 1 by default.&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">immediate_reward_function</span> <span class="o">=</span> <span class="n">rewards</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">signature</span><span class="p">(</span><span class="n">rewards</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">,</span> <span class="s2">&quot;Reward function should accept 4 parameters: s, a, sn, o...&quot;</span>
         <span class="k">else</span><span class="p">:</span>
@@ -2447,7 +2342,7 @@ It is made by taking the weighted average of immediate rewards with the transiti
             <span class="k">assert</span> <span class="n">r_shape</span> <span class="o">==</span> <span class="n">exp_shape</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Rewards table doesnt have the right shape, it should be SxAxSxO (expected: </span><span class="si">{</span><span class="n">exp_shape</span><span class="si">}</span><span class="s2">, received </span><span class="si">{</span><span class="n">r_shape</span><span class="si">}</span><span class="s2">)&quot;</span>
 
         <span class="c1"># ------------------------- Expected rewards -------------------------</span>
-        <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- Starting generation of expected rewards table&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- Starting generation of expected rewards table&#39;</span><span class="p">)</span>
         <span class="n">start_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
 
         <span class="n">reachable_rewards</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2469,104 +2364,7 @@ It is made by taking the weighted average of immediate rewards with the transiti
         <span class="bp">self</span><span class="o">.</span><span class="n">expected_rewards_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;saor,saro-&gt;sa&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reachable_transitional_observation_table</span><span class="p">,</span> <span class="n">reachable_rewards</span><span class="p">)</span>
 
         <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_ts</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
-        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
-
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_environment</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
-                         <span class="n">environment</span><span class="p">:</span> <span class="n">Environment</span><span class="p">,</span>
-                         <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">list</span>
-                         <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Model&#39;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">        Method to create a POMDP model based on an olfactory environment object.</span>
-<span class="sd">        # TODO: Implement different action sets</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        environment : Environment</span>
-<span class="sd">            The olfactory environment object to create the POMDP model from.</span>
-<span class="sd">        threshold : float or list</span>
-<span class="sd">            A threshold for the odor cues.</span>
-<span class="sd">            If a single is provided, the agent will smell something when an odor is above the threshold and nothing when it is bellow.</span>
-<span class="sd">            If a list is provided, the agent will able to distinguish different levels of smell.</span>
-<span class="sd">        &#39;&#39;&#39;</span>
-        <span class="n">state_count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-
-        <span class="n">state_grid</span> <span class="o">=</span> <span class="p">[[</span><span class="sa">f</span><span class="s1">&#39;s_</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">y</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
-        <span class="n">end_states</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fromfunction</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">:</span> <span class="p">((</span><span class="n">x</span><span class="o">-</span><span class="n">environment</span><span class="o">.</span><span class="n">source_position</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">environment</span><span class="o">.</span><span class="n">source_position</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">environment</span><span class="o">.</span><span class="n">source_radius</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
-                                                 <span class="n">shape</span><span class="o">=</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">())[:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-
-        <span class="c1"># Compute observation matrix</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">threshold</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-            <span class="n">threshold</span> <span class="o">=</span> <span class="p">[</span><span class="n">threshold</span><span class="p">]</span>
-
-        <span class="c1"># Ensure 0.0 and 1.0 begin and end the threshold list</span>
-        <span class="k">if</span> <span class="n">threshold</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">:</span>
-            <span class="n">threshold</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">+</span> <span class="n">threshold</span>
-
-        <span class="k">if</span> <span class="n">threshold</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">:</span>
-            <span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span> <span class="o">+</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span>
-
-        <span class="c1"># Computing odor probabilities</span>
-        <span class="n">data_grid</span> <span class="o">=</span> <span class="n">environment</span><span class="o">.</span><span class="n">data</span><span class="p">[:,:,:,</span><span class="kc">None</span><span class="p">]</span>
-        <span class="n">threshs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span>
-        <span class="n">data_odor_fields</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(((</span><span class="n">data_grid</span> <span class="o">&gt;=</span> <span class="n">threshs</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,:])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">data_grid</span> <span class="o">&lt;</span> <span class="n">threshs</span><span class="p">[</span><span class="mi">1</span><span class="p">:][</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,:])),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-
-        <span class="c1"># Increasing it to the full environment</span>
-        <span class="n">odor_fields</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span> <span class="o">+</span> <span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">),))</span>
-        <span class="n">odor_fields</span><span class="p">[</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]:</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]:</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">data_odor_fields</span>
-
-        <span class="c1"># Building observation matrix</span>
-        <span class="n">observations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">state_count</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">threshold</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="c1"># 4-actions, observations: |thresholds|-1 + goal </span>
-
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
-            <span class="n">observations</span><span class="p">[:,:,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">odor_fields</span><span class="p">[:,:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[:,</span><span class="kc">None</span><span class="p">]</span>
-
-        <span class="c1"># Setting &#39;Nothing&#39; observation in the margins to 1</span>
-        <span class="n">data_margins_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
-        <span class="n">data_margins_mask</span><span class="p">[</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]:</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]:</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="n">observations</span><span class="p">[</span><span class="n">data_margins_mask</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
-
-        <span class="c1"># Goal observation</span>
-        <span class="n">observations</span><span class="p">[:,:,</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
-        <span class="n">observations</span><span class="p">[</span><span class="n">end_states</span><span class="p">,:,:]</span> <span class="o">=</span> <span class="mf">0.0</span>
-        <span class="n">observations</span><span class="p">[</span><span class="n">end_states</span><span class="p">,:,</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
-
-        <span class="c1"># Assert observations sum to 1</span>
-        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">observations</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="mf">1.0</span><span class="p">),</span> <span class="s2">&quot;Observation table malformed, something is wrong...&quot;</span>
-
-        <span class="c1"># Observation labels</span>
-        <span class="n">observation_labels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;nothing&#39;</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">_</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">threshold</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
-                <span class="n">observation_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;something_l</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">observation_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;something&#39;</span><span class="p">)</span>
-        <span class="n">observation_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;goal&#39;</span><span class="p">)</span>
-
-        <span class="c1"># Compute reachable states</span>
-        <span class="n">row_w</span> <span class="o">=</span> <span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-
-        <span class="n">reachable_states</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">state_count</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">state_count</span><span class="p">):</span>
-            <span class="n">reachable_states</span><span class="p">[</span><span class="n">s</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span> <span class="o">-</span> <span class="n">row_w</span> <span class="k">if</span> <span class="n">s</span> <span class="o">-</span> <span class="n">row_w</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">(</span><span class="n">state_count</span> <span class="o">-</span> <span class="n">row_w</span><span class="p">)</span> <span class="o">+</span> <span class="n">s</span> <span class="c1"># North</span>
-            <span class="n">reachable_states</span><span class="p">[</span><span class="n">s</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">if</span> <span class="p">(</span><span class="n">s</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">row_w</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">s</span> <span class="c1"># East</span>
-            <span class="n">reachable_states</span><span class="p">[</span><span class="n">s</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">row_w</span> <span class="k">if</span> <span class="n">s</span> <span class="o">+</span> <span class="n">row_w</span> <span class="o">&lt;</span> <span class="n">state_count</span> <span class="k">else</span> <span class="n">s</span> <span class="o">%</span> <span class="n">row_w</span> <span class="c1"># South</span>
-            <span class="n">reachable_states</span><span class="p">[</span><span class="n">s</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">if</span> <span class="p">(</span><span class="n">s</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">row_w</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">row_w</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="k">else</span> <span class="n">s</span> <span class="c1"># West</span>
-
-        <span class="n">reachable_states</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">reachable_states</span><span class="p">)</span>
-
-        <span class="c1"># Instantiate the model object</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span>
-            <span class="n">states</span><span class="o">=</span><span class="n">state_grid</span><span class="p">,</span>
-            <span class="n">actions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;N&#39;</span><span class="p">,</span><span class="s1">&#39;E&#39;</span><span class="p">,</span><span class="s1">&#39;S&#39;</span><span class="p">,</span><span class="s1">&#39;W&#39;</span><span class="p">],</span>
-            <span class="n">observations</span><span class="o">=</span><span class="n">observation_labels</span><span class="p">,</span>
-            <span class="n">reachable_states</span><span class="o">=</span><span class="n">reachable_states</span><span class="p">,</span>
-            <span class="n">observation_table</span><span class="o">=</span><span class="n">observations</span><span class="p">,</span>
-            <span class="n">end_states</span><span class="o">=</span><span class="n">end_states</span><span class="p">,</span>
-            <span class="n">start_probabilities</span><span class="o">=</span><span class="n">environment</span><span class="o">.</span><span class="n">start_probabilities</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">model</span>
+        <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
 
 
     <span class="k">def</span> <span class="nf">_end_reward_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">sn</span><span class="p">,</span> <span class="n">o</span><span class="p">):</span>
@@ -2577,7 +2375,12 @@ It is made by taking the weighted average of immediate rewards with the transiti
         <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">sn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_states</span><span class="p">)</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_actions</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
 
-    <span class="k">def</span> <span class="nf">reward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">s_p</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">reward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+               <span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+               <span class="n">s_p</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+               <span class="n">o</span><span class="p">:</span> <span class="nb">int</span>
+               <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Returns the rewards of playing action a when in state s and landing in state s_p.</span>
 <span class="sd">        If the rewards are probabilistic, it will return 0 or 1.</span>
@@ -2606,7 +2409,10 @@ It is made by taking the weighted average of immediate rewards with the transiti
             <span class="k">return</span> <span class="n">reward</span>
 
 
-    <span class="k">def</span> <span class="nf">observe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s_p</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">observe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                <span class="n">s_p</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                <span class="n">a</span><span class="p">:</span> <span class="nb">int</span>
+                <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Returns a random observation knowing action a is taken from state s, it is weighted by the observation probabilities.</span>
 
@@ -2639,269 +2445,6 @@ It is made by taking the weighted average of immediate rewards with the transiti
 
 
 
-
-
-<div class="doc doc-object doc-function">
-
-
-
-<h3 id="olfactory_navigation.agents.model_based_util.pomdp.Model.from_environment" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">from_environment</span><span class="p">(</span><span class="n">environment</span><span class="p">,</span> <span class="n">threshold</span><span class="p">)</span></code>
-  
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
-  </span>
-
-</h3>
-
-
-  <div class="doc doc-contents ">
-  
-      <p>Method to create a POMDP model based on an olfactory environment object.</p>
-<h4 id="olfactory_navigation.agents.model_based_util.pomdp.Model.from_environment--todo-implement-different-action-sets">TODO: Implement different action sets</h4>
-
-
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>environment</code></td>
-          <td>
-                <code><a class="autorefs autorefs-internal" title="olfactory_navigation.Environment" href="../../../#olfactory_navigation.Environment">Environment</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The olfactory environment object to create the POMDP model from.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>threshold</code></td>
-          <td>
-                <code>float or list</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>A threshold for the odor cues.
-If a single is provided, the agent will smell something when an odor is above the threshold and nothing when it is bellow.
-If a list is provided, the agent will able to distinguish different levels of smell.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>olfactory_navigation\agents\model_based_util\pomdp.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">241</span>
-<span class="normal">242</span>
-<span class="normal">243</span>
-<span class="normal">244</span>
-<span class="normal">245</span>
-<span class="normal">246</span>
-<span class="normal">247</span>
-<span class="normal">248</span>
-<span class="normal">249</span>
-<span class="normal">250</span>
-<span class="normal">251</span>
-<span class="normal">252</span>
-<span class="normal">253</span>
-<span class="normal">254</span>
-<span class="normal">255</span>
-<span class="normal">256</span>
-<span class="normal">257</span>
-<span class="normal">258</span>
-<span class="normal">259</span>
-<span class="normal">260</span>
-<span class="normal">261</span>
-<span class="normal">262</span>
-<span class="normal">263</span>
-<span class="normal">264</span>
-<span class="normal">265</span>
-<span class="normal">266</span>
-<span class="normal">267</span>
-<span class="normal">268</span>
-<span class="normal">269</span>
-<span class="normal">270</span>
-<span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
-<span class="normal">277</span>
-<span class="normal">278</span>
-<span class="normal">279</span>
-<span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
-<span class="normal">284</span>
-<span class="normal">285</span>
-<span class="normal">286</span>
-<span class="normal">287</span>
-<span class="normal">288</span>
-<span class="normal">289</span>
-<span class="normal">290</span>
-<span class="normal">291</span>
-<span class="normal">292</span>
-<span class="normal">293</span>
-<span class="normal">294</span>
-<span class="normal">295</span>
-<span class="normal">296</span>
-<span class="normal">297</span>
-<span class="normal">298</span>
-<span class="normal">299</span>
-<span class="normal">300</span>
-<span class="normal">301</span>
-<span class="normal">302</span>
-<span class="normal">303</span>
-<span class="normal">304</span>
-<span class="normal">305</span>
-<span class="normal">306</span>
-<span class="normal">307</span>
-<span class="normal">308</span>
-<span class="normal">309</span>
-<span class="normal">310</span>
-<span class="normal">311</span>
-<span class="normal">312</span>
-<span class="normal">313</span>
-<span class="normal">314</span>
-<span class="normal">315</span>
-<span class="normal">316</span>
-<span class="normal">317</span>
-<span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
-<span class="normal">322</span>
-<span class="normal">323</span>
-<span class="normal">324</span>
-<span class="normal">325</span>
-<span class="normal">326</span>
-<span class="normal">327</span>
-<span class="normal">328</span>
-<span class="normal">329</span>
-<span class="normal">330</span>
-<span class="normal">331</span>
-<span class="normal">332</span>
-<span class="normal">333</span>
-<span class="normal">334</span>
-<span class="normal">335</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
-<span class="k">def</span> <span class="nf">from_environment</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
-                     <span class="n">environment</span><span class="p">:</span> <span class="n">Environment</span><span class="p">,</span>
-                     <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">list</span>
-                     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Model&#39;</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    Method to create a POMDP model based on an olfactory environment object.</span>
-<span class="sd">    # TODO: Implement different action sets</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    environment : Environment</span>
-<span class="sd">        The olfactory environment object to create the POMDP model from.</span>
-<span class="sd">    threshold : float or list</span>
-<span class="sd">        A threshold for the odor cues.</span>
-<span class="sd">        If a single is provided, the agent will smell something when an odor is above the threshold and nothing when it is bellow.</span>
-<span class="sd">        If a list is provided, the agent will able to distinguish different levels of smell.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
-    <span class="n">state_count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-
-    <span class="n">state_grid</span> <span class="o">=</span> <span class="p">[[</span><span class="sa">f</span><span class="s1">&#39;s_</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">y</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
-    <span class="n">end_states</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fromfunction</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">:</span> <span class="p">((</span><span class="n">x</span><span class="o">-</span><span class="n">environment</span><span class="o">.</span><span class="n">source_position</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">y</span><span class="o">-</span><span class="n">environment</span><span class="o">.</span><span class="n">source_position</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">environment</span><span class="o">.</span><span class="n">source_radius</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
-                                             <span class="n">shape</span><span class="o">=</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">())[:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-
-    <span class="c1"># Compute observation matrix</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">threshold</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-        <span class="n">threshold</span> <span class="o">=</span> <span class="p">[</span><span class="n">threshold</span><span class="p">]</span>
-
-    <span class="c1"># Ensure 0.0 and 1.0 begin and end the threshold list</span>
-    <span class="k">if</span> <span class="n">threshold</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">:</span>
-        <span class="n">threshold</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span> <span class="o">+</span> <span class="n">threshold</span>
-
-    <span class="k">if</span> <span class="n">threshold</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">:</span>
-        <span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span> <span class="o">+</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]</span>
-
-    <span class="c1"># Computing odor probabilities</span>
-    <span class="n">data_grid</span> <span class="o">=</span> <span class="n">environment</span><span class="o">.</span><span class="n">data</span><span class="p">[:,:,:,</span><span class="kc">None</span><span class="p">]</span>
-    <span class="n">threshs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span>
-    <span class="n">data_odor_fields</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(((</span><span class="n">data_grid</span> <span class="o">&gt;=</span> <span class="n">threshs</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,:])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">data_grid</span> <span class="o">&lt;</span> <span class="n">threshs</span><span class="p">[</span><span class="mi">1</span><span class="p">:][</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,:])),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-
-    <span class="c1"># Increasing it to the full environment</span>
-    <span class="n">odor_fields</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span> <span class="o">+</span> <span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">),))</span>
-    <span class="n">odor_fields</span><span class="p">[</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]:</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]:</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">data_odor_fields</span>
-
-    <span class="c1"># Building observation matrix</span>
-    <span class="n">observations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">state_count</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">threshold</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="c1"># 4-actions, observations: |thresholds|-1 + goal </span>
-
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
-        <span class="n">observations</span><span class="p">[:,:,</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">odor_fields</span><span class="p">[:,:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()[:,</span><span class="kc">None</span><span class="p">]</span>
-
-    <span class="c1"># Setting &#39;Nothing&#39; observation in the margins to 1</span>
-    <span class="n">data_margins_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
-    <span class="n">data_margins_mask</span><span class="p">[</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]:</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]:</span><span class="n">environment</span><span class="o">.</span><span class="n">data_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="n">observations</span><span class="p">[</span><span class="n">data_margins_mask</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
-
-    <span class="c1"># Goal observation</span>
-    <span class="n">observations</span><span class="p">[:,:,</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
-    <span class="n">observations</span><span class="p">[</span><span class="n">end_states</span><span class="p">,:,:]</span> <span class="o">=</span> <span class="mf">0.0</span>
-    <span class="n">observations</span><span class="p">[</span><span class="n">end_states</span><span class="p">,:,</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
-
-    <span class="c1"># Assert observations sum to 1</span>
-    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">observations</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="mf">1.0</span><span class="p">),</span> <span class="s2">&quot;Observation table malformed, something is wrong...&quot;</span>
-
-    <span class="c1"># Observation labels</span>
-    <span class="n">observation_labels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;nothing&#39;</span><span class="p">]</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">threshold</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">_</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">threshold</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
-            <span class="n">observation_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;something_l</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">observation_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;something&#39;</span><span class="p">)</span>
-    <span class="n">observation_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;goal&#39;</span><span class="p">)</span>
-
-    <span class="c1"># Compute reachable states</span>
-    <span class="n">row_w</span> <span class="o">=</span> <span class="n">environment</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-
-    <span class="n">reachable_states</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">state_count</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">state_count</span><span class="p">):</span>
-        <span class="n">reachable_states</span><span class="p">[</span><span class="n">s</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span> <span class="o">-</span> <span class="n">row_w</span> <span class="k">if</span> <span class="n">s</span> <span class="o">-</span> <span class="n">row_w</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">(</span><span class="n">state_count</span> <span class="o">-</span> <span class="n">row_w</span><span class="p">)</span> <span class="o">+</span> <span class="n">s</span> <span class="c1"># North</span>
-        <span class="n">reachable_states</span><span class="p">[</span><span class="n">s</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">if</span> <span class="p">(</span><span class="n">s</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">row_w</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">s</span> <span class="c1"># East</span>
-        <span class="n">reachable_states</span><span class="p">[</span><span class="n">s</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">row_w</span> <span class="k">if</span> <span class="n">s</span> <span class="o">+</span> <span class="n">row_w</span> <span class="o">&lt;</span> <span class="n">state_count</span> <span class="k">else</span> <span class="n">s</span> <span class="o">%</span> <span class="n">row_w</span> <span class="c1"># South</span>
-        <span class="n">reachable_states</span><span class="p">[</span><span class="n">s</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">if</span> <span class="p">(</span><span class="n">s</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">row_w</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">row_w</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="k">else</span> <span class="n">s</span> <span class="c1"># West</span>
-
-    <span class="n">reachable_states</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">reachable_states</span><span class="p">)</span>
-
-    <span class="c1"># Instantiate the model object</span>
-    <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span>
-        <span class="n">states</span><span class="o">=</span><span class="n">state_grid</span><span class="p">,</span>
-        <span class="n">actions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;N&#39;</span><span class="p">,</span><span class="s1">&#39;E&#39;</span><span class="p">,</span><span class="s1">&#39;S&#39;</span><span class="p">,</span><span class="s1">&#39;W&#39;</span><span class="p">],</span>
-        <span class="n">observations</span><span class="o">=</span><span class="n">observation_labels</span><span class="p">,</span>
-        <span class="n">reachable_states</span><span class="o">=</span><span class="n">reachable_states</span><span class="p">,</span>
-        <span class="n">observation_table</span><span class="o">=</span><span class="n">observations</span><span class="p">,</span>
-        <span class="n">end_states</span><span class="o">=</span><span class="n">end_states</span><span class="p">,</span>
-        <span class="n">start_probabilities</span><span class="o">=</span><span class="n">environment</span><span class="o">.</span><span class="n">start_probabilities</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
-    <span class="p">)</span>
-    <span class="k">return</span> <span class="n">model</span>
-</code></pre></div></td></tr></table></div>
-          </details>
-  </div>
-
-</div>
 
 
 <div class="doc doc-object doc-function">
@@ -2988,25 +2531,31 @@ If a list is provided, the agent will able to distinguish different levels of sm
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\pomdp.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">375</span>
-<span class="normal">376</span>
-<span class="normal">377</span>
-<span class="normal">378</span>
-<span class="normal">379</span>
-<span class="normal">380</span>
-<span class="normal">381</span>
-<span class="normal">382</span>
-<span class="normal">383</span>
-<span class="normal">384</span>
-<span class="normal">385</span>
-<span class="normal">386</span>
-<span class="normal">387</span>
-<span class="normal">388</span>
-<span class="normal">389</span>
-<span class="normal">390</span>
-<span class="normal">391</span>
-<span class="normal">392</span>
-<span class="normal">393</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">observe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s_p</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">observe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">s_p</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+            <span class="n">a</span><span class="p">:</span> <span class="nb">int</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Returns a random observation knowing action a is taken from state s, it is weighted by the observation probabilities.</span>
 
@@ -3145,33 +2694,43 @@ If the rewards are probabilistic, it will return 0 or 1.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\pomdp.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">346</span>
-<span class="normal">347</span>
-<span class="normal">348</span>
-<span class="normal">349</span>
-<span class="normal">350</span>
-<span class="normal">351</span>
-<span class="normal">352</span>
-<span class="normal">353</span>
-<span class="normal">354</span>
-<span class="normal">355</span>
-<span class="normal">356</span>
-<span class="normal">357</span>
-<span class="normal">358</span>
-<span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
-<span class="normal">362</span>
-<span class="normal">363</span>
-<span class="normal">364</span>
-<span class="normal">365</span>
-<span class="normal">366</span>
-<span class="normal">367</span>
-<span class="normal">368</span>
-<span class="normal">369</span>
-<span class="normal">370</span>
-<span class="normal">371</span>
-<span class="normal">372</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">reward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">s_p</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">o</span><span class="p">:</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">]:</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">reward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+           <span class="n">s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+           <span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+           <span class="n">s_p</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+           <span class="n">o</span><span class="p">:</span> <span class="nb">int</span>
+           <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Returns the rewards of playing action a when in state s and landing in state s_p.</span>
 <span class="sd">    If the rewards are probabilistic, it will return 0 or 1.</span>

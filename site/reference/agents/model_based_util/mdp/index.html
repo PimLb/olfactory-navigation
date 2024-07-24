@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../belief_value_mapping/">
+        <link rel="prev" href="../environment_converter/">
       
       
         <link rel="next" href="../pomdp/">
@@ -632,6 +632,27 @@
   
   <span class="md-ellipsis">
     belief_value_mapping
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../environment_converter/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    environment_converter
   </span>
   
 
@@ -1423,7 +1444,6 @@
 
   
       <p>MDP Model class.</p>
-<p>...</p>
 
 
 
@@ -1581,6 +1601,20 @@ If provided, it will be use in combination with the transition matrix to fill to
           </td>
           <td>
                 <code>[]</code>
+          </td>
+        </tr>
+        <tr class="doc-section-item">
+          <td><code>print_debug</code></td>
+          <td>
+                <code>bool</code>
+          </td>
+          <td>
+            <div class="doc-md-description">
+              <p>Whether to print debug logs about the creation progress of the MDP Model.</p>
+            </div>
+          </td>
+          <td>
+                <code>False</code>
           </td>
         </tr>
     </tbody>
@@ -1852,7 +1886,8 @@ It is made by taking the weighted average of immediate rewards and the transitio
 
             <details class="quote">
               <summary>Source code in <code>olfactory_navigation\agents\model_based_util\mdp.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 43</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 42</span>
+<span class="normal"> 43</span>
 <span class="normal"> 44</span>
 <span class="normal"> 45</span>
 <span class="normal"> 46</span>
@@ -2390,11 +2425,29 @@ It is made by taking the weighted average of immediate rewards and the transitio
 <span class="normal">578</span>
 <span class="normal">579</span>
 <span class="normal">580</span>
-<span class="normal">581</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Model</span><span class="p">:</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">Model</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    MDP Model class.</span>
 
-<span class="sd">    ...</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -2423,6 +2476,8 @@ It is made by taking the weighted average of immediate rewards and the transitio
 <span class="sd">        Entering either state in the list during a simulation will end the simulation.</span>
 <span class="sd">    end_actions : list, optional</span>
 <span class="sd">        Playing action of the list during a simulation will end the simulation.</span>
+<span class="sd">    print_debug : bool, default=False</span>
+<span class="sd">        Whether to print debug logs about the creation progress of the MDP Model.</span>
 
 <span class="sd">    Attributes</span>
 <span class="sd">    ----------</span>
@@ -2479,23 +2534,28 @@ It is made by taking the weighted average of immediate rewards and the transitio
 <span class="sd">        An equivalent model with the np.ndarray objects on CPU. (If already on CPU, returns self)</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                 <span class="n">states</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]],</span>
-                 <span class="n">actions</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">],</span>
-                 <span class="n">transitions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">reachable_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">rewards</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">rewards_are_probabilistic</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">state_grid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">start_probabilities</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">list</span><span class="p">,</span><span class="kc">None</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">end_states</span><span class="p">:</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="p">[],</span>
-                 <span class="n">end_actions</span><span class="p">:</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="p">[]</span>
-                 <span class="p">):</span>
+                 <span class="n">states</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+                 <span class="n">actions</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">list</span><span class="p">,</span>
+                 <span class="n">transitions</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">reachable_states</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">rewards</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">rewards_are_probabilistic</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">state_grid</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">start_probabilities</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">end_states</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
+                 <span class="n">end_actions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
+                 <span class="n">print_debug</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Debug logger</span>
+        <span class="k">def</span> <span class="nf">logger</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">print_debug</span><span class="p">:</span>
+                <span class="n">log</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">content</span><span class="p">)</span>
 
         <span class="c1"># Empty variable</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_alt_model</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_on_gpu</span> <span class="o">=</span> <span class="kc">False</span>
 
-        <span class="n">log</span><span class="p">(</span><span class="s1">&#39;Instantiation of MDP Model:&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;Instantiation of MDP Model:&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- States -------------------------</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">state_grid</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2520,7 +2580,7 @@ It is made by taking the weighted average of immediate rewards and the transitio
         <span class="bp">self</span><span class="o">.</span><span class="n">state_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_labels</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">states</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">)</span>
 
-        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="si">}</span><span class="s1"> states&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="si">}</span><span class="s1"> states&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- Actions -------------------------</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">actions</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
@@ -2530,7 +2590,7 @@ It is made by taking the weighted average of immediate rewards and the transitio
         <span class="bp">self</span><span class="o">.</span><span class="n">action_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">action_labels</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">actions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="p">)</span>
 
-        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="si">}</span><span class="s1"> actions&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="si">}</span><span class="s1"> actions&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- Reachable states provided -------------------------</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2539,10 +2599,10 @@ It is made by taking the weighted average of immediate rewards and the transitio
             <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Reachable states provided is not of the expected shape (received </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, expected (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="si">}</span><span class="s2">, :))&quot;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">reachable_state_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
 
-            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- At most </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reachable_state_count</span><span class="si">}</span><span class="s1"> reachable states per state-action pair&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- At most </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reachable_state_count</span><span class="si">}</span><span class="s1"> reachable states per state-action pair&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- Transitions -------------------------</span>
-        <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- Starting generation of transitions table&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- Starting generation of transitions table&#39;</span><span class="p">)</span>
         <span class="n">start_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">transition_table</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2550,14 +2610,14 @@ It is made by taking the weighted average of immediate rewards and the transitio
         <span class="k">if</span> <span class="n">transitions</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">reachable_states</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="c1"># If no transitiong matrix and no reachable states given, generate random one</span>
-                <span class="n">log</span><span class="p">(</span><span class="s1">&#39;    &gt; [Warning] No transition matrix and no reachable states have provided so a random transition matrix is generated...&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;    &gt; [Warning] No transition matrix and no reachable states have provided so a random transition matrix is generated...&#39;</span><span class="p">)</span>
                 <span class="n">random_probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">)</span>
 
                 <span class="c1"># Normalization to have s_p probabilies summing to 1</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">transition_table</span> <span class="o">=</span> <span class="n">random_probs</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">random_probs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># Make uniform transition probabilities over reachable states</span>
-                <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; [Warning] No transition matrix or function provided but reachable states are, so probability to reach any reachable states will &quot;1 / reachable state count&quot; so here: </span><span class="si">{</span><span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">reachable_state_count</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; [Warning] No transition matrix or function provided but reachable states are, so probability to reach any reachable states will &quot;1 / reachable state count&quot; so here: </span><span class="si">{</span><span class="mi">1</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">reachable_state_count</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
 
         <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">transitions</span><span class="p">):</span> <span class="c1"># Transition function</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">transition_function</span> <span class="o">=</span> <span class="n">transitions</span>
@@ -2566,7 +2626,7 @@ It is made by taking the weighted average of immediate rewards and the transitio
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">t_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfunction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transition_function</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">))</span>
             <span class="k">except</span> <span class="ne">MemoryError</span><span class="p">:</span>
-                <span class="n">log</span><span class="p">(</span><span class="s1">&#39;    &gt; [Warning] Not enough memory to store transition table, using transition function provided...&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;    &gt; [Warning] Not enough memory to store transition table, using transition function provided...&#39;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">transition_table</span> <span class="o">=</span> <span class="n">t_arr</span>
 
@@ -2577,15 +2637,15 @@ It is made by taking the weighted average of immediate rewards and the transitio
             <span class="k">assert</span> <span class="n">t_shape</span> <span class="o">==</span> <span class="n">exp_shape</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Transitions table provided doesnt have the right shape, it should be SxAxS (expected </span><span class="si">{</span><span class="n">exp_shape</span><span class="si">}</span><span class="s2">, received </span><span class="si">{</span><span class="n">t_shape</span><span class="si">}</span><span class="s2">)&quot;</span>
 
         <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_ts</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
-        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">duration</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; [Warning] Transition table generation took long, if not done already, try to use the reachable_states parameter to speedup the process.&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; [Warning] Transition table generation took long, if not done already, try to use the reachable_states parameter to speedup the process.&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- Rewards are probabilistic toggle -------------------------</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rewards_are_probabilistic</span> <span class="o">=</span> <span class="n">rewards_are_probabilistic</span>
 
         <span class="c1"># ------------------------- State grid -------------------------</span>
-        <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- Generation of state grid&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- Generation of state grid&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">state_grid</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">state_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">))</span>
 
@@ -2605,7 +2665,7 @@ It is made by taking the weighted average of immediate rewards and the transitio
                     <span class="bp">self</span><span class="o">.</span><span class="n">state_grid</span> <span class="o">=</span> <span class="n">state_grid</span>
 
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">log</span><span class="p">(</span><span class="s1">&#39;    &gt; [Warning] Looping through all grid states provided to find the corresponding states, can take a while...&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;    &gt; [Warning] Looping through all grid states provided to find the corresponding states, can take a while...&#39;</span><span class="p">)</span>
 
                 <span class="n">np_state_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">grid_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
                 <span class="n">states_covered</span> <span class="o">=</span> <span class="mi">0</span>
@@ -2623,7 +2683,7 @@ It is made by taking the weighted average of immediate rewards and the transitio
                 <span class="k">assert</span> <span class="n">states_covered</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">,</span> <span class="s2">&quot;Some states of the state list are missing...&quot;</span>
 
         <span class="c1"># ------------------------- Start state probabilities -------------------------</span>
-        <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- Generating start probabilities table&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- Generating start probabilities table&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">start_probabilities</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">start_probabilities</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_count</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">start_probabilities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">start_probabilities</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
@@ -2637,10 +2697,10 @@ It is made by taking the weighted average of immediate rewards and the transitio
         <span class="c1"># ------------------------- Reachable states -------------------------</span>
         <span class="c1"># If not set yet</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- Starting computation of reachable states from transition data&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- Starting computation of reachable states from transition data&#39;</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_count</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">:</span>
-                <span class="n">log</span><span class="p">(</span><span class="s1">&#39;-    &gt; [Warning] For models with large amounts of states, this operation can take time. Try generating it advance and use the parameter </span><span class="se">\&#39;</span><span class="s1">reachable_states</span><span class="se">\&#39;</span><span class="s1">...&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;-    &gt; [Warning] For models with large amounts of states, this operation can take time. Try generating it advance and use the parameter </span><span class="se">\&#39;</span><span class="s1">reachable_states</span><span class="se">\&#39;</span><span class="s1">...&#39;</span><span class="p">)</span>
 
             <span class="n">start_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
 
@@ -2676,11 +2736,11 @@ It is made by taking the weighted average of immediate rewards and the transitio
             <span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
 
             <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_ts</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
-            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
-            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- At most </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reachable_state_count</span><span class="si">}</span><span class="s1"> reachable states per state-action pair&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;- At most </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reachable_state_count</span><span class="si">}</span><span class="s1"> reachable states per state-action pair&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- Reachable state probabilities -------------------------</span>
-        <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- Starting computation of reachable state probabilities from transition data&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- Starting computation of reachable state probabilities from transition data&#39;</span><span class="p">)</span>
         <span class="n">start_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transition_function</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">transition_table</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -2691,7 +2751,7 @@ It is made by taking the weighted average of immediate rewards and the transitio
             <span class="bp">self</span><span class="o">.</span><span class="n">reachable_probabilities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromfunction</span><span class="p">((</span><span class="k">lambda</span> <span class="n">s</span><span class="p">,</span><span class="n">a</span><span class="p">,</span><span class="n">ri</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">transition_function</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">a</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">a</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">ri</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)])),</span> <span class="bp">self</span><span class="o">.</span><span class="n">reachable_states</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 
         <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_ts</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
-        <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
 
         <span class="c1"># ------------------------- Rewards -------------------------</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">immediate_reward_table</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2700,15 +2760,15 @@ It is made by taking the weighted average of immediate rewards and the transitio
             <span class="k">pass</span>
         <span class="k">elif</span> <span class="n">rewards</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end_states</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">end_actions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
-                <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- [Warning] Rewards are not define but end states/actions are, reaching an end state or doing an end action will give a reward of 1.&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- [Warning] Rewards are not define but end states/actions are, reaching an end state or doing an end action will give a reward of 1.&#39;</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">immediate_reward_function</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end_reward_function</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># If no reward matrix given, generate random one</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">immediate_reward_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_count</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">rewards</span><span class="p">):</span>
             <span class="c1"># Rewards is a function</span>
-            <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- [Warning] The rewards are provided as a function, if the model is saved, the rewards will need to be defined before loading model.&#39;</span><span class="p">)</span>
-            <span class="n">log</span><span class="p">(</span><span class="s1">&#39;    &gt; Alternative: Setting end states/actions and leaving the rewards can be done to make the end states/action giving a reward of 1 by default.&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- [Warning] The rewards are provided as a function, if the model is saved, the rewards will need to be defined before loading model.&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;    &gt; Alternative: Setting end states/actions and leaving the rewards can be done to make the end states/action giving a reward of 1 by default.&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">immediate_reward_function</span> <span class="o">=</span> <span class="n">rewards</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">signature</span><span class="p">(</span><span class="n">rewards</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;Reward function should accept 3 parameters: s, a, sn...&quot;</span>
         <span class="k">else</span><span class="p">:</span>
@@ -2725,7 +2785,7 @@ It is made by taking the weighted average of immediate rewards and the transitio
         <span class="c1"># ------------------------- Expected rewards -------------------------</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">expected_rewards_table</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="n">rewards</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-            <span class="n">log</span><span class="p">(</span><span class="s1">&#39;- Starting generation of expected rewards table&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="s1">&#39;- Starting generation of expected rewards table&#39;</span><span class="p">)</span>
             <span class="n">start_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
 
             <span class="n">reachable_rewards</span> <span class="o">=</span> <span class="kc">None</span>
@@ -2746,14 +2806,17 @@ It is made by taking the weighted average of immediate rewards and the transitio
             <span class="bp">self</span><span class="o">.</span><span class="n">expected_rewards_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;sar,sar-&gt;sa&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reachable_probabilities</span><span class="p">,</span> <span class="n">reachable_rewards</span><span class="p">)</span>
 
             <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_ts</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
-            <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;    &gt; Done in </span><span class="si">{</span><span class="n">duration</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">)</span>
 
 
     <span class="k">def</span> <span class="nf">_end_reward_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">sn</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">sn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_states</span><span class="p">)</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_actions</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
 
 
-    <span class="k">def</span> <span class="nf">transition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">transition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                   <span class="n">s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                   <span class="n">a</span><span class="p">:</span> <span class="nb">int</span>
+                   <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Returns a random posterior state knowing we take action a in state t and weighted on the transition probabilities.</span>
 
@@ -2779,7 +2842,11 @@ It is made by taking the weighted average of immediate rewards and the transitio
         <span class="k">return</span> <span class="n">s_p</span>
 
 
-    <span class="k">def</span> <span class="nf">reward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">s_p</span><span class="p">:</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">reward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+               <span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+               <span class="n">s_p</span><span class="p">:</span> <span class="nb">int</span>
+               <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Returns the rewards of playing action a when in state s and landing in state s_p.</span>
 <span class="sd">        If the rewards are probabilistic, it will return 0 or 1.</span>
@@ -2806,18 +2873,20 @@ It is made by taking the weighted average of immediate rewards and the transitio
             <span class="k">return</span> <span class="n">reward</span>
 
 
-    <span class="k">def</span> <span class="nf">get_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">items</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span><span class="nb">list</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">get_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                   <span class="n">items</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">list</span>
+                   <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to get the coordinate (on the state_grid) for the provided state index or indices.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        items : int | list[int]</span>
+<span class="sd">        items : int or list[int]</span>
 <span class="sd">            The states ids or id get convert to a 2D coordinate.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        item_coords : list[int] | list[list[int]]</span>
+<span class="sd">        item_coords : list[int] or list[list[int]]</span>
 <span class="sd">            The 2D positions of the provided item ids.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="n">item_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">items</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">else</span> <span class="n">items</span>
@@ -2826,7 +2895,10 @@ It is made by taking the weighted average of immediate rewards and the transitio
         <span class="k">return</span> <span class="n">item_coords</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">else</span> <span class="n">item_coords</span>
 
 
-    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">&#39;./Models&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+             <span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+             <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;./Models&#39;</span>
+             <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to save the current model in a pickle file.</span>
 <span class="sd">        By default, the model will be saved in &#39;Models&#39; directory in the current working directory but this can be changed using the &#39;path&#39; parameter.</span>
@@ -2851,7 +2923,9 @@ It is made by taking the weighted average of immediate rewards and the transitio
 
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">load_from_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Model&#39;</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">load_from_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                       <span class="n">file</span><span class="p">:</span> <span class="nb">str</span>
+                       <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Model&#39;</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Function to load a MDP model from a pickle file. The json structure must contain the same items as in the constructor of this class.</span>
 
@@ -3017,7 +3091,7 @@ It is made by taking the weighted average of immediate rewards and the transitio
         <tr class="doc-section-item">
           <td><code>items</code></td>
           <td>
-                <code>int | list[int]</code>
+                <code>int or list[int]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -3044,7 +3118,7 @@ It is made by taking the weighted average of immediate rewards and the transitio
     <tbody>
         <tr class="doc-section-item">
 <td><code>item_coords</code></td>          <td>
-                <code>list[int] | list[list[int]]</code>
+                <code>list[int] or list[list[int]]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -3057,35 +3131,39 @@ It is made by taking the weighted average of immediate rewards and the transitio
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\mdp.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">459</span>
-<span class="normal">460</span>
-<span class="normal">461</span>
-<span class="normal">462</span>
-<span class="normal">463</span>
-<span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">471</span>
 <span class="normal">472</span>
 <span class="normal">473</span>
 <span class="normal">474</span>
 <span class="normal">475</span>
-<span class="normal">476</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">items</span><span class="p">:</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span><span class="nb">list</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">items</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">list</span>
+               <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to get the coordinate (on the state_grid) for the provided state index or indices.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    items : int | list[int]</span>
+<span class="sd">    items : int or list[int]</span>
 <span class="sd">        The states ids or id get convert to a 2D coordinate.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
-<span class="sd">    item_coords : list[int] | list[list[int]]</span>
+<span class="sd">    item_coords : list[int] or list[list[int]]</span>
 <span class="sd">        The 2D positions of the provided item ids.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="n">item_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">items</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="k">else</span> <span class="n">items</span>
@@ -3173,26 +3251,30 @@ It is made by taking the weighted average of immediate rewards and the transitio
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\mdp.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">503</span>
-<span class="normal">504</span>
-<span class="normal">505</span>
-<span class="normal">506</span>
-<span class="normal">507</span>
-<span class="normal">508</span>
-<span class="normal">509</span>
-<span class="normal">510</span>
-<span class="normal">511</span>
-<span class="normal">512</span>
-<span class="normal">513</span>
-<span class="normal">514</span>
-<span class="normal">515</span>
-<span class="normal">516</span>
-<span class="normal">517</span>
-<span class="normal">518</span>
-<span class="normal">519</span>
-<span class="normal">520</span>
-<span class="normal">521</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
-<span class="k">def</span> <span class="nf">load_from_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Model&#39;</span><span class="p">:</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">load_from_file</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                   <span class="n">file</span><span class="p">:</span> <span class="nb">str</span>
+                   <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Model&#39;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to load a MDP model from a pickle file. The json structure must contain the same items as in the constructor of this class.</span>
 
@@ -3316,15 +3398,7 @@ If the rewards are probabilistic, it will return 0 or 1.</p>
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\mdp.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">432</span>
-<span class="normal">433</span>
-<span class="normal">434</span>
-<span class="normal">435</span>
-<span class="normal">436</span>
-<span class="normal">437</span>
-<span class="normal">438</span>
-<span class="normal">439</span>
-<span class="normal">440</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">440</span>
 <span class="normal">441</span>
 <span class="normal">442</span>
 <span class="normal">443</span>
@@ -3340,7 +3414,23 @@ If the rewards are probabilistic, it will return 0 or 1.</p>
 <span class="normal">453</span>
 <span class="normal">454</span>
 <span class="normal">455</span>
-<span class="normal">456</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">reward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">s_p</span><span class="p">:</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">]:</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">reward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+           <span class="n">s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+           <span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+           <span class="n">s_p</span><span class="p">:</span> <span class="nb">int</span>
+           <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Returns the rewards of playing action a when in state s and landing in state s_p.</span>
 <span class="sd">    If the rewards are probabilistic, it will return 0 or 1.</span>
@@ -3433,28 +3523,34 @@ By default, the model will be saved in 'Models' directory in the current working
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\mdp.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
-<span class="normal">482</span>
-<span class="normal">483</span>
-<span class="normal">484</span>
-<span class="normal">485</span>
-<span class="normal">486</span>
-<span class="normal">487</span>
-<span class="normal">488</span>
-<span class="normal">489</span>
-<span class="normal">490</span>
-<span class="normal">491</span>
-<span class="normal">492</span>
-<span class="normal">493</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">493</span>
 <span class="normal">494</span>
 <span class="normal">495</span>
 <span class="normal">496</span>
 <span class="normal">497</span>
 <span class="normal">498</span>
 <span class="normal">499</span>
-<span class="normal">500</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">&#39;./Models&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">500</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span>
+<span class="normal">516</span>
+<span class="normal">517</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+         <span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+         <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;./Models&#39;</span>
+         <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to save the current model in a pickle file.</span>
 <span class="sd">    By default, the model will be saved in &#39;Models&#39; directory in the current working directory but this can be changed using the &#39;path&#39; parameter.</span>
@@ -3567,12 +3663,7 @@ By default, the model will be saved in 'Models' directory in the current working
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\mdp.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
-<span class="normal">409</span>
-<span class="normal">410</span>
-<span class="normal">411</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">411</span>
 <span class="normal">412</span>
 <span class="normal">413</span>
 <span class="normal">414</span>
@@ -3590,7 +3681,18 @@ By default, the model will be saved in 'Models' directory in the current working
 <span class="normal">426</span>
 <span class="normal">427</span>
 <span class="normal">428</span>
-<span class="normal">429</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">transition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span><span class="nb">int</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span><span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">transition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">s</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+               <span class="n">a</span><span class="p">:</span> <span class="nb">int</span>
+               <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Returns a random posterior state knowing we take action a in state t and weighted on the transition probabilities.</span>
 
@@ -3677,7 +3779,8 @@ By default, the model will be saved in 'Models' directory in the current working
 
           <details class="quote">
             <summary>Source code in <code>olfactory_navigation\agents\model_based_util\mdp.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">31</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">30</span>
+<span class="normal">31</span>
 <span class="normal">32</span>
 <span class="normal">33</span>
 <span class="normal">34</span>
@@ -3685,8 +3788,7 @@ By default, the model will be saved in 'Models' directory in the current working
 <span class="normal">36</span>
 <span class="normal">37</span>
 <span class="normal">38</span>
-<span class="normal">39</span>
-<span class="normal">40</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">log</span><span class="p">(</span><span class="n">content</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">39</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">log</span><span class="p">(</span><span class="n">content</span><span class="p">:</span><span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">    Function to print a log line with a timestamp.</span>
 
@@ -3744,7 +3846,7 @@ By default, the model will be saved in 'Models' directory in the current working
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../belief_value_mapping/" class="md-footer__link md-footer__link--prev" aria-label="Previous: belief_value_mapping">
+          <a href="../environment_converter/" class="md-footer__link md-footer__link--prev" aria-label="Previous: environment_converter">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
@@ -3754,7 +3856,7 @@ By default, the model will be saved in 'Models' directory in the current working
                 Previous
               </span>
               <div class="md-ellipsis">
-                belief_value_mapping
+                environment_converter
               </div>
             </div>
           </a>
