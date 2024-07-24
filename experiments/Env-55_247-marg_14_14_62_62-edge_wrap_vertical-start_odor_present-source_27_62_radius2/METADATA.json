@@ -1,8 +1,12 @@
 {
     "name": "55_247-marg_14_14_62_62-edge_wrap_vertical-start_odor_present-source_27_62_radius2",
-    "data_file_path": "/storage/rando/data/nose_data_27_123.npy",
-    "data_width": 123,
-    "data_height": 27,
+    "data_file_path": "G:\\My Drive\\Documents\\Universita di Genova\\Pimlb work\\nose_data_27_123.h5",
+    "timesteps": 2598,
+    "data_shape": [
+        27,
+        123
+    ],
+    "dimensions": 2,
     "margins": [
         [
             14,
@@ -13,8 +17,6 @@
             62
         ]
     ],
-    "total_width": 247,
-    "total_height": 55,
     "shape": [
         55,
         247
@@ -37,12 +39,15 @@
         13,
         0
     ],
+    "layers": false,
     "source_position": [
         27,
         62
     ],
     "source_radius": 2,
     "interpolation_method": "Linear",
+    "preprocess_data": false,
+    "data_processed": true,
     "boundary_condition": "wrap_vertical",
     "start_type": "odor_present",
     "seed": 12131415,
