@@ -595,7 +595,7 @@ class Environment:
 
         # Selecting the required slices
         if self._data_is_numpy:
-            data = data[unique_layers, unique_times] if self.has_layers else data[unique_times]
+            data = data[unique_layers][:,unique_times] if self.has_layers else data[unique_times]
         else:
             # Case where we are dealing with a h5 file
             # Note: Can't use self.data_shape because we don't know whether the data is processed yet or no
@@ -733,7 +733,7 @@ class Environment:
 
         # Stop boundary
         elif self.boundary_condition == 'stop':
-            new_pos = xp.clip(new_pos, 0, shape_array)
+            new_pos = xp.clip(new_pos, 0, (shape_array-1))
 
         # Special wrap - vertical only
         elif (self.dimensions == 2) and (self.boundary_condition == 'wrap_vertical'):

@@ -656,10 +656,9 @@ class SimulationHistory:
             obs_layer = sim[['layer']][1:].to_numpy()
             layer_colors = np.array(list(colors.TABLEAU_COLORS.values()))
 
-            for layer_i in range(len(self.environment_layer_labels)):
+            for layer_i, layer_label in enumerate(self.environment_layer_labels[1:]):
                 layer_i += 1
-                layer_label = self.environment_layer_labels[layer_i]
-                layer_mask = (obs_layer == layer_i)
+                layer_mask = (obs_layer == layer_i)[:,0] # Reshaping to a single vector and not an n by 1 array
                 ax.scatter(seq[layer_mask,0], seq[layer_mask,1], # X, Y
                            marker='x',
                            color=layer_colors[(layer_i-1) % len(layer_colors)], # Looping over the colors in case there are more layers than colors

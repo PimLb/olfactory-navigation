@@ -260,7 +260,7 @@ def minimal_converter(agent : Agent,
         for min_thresh, max_thresh in zip(threshold[:-1], threshold[1:]):
             if environment.has_layers:
                 odor_within_thresh = (environment.data[:,:,*slices] > min_thresh) & (environment.data[:,:,*slices] < max_thresh)
-                observations_levels.append(np.average(odor_within_thresh, axis=(a+1 for a in range(environment.dimensions))))
+                observations_levels.append(np.average(odor_within_thresh, axis=tuple([a+1 for a in range(environment.dimensions + 1)])))
             else:
                 odor_within_thresh = (environment.data[:,*slices] > min_thresh) & (environment.data[:,*slices] < max_thresh)
                 observations_levels.append(np.average(odor_within_thresh))
@@ -272,10 +272,10 @@ def minimal_converter(agent : Agent,
     observations[:-1,:,0] = 1.0 # Nothing at 1 everywhere
     if environment.has_layers:
         action_layers = action_set[:,0]
+        actions = np.arange(len(action_layers))
         for i, cell_id in enumerate(data_cell_ids):
             for o in range(len(observation_labels) - 1):
-                for layer in action_layers:
-                    observations[cell_id,layer,o] = cell_observations[i][o][layer]
+                observations[cell_id,actions,o] = cell_observations[i][o][action_layers]
     else:
         for i, cell_id in enumerate(data_cell_ids):
             observations[cell_id,:,:-1] = cell_observations[i]
