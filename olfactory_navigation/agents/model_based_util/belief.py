@@ -175,7 +175,7 @@ class Belief:
         '''
         xp = np if not gpu_support else cp.get_array_module(self._values)
 
-        rand_s = int(xp.random.choice(a=self.model.states, size=1, p=self._values)[0])
+        rand_s = int(self.model.rnd_state.choice(a=self.model.states, size=1, p=self._values)[0])
         return rand_s
     
 

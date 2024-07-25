@@ -73,6 +73,8 @@ class Model:
         Playing action of the list during a simulation will end the simulation.
     print_debug : bool, default=False
         Whether to print debug logs about the creation progress of the MDP Model.
+    seed : int, default=12131415
+        For reproducible randomness.
     
     Attributes
     ----------
@@ -127,6 +129,10 @@ class Model:
         An equivalent model with the np.ndarray objects on GPU. (If already on GPU, returns self)
     cpu_model : mdp.Model
         An equivalent model with the np.ndarray objects on CPU. (If already on CPU, returns self)
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     '''
     def __init__(self,
                  states: int | list[str] | list[list[str]],
@@ -139,7 +145,8 @@ class Model:
                  start_probabilities: list | None = None,
                  end_states: list[int] = [],
                  end_actions: list[int] = [],
-                 print_debug: bool = False
+                 print_debug: bool = False,
+                 seed: int = 12131415
                  ) -> None:
         # Debug logger
         def logger(content: str):
@@ -149,6 +156,10 @@ class Model:
         # Empty variable
         self._alt_model = None
         self.is_on_gpu = False
+
+        # Random variable
+        self.seed = seed
+        self.rnd_state = np.random.RandomState(seed = seed)
         
         logger('Instantiation of MDP Model:')
         
@@ -206,7 +217,7 @@ class Model:
             if reachable_states is None:
                 # If no transitiong matrix and no reachable states given, generate random one
                 logger('    > [Warning] No transition matrix and no reachable states have provided so a random transition matrix is generated...')
-                random_probs = np.random.rand(self.state_count, self.action_count, self.state_count)
+                random_probs = self.rnd_state.random((self.state_count, self.action_count, self.state_count))
 
                 # Normalization to have s_p probabilies summing to 1
                 self.transition_table = random_probs / np.sum(random_probs, axis=2, keepdims=True)
@@ -359,7 +370,7 @@ class Model:
                 self.immediate_reward_function = self._end_reward_function
             else:
                 # If no reward matrix given, generate random one
-                self.immediate_reward_table = np.random.rand(self.state_count, self.action_count, self.state_count)
+                self.immediate_reward_table = self.rnd_state.random((self.state_count, self.action_count, self.state_count))
         elif callable(rewards):
             # Rewards is a function
             logger('- [Warning] The rewards are provided as a function, if the model is saved, the rewards will need to be defined before loading model.')
@@ -433,7 +444,7 @@ class Model:
         if self.reachable_state_count == 1:
             return int(self.reachable_states[s,a,0])
 
-        s_p = int(xp.random.choice(a=self.reachable_states[s,a], size=1, p=self.reachable_probabilities[s,a])[0])
+        s_p = int(self.rnd_state.choice(a=self.reachable_states[s,a], size=1, p=self.reachable_probabilities[s,a])[0])
         return s_p
     
 
@@ -557,7 +568,12 @@ class Model:
             # Setting all the arguments of the new class and convert to cupy if numpy array
             new_model = super().__new__(self.__class__)
             for arg, val in self.__dict__.items():
-                new_model.__setattr__(arg, cp.array(val) if isinstance(val, np.ndarray) else val)
+                if isinstance(val, np.ndarray):
+                    new_model.__setattr__(arg, cp.array(val))
+                elif arg == 'rnd_state':
+                    new_model.__setattr__(arg, cp.random.RandomState(self.seed))
+                else:
+                    new_model.__setattr__(arg, val)
 
             # GPU/CPU variables
             new_model.is_on_gpu = True

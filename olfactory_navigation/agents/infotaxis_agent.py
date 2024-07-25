@@ -40,6 +40,8 @@ class Infotaxis_Agent(Agent):
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    seed : int, default=12131415
+        For reproducible randomness.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -65,6 +67,12 @@ class Infotaxis_Agent(Agent):
         The place on disk where the agent has been saved (None if not saved yet).
     on_gpu : bool
         Whether the agent has been sent to the gpu or not.
+    class_name : str
+        The name of the class of the agent.
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     belief : BeliefSet
         Used only during simulations.
         Part of the Agent's status. Where the agent believes he is over the state space.
@@ -79,6 +87,7 @@ class Infotaxis_Agent(Agent):
                  threshold: float | None = 3e-6,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None=None,
+                 seed: int = 12131415,
                  environment_converter: Callable | None = None,
                  **converter_parameters
                  ) -> None:
@@ -86,7 +95,8 @@ class Infotaxis_Agent(Agent):
             environment = environment,
             threshold = threshold,
             actions = actions,
-            name = name
+            name = name,
+            seed = seed
         )
 
         # Converting the olfactory environment to a POMDP Model
@@ -119,6 +129,8 @@ class Infotaxis_Agent(Agent):
         for arg, val in self.__dict__.items():
             if isinstance(val, np.ndarray):
                 setattr(gpu_agent, arg, cp.array(val))
+            elif arg == 'rnd_state':
+                setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
             elif isinstance(val, Model):
                 gpu_agent.model = self.model.gpu_model
             elif isinstance(val, BeliefSet):

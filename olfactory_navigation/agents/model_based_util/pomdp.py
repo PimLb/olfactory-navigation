@@ -53,6 +53,8 @@ class Model(MDP_Model):
         Playing action of the list during a simulation will end the simulation.
     print_debug : bool, default=False
         Whether to print debug logs about the creation progress of the POMDP Model.
+    seed : int, default=12131415
+        For reproducible randomness.
 
     Attributes
     ----------
@@ -118,6 +120,10 @@ class Model(MDP_Model):
         An equivalent model with the np.ndarray objects on GPU. (If already on GPU, returns self)
     cpu_model : mdp.Model
         An equivalent model with the np.ndarray objects on CPU. (If already on CPU, returns self)
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     '''
     def __init__(self,
                  states: int | list[str] | list[list[str]],
@@ -132,7 +138,8 @@ class Model(MDP_Model):
                  start_probabilities: list | None = None,
                  end_states: list[int] = [],
                  end_actions: list[int] = [],
-                 print_debug: bool = False
+                 print_debug: bool = False,
+                 seed: int = 12131415
                  ) -> None:
         super().__init__(states=states,
                          actions=actions,
@@ -144,7 +151,8 @@ class Model(MDP_Model):
                          start_probabilities=start_probabilities,
                          end_states=end_states,
                          end_actions=end_actions,
-                         print_debug=print_debug)
+                         print_debug=print_debug,
+                         seed=seed)
         # Debug logger
         def logger(content: str):
             if print_debug:
@@ -164,7 +172,7 @@ class Model(MDP_Model):
 
         if observation_table is None:
             # If no observation matrix given, generate random one
-            random_probs = np.random.rand(self.state_count, self.action_count, self.observation_count)
+            random_probs = self.rnd_state.random((self.state_count, self.action_count, self.observation_count))
             # Normalization to have s_p probabilies summing to 1
             self.observation_table = random_probs / np.sum(random_probs, axis=2, keepdims=True)
         else:
@@ -195,7 +203,7 @@ class Model(MDP_Model):
                 self.immediate_reward_function = self._end_reward_function
             else:
                 # If no reward matrix given, generate random one
-                self.immediate_reward_table = np.random.rand(self.state_count, self.action_count, self.state_count, self.observation_count)
+                self.immediate_reward_table = self.rnd_state.random((self.state_count, self.action_count, self.state_count, self.observation_count))
         elif callable(rewards):
             # Rewards is a function
             logger('- [Warning] The rewards are provided as a function, if the model is saved, the rewards will need to be defined before loading model.')
@@ -297,5 +305,5 @@ class Model(MDP_Model):
             A random observation.
         '''
         xp = cp if self.is_on_gpu else np
-        o = int(xp.random.choice(a=self.observations, size=1, p=self.observation_table[s_p,a])[0])
+        o = int(self.rnd_state.choice(a=self.observations, size=1, p=self.observation_table[s_p,a])[0])
         return o

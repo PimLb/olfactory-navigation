@@ -34,6 +34,8 @@ class HSVI_Agent(PBVI_Agent):
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    seed : int, default=12131415
+        For reproducible randomness.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -59,6 +61,12 @@ class HSVI_Agent(PBVI_Agent):
         The place on disk where the agent has been saved (None if not saved yet).
     on_gpu : bool
         Whether the agent has been sent to the gpu or not.
+    class_name : str
+        The name of the class of the agent.
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction

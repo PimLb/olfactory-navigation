@@ -264,6 +264,8 @@ class PBVI_Agent(Agent):
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    seed : int, default=12131415
+        For reproducible randomness.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -289,6 +291,12 @@ class PBVI_Agent(Agent):
         The place on disk where the agent has been saved (None if not saved yet).
     on_gpu : bool
         Whether the agent has been sent to the gpu or not.
+    class_name : str
+        The name of the class of the agent.
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -307,7 +315,8 @@ class PBVI_Agent(Agent):
                  threshold: float | None = 3e-6,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None = None,
-                 model: Model | None = None, # TODO: Update documentation
+                 seed: int = 12131415,
+                 model: Model | None = None,
                  environment_converter: Callable | None = None,
                  **converter_parameters
                  ) -> None:
@@ -315,7 +324,8 @@ class PBVI_Agent(Agent):
             environment = environment,
             threshold = threshold,
             actions = actions,
-            name = name
+            name = name,
+            seed = seed
         )
 
         # Converting the olfactory environment to a POMDP Model
@@ -357,6 +367,8 @@ class PBVI_Agent(Agent):
         for arg, val in self.__dict__.items():
             if isinstance(val, np.ndarray):
                 setattr(gpu_agent, arg, cp.array(val))
+            elif arg == 'rnd_state':
+                setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
             elif isinstance(val, Model):
                 gpu_agent.model = self.model.gpu_model
             elif isinstance(val, ValueFunction):
@@ -425,6 +437,7 @@ class PBVI_Agent(Agent):
         if save_environment:
             self.environment.save(folder=folder)
 
+        # TODO: Add actions to save function
         # Generating the metadata arguments dictionary
         arguments = {}
         arguments['name'] = self.name
@@ -433,6 +446,7 @@ class PBVI_Agent(Agent):
         arguments['environment_name'] = self.environment.name
         arguments['environment_saved_at'] = self.environment.saved_at
         arguments['trained_at'] = self.trained_at
+        arguments['seed'] = self.seed
 
         # Output the arguments to a METADATA file
         with open(folder + '/METADATA.json', 'w') as json_file:
@@ -483,7 +497,8 @@ class PBVI_Agent(Agent):
         instance = cls(
             environment=environment,
             threshold=arguments['threshold'],
-            name=arguments['name']
+            name=arguments['name'],
+            seed=arguments['seed']
         )
 
         # Load and set the value function on the instance
@@ -691,11 +706,11 @@ class PBVI_Agent(Agent):
 
                         # Select a random selection of vectors to delete
                         unuseful_alpha_vectors = xp.delete(xp.arange(len(value_function)), useful_alpha_vectors)
-                        random_vectors_to_delete = xp.random.choice(unuseful_alpha_vectors,
-                                                                    size=max_belief_growth,
-                                                                    p=(xp.arange(len(unuseful_alpha_vectors))[::-1] / xp.sum(xp.arange(len(unuseful_alpha_vectors)))))
-                                                                    # replace=False,
-                                                                    # p=1/len(unuseful_alpha_vectors))
+                        random_vectors_to_delete = self.rnd_state.choice(unuseful_alpha_vectors,
+                                                                         size=max_belief_growth,
+                                                                         p=(xp.arange(len(unuseful_alpha_vectors))[::-1] / xp.sum(xp.arange(len(unuseful_alpha_vectors)))))
+                                                                         # replace=False,
+                                                                         # p=1/len(unuseful_alpha_vectors))
 
                         value_function = ValueFunction(model=model,
                                                        alpha_vectors=xp.delete(value_function.alpha_vector_array, random_vectors_to_delete, axis=0),

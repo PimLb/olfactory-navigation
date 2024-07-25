@@ -30,6 +30,8 @@ class PBVI_SSRA_Agent(PBVI_Agent):
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    seed : int, default=12131415
+        For reproducible randomness.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -55,6 +57,12 @@ class PBVI_SSRA_Agent(PBVI_Agent):
         The place on disk where the agent has been saved (None if not saved yet).
     on_gpu : bool
         Whether the agent has been sent to the gpu or not.
+    class_name : str
+        The name of the class of the agent.
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -103,12 +111,12 @@ class PBVI_SSRA_Agent(PBVI_Agent):
         new_belief_array = xp.empty((to_generate, old_shape[1]))
 
         # Random previous beliefs
-        rand_ind = np.random.choice(np.arange(old_shape[0]), to_generate, replace=False)
+        rand_ind = self.rnd_state.choice(np.arange(old_shape[0]), to_generate, replace=False)
 
         for i, belief_vector in enumerate(belief_set.belief_array[rand_ind]):
             b = Belief(model, belief_vector)
             s = b.random_state()
-            a = random.choice(model.actions)
+            a = self.rnd_state.choice(model.actions)
             s_p = model.transition(s, a)
             o = model.observe(s_p, a)
             b_new = b.update(a, o)
