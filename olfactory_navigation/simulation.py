@@ -718,6 +718,7 @@ def run_test(agent: Agent,
              time_shift: int | np.ndarray = 0,
              time_loop: bool = True,
              horizon: int = 1000,
+             skip_initialization: bool = False,
              reward_discount: float = 0.99,
              print_progress: bool = True,
              print_stats: bool = True,
@@ -764,6 +765,8 @@ def run_test(agent: Agent,
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
+    skip_initialization : bool, default=False
+        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
@@ -826,7 +829,8 @@ def run_test(agent: Agent,
         agent_position = environment.random_start_points(n)
 
     # Initialize agent's state
-    agent.initialize_state(n)
+    if not skip_initialization:
+        agent.initialize_state(n)
 
     # Create simulation history tracker
     hist = SimulationHistory(
