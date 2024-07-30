@@ -26,11 +26,14 @@ class QMemAgent(Agent):
                  threshold: float  = 3e-6, 
                  horizon : int = 100,
                  num_episodes : int = 1000,
-                 learning_rate  = lambda t : 1/sqrt(t + 1),
+                 alpha_init = 0.8,
+                 alpha_end = 0.1,
+                 alpha_decay = 10000,
                  eps_init = 0.8,
                  eps_end = 0.2,
                  eps_decay = 10000,
                  memory_size = 1,
+                 decision_mode = 'average',
                  deterministic : bool = True,
                  gamma : float = 1.0,
                  delta : int = 100,
@@ -43,7 +46,10 @@ class QMemAgent(Agent):
         assert checkpoint_folder is None or (checkpoint_folder is not None and checkpoint_frequency is not None and checkpoint_frequency > 0)
         super().__init__(environment, threshold, "QAgent")
         self.xp = cp if self.on_gpu else np
-        self.learning_rate = learning_rate
+        self.alpha_init = alpha_init
+        self.alpha_end = alpha_end
+        self.decision_mode = decision_mode
+        self.alpha_decay = alpha_decay
         self.horizon = horizon
         self.seed = seed
         self.rnd_state = np.random.RandomState(seed = seed)
@@ -150,7 +156,7 @@ class QMemAgent(Agent):
                 setattr(self, k, v)
 
 
-    def train(self, set_best_Q = False, draw_Q = False, draw_iters = 1, delta_Q_draw = 50, delta_draw = 10):#, init_sampling_region):
+    def train(self, position_sampler = None, set_best_Q = False, draw_Q = False, draw_iters = 1, delta_Q_draw = 50, delta_draw = 10):#, init_sampling_region):
         cumulative_rewards = []
         average_crewards = []
         avg_max_void_steps = []
@@ -185,23 +191,26 @@ class QMemAgent(Agent):
 
             axes = [ax1, ax2, ax3, ax4]
             fig.tight_layout()
+            
+        level_iterate = 0
 
         for episode in iterator:
             # Initialization
             self.initialize_state(1)            
             init_time_idx = self.rnd_state.randint(0, self.environment.data.shape[0])
             time_idx = init_time_idx
-            init_pos = self.environment.random_start_points(1) #self.rnd_state.randint(sampling_region[:, 0], sampling_region[:, 1])
+            init_pos = self.environment.random_start_points(1) if position_sampler is None else position_sampler() #self.rnd_state.randint(sampling_region[:, 0], sampling_region[:, 1])
             pos = init_pos.copy()
             obs = self.environment.get_observation(pos, time_idx)
             self.memory = self.memory[0, :]
             self.memory[-1] = int(obs >= self.threshold)
             s = 0 if obs >= self.threshold else 1 # current state (0 if odor observed, 1 otherwise)
             c_reward = 0.0 # cumulative reward in episode
-            alpha = self.learning_rate(self.episode) 
-            eps = max(self.eps_end + (self.eps_init - self.eps_end) * exp(- episode / self.eps_decay), self.eps_end)
+            alpha = max(self.alpha_end + (self.alpha_init - self.alpha_end) * exp(-level_iterate / self.alpha_decay), self.alpha_end)#self.learning_rate(level_iterate), self. #self.learning_rate(self.episode) 
+            eps = max(self.eps_end + (self.eps_init - self.eps_end) * exp(- level_iterate / self.eps_decay), self.eps_end)
             current_max_void = s
             episode_time = time.time()
+            
             for t in range(self.horizon):
                 # compute and play action
                 if s == 0:
@@ -249,8 +258,14 @@ class QMemAgent(Agent):
                                 'init time slice' : init_time_idx,
                                 'avg R_t' : average_crewards[-1], 
                                 'avg void' : avg_max_void_steps[-1],
+                                'memory size' : self.memory_size,
                                 'eps' : f'{eps}',
-                                'alpha' : f'{self.learning_rate(self.episode )}'})
+                                'alpha' : f'{alpha}'})
+            if position_sampler is not None and position_sampler.update_level(average_crewards[-1]):
+                print("New Level")
+#                level_iterate = 0
+#            else:
+            level_iterate += 1
             if draw_Q and episode % draw_iters == 0 and episode > 0:
                 ax3.clear()
                 delta = min(delta_Q_draw, self.Q.shape[0])

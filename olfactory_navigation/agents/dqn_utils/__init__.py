@@ -1,5 +1,8 @@
-from .dnn import DQN
+from .dnn import DNN
+from .replay_buffer import ReplayBuffer, Transition
 
 __all__ = (
-    'DQN',
+    'DNN',
+    'ReplayBuffer',
+    'Transition',
 )

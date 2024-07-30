@@ -11,6 +11,7 @@ from olfactory_navigation.agents.q_agent import QAgent
 from olfactory_navigation.agents.qmem_agent import QMemAgent
 from olfactory_navigation.agents.qmdp_agent import QMDP_Agent
 from olfactory_navigation.agents.infotaxis_agent import Infotaxis_Agent
+from olfactory_navigation.agents.dqn_agent import DQNAgent
 
 
 __all__ = (
@@ -27,4 +28,5 @@ __all__ = (
     'QMemAgent',
     'QMDP_Agent',
     'Infotaxis_Agent',
+    'DQNAgent',
 )
