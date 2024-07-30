@@ -114,12 +114,13 @@ class QMDP_Agent(PBVI_Agent):
             The history of the solving process with some plotting options.
         '''
         # Handeling the case where the agent is already trained
-        if (self.value_function is not None) and (not force):
-            raise Exception('Agent has already been trained. The force parameter needs to be set to "True" if training should still happen')
-        else:
-            self.trained_at = None
-            self.name = '-'.join(self.name.split('-')[:-1])
-            self.value_function = None
+        if (self.value_function is not None):
+            if overwrite_training:
+                self.trained_at = None
+                self.name = '-'.join(self.name.split('-')[:-1])
+                self.value_function = None
+            else:
+                initial_value_function = self.value_function
 
         model = self.model if not use_gpu else self.model.gpu_model
 
