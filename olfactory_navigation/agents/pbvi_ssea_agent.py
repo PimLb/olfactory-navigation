@@ -139,7 +139,7 @@ class PBVI_SSEA_Agent(PBVI_Agent):
               eps: float = 1e-6,
               use_gpu: bool = False,
               history_tracking_level: int = 1,
-              force: bool = False,
+              overwrite_training: bool = False,
               print_progress: bool = True,
               print_stats: bool = True
               ) -> TrainingHistory:
@@ -181,8 +181,8 @@ class PBVI_SSEA_Agent(PBVI_Agent):
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
         history_tracking_level : int, default=1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
-        force : bool, default=False
-            Whether to force retraining if a value function already exists for this agent.
+        overwrite_training : bool, default=False
+            Whether to force the overwriting of the training if a value function already exists for this agent.
         print_progress : bool, default=True
             Whether or not to print out the progress of the value iteration process.
         print_stats : bool, default=True
@@ -206,6 +206,6 @@ class PBVI_SSEA_Agent(PBVI_Agent):
                              eps = eps,
                              use_gpu = use_gpu,
                              history_tracking_level = history_tracking_level,
-                             force = force,
+                             overwrite_training = overwrite_training,
                              print_progress = print_progress,
                              print_stats = print_stats)
