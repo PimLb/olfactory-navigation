@@ -88,6 +88,7 @@ class Infotaxis_Agent(Agent):
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None=None,
                  seed: int = 12131415,
+                 model: Model | None = None,
                  environment_converter: Callable | None = None,
                  **converter_parameters
                  ) -> None:
@@ -100,7 +101,9 @@ class Infotaxis_Agent(Agent):
         )
 
         # Converting the olfactory environment to a POMDP Model
-        if callable(environment_converter):
+        if model is not None:
+            loaded_model = model
+        elif callable(environment_converter):
             loaded_model = environment_converter(agent=self, **converter_parameters)
         else:
             # Using the exact converter
