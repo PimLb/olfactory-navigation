@@ -111,7 +111,7 @@ class Infotaxis_Agent(Agent):
         self.model:Model = loaded_model
 
         # Status variables
-        self.beliefs = None
+        self.belief = None
         self.action_played = None
 
 
@@ -137,7 +137,7 @@ class Infotaxis_Agent(Agent):
             elif isinstance(val, Model):
                 gpu_agent.model = self.model.gpu_model
             elif isinstance(val, BeliefSet):
-                gpu_agent.beliefs = self.beliefs.to_gpu()
+                gpu_agent.belief = self.belief.to_gpu()
             else:
                 setattr(gpu_agent, arg, val)
 
@@ -162,7 +162,7 @@ class Infotaxis_Agent(Agent):
         n : int, default=1
             How many agents are to be used during the simulation.
         '''
-        self.beliefs = BeliefSet(self.model, [Belief(self.model) for _ in range(n)])
+        self.belief = BeliefSet(self.model, [Belief(self.model) for _ in range(n)])
 
 
     def choose_action(self) -> np.ndarray:
@@ -177,18 +177,18 @@ class Infotaxis_Agent(Agent):
         '''
         xp = np if not self.on_gpu else cp
 
-        n = len(self.beliefs)
+        n = len(self.belief)
         
         best_entropy = xp.ones(n) * -1
         best_action = xp.ones(n, dtype=int) * -1
 
-        current_entropy = self.beliefs.entropies
+        current_entropy = self.belief.entropies
 
         for a in self.model.actions:
             total_entropy = xp.zeros(n)
 
             for o in self.model.observations:
-                b_ao = self.beliefs.update(actions=xp.ones(n, dtype=int)*a,
+                b_ao = self.belief.update(actions=xp.ones(n, dtype=int)*a,
                                            observations=xp.ones(n, dtype=int)*o,
                                            throw_error=False)
 
@@ -197,7 +197,7 @@ class Infotaxis_Agent(Agent):
                     warnings.simplefilter('ignore')
                     b_ao_entropy = b_ao.entropies
 
-                b_prob = xp.dot(self.beliefs.belief_array, xp.sum(self.model.reachable_transitional_observation_table[:,a,o,:], axis=1))
+                b_prob = xp.dot(self.belief.belief_array, xp.sum(self.model.reachable_transitional_observation_table[:,a,o,:], axis=1))
 
                 total_entropy += (b_prob * (current_entropy - b_ao_entropy))
             
@@ -229,7 +229,7 @@ class Infotaxis_Agent(Agent):
         source_reached : np.ndarray
             A boolean array of whether the agent(s) have reached the source or not.
         '''
-        assert self.beliefs is not None, "Agent was not initialized yet, run the initialize_state function first"
+        assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 
         # GPU support
         xp = np if not self.on_gpu else cp
@@ -252,11 +252,11 @@ class Infotaxis_Agent(Agent):
         observation_ids = xp.argwhere((observation[:,None] >= threshold[:-1][None,:]) & (observation[:,None] < threshold[1:][None,:]))[:,1]
         observation_ids[source_reached] = len(threshold) # Observe source, goal is always last observation with len(threshold)-1 being the amount of observation buckets.
 
-        # Update the set of beliefs
-        self.beliefs = self.beliefs.update(actions=self.action_played, observations=observation_ids)
+        # Update the set of belief
+        self.belief = self.belief.update(actions=self.action_played, observations=observation_ids)
 
-        # Remove the beliefs of the agents having reached the source
-        self.beliefs = BeliefSet(self.model, self.beliefs.belief_array[~source_reached])
+        # Remove the belief of the agents having reached the source
+        self.belief = BeliefSet(self.model, self.belief.belief_array[~source_reached])
 
 
     def kill(self,
@@ -271,6 +271,6 @@ class Infotaxis_Agent(Agent):
             A boolean array of the simulations to kill.
         '''
         if all(simulations_to_kill):
-            self.beliefs = None
+            self.belief = None
         else:
-            self.beliefs = BeliefSet(self.beliefs.model, self.beliefs.belief_array[~simulations_to_kill])
+            self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~simulations_to_kill])
