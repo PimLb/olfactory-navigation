@@ -1001,7 +1001,7 @@ class PBVI_Agent(Agent):
     def update_state(self,
                      observation: np.ndarray,
                      source_reached: np.ndarray
-                     ) -> None:
+                     ) -> None | np.ndarray:
         '''
         Function to update the internal state(s) of the agent(s) based on the previous action(s) taken and the observation(s) received.
 
@@ -1011,6 +1011,12 @@ class PBVI_Agent(Agent):
             The observation(s) the agent(s) made.
         source_reached : np.ndarray
             A boolean array of whether the agent(s) have reached the source or not.
+
+        Returns
+        -------
+        update_successfull : np.ndarray, optional
+            If nothing is returned, it means all the agent's state updates have been successfull.
+            Else, a boolean np.ndarray of size n can be returned confirming for each agent whether the update has been successful or not.
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 

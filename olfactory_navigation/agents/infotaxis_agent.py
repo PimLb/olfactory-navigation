@@ -216,9 +216,9 @@ class Infotaxis_Agent(Agent):
 
 
     def update_state(self,
-                     observation: int | np.ndarray,
-                     source_reached: bool | np.ndarray
-                     ) -> None:
+                     observation: np.ndarray,
+                     source_reached: np.ndarray
+                     ) -> None | np.ndarray:
         '''
         Function to update the internal state(s) of the agent(s) based on the previous action(s) taken and the observation(s) received.
 
@@ -228,6 +228,12 @@ class Infotaxis_Agent(Agent):
             The observation(s) the agent(s) made.
         source_reached : np.ndarray
             A boolean array of whether the agent(s) have reached the source or not.
+
+        Returns
+        -------
+        update_successfull : np.ndarray, optional
+            If nothing is returned, it means all the agent's state updates have been successfull.
+            Else, a boolean np.ndarray of size n can be returned confirming for each agent whether the update has been successful or not.
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 
@@ -255,8 +261,10 @@ class Infotaxis_Agent(Agent):
         # Update the set of belief
         self.belief = self.belief.update(actions=self.action_played, observations=observation_ids)
 
-        # Remove the belief of the agents having reached the source
-        self.belief = BeliefSet(self.model, self.belief.belief_array[~source_reached])
+        # Check for failed updates
+        update_successful = (self.belief.belief_array.sum(axis=1) != 0.0)
+
+        return update_successful
 
 
     def kill(self,
