@@ -16,6 +16,7 @@ def run_all_starts_test(
              time_shift: int | np.ndarray = 0,
              time_loop: bool = True,
              horizon: int = 1000,
+             skip_initialization: bool = False,
              reward_discount: float = 0.99,
              print_progress: bool = True,
              print_stats: bool = True,
@@ -39,6 +40,8 @@ def run_all_starts_test(
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
+    skip_initialization : bool, default=False
+        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
@@ -73,6 +76,7 @@ def run_all_starts_test(
         time_shift=time_shift,
         time_loop=time_loop,
         horizon=horizon,
+        skip_initialization=skip_initialization,
         reward_discount=reward_discount,
         print_progress=print_progress,
         print_stats=print_stats,
@@ -88,6 +92,7 @@ def run_n_by_cell_test(
              time_shift: int | np.ndarray = 0,
              time_loop: bool = True,
              horizon: int = 1000,
+             skip_initialization: bool = False,
              reward_discount: float = 0.99,
              print_progress: bool = True,
              print_stats: bool = True,
@@ -116,6 +121,8 @@ def run_n_by_cell_test(
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
+    skip_initialization : bool, default=False
+        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
@@ -167,6 +174,7 @@ def run_n_by_cell_test(
         time_shift=time_shift,
         time_loop=time_loop,
         horizon=horizon,
+        skip_initialization=skip_initialization,
         reward_discount=reward_discount,
         print_progress=print_progress,
         print_stats=print_stats,
@@ -227,7 +235,9 @@ def analyse_shape_robustness(all_histories: list[SimulationHistory],
     return df
 
 
+# TODO: Include horizon parameter and timeshifts
 def test_shape_robustness(agent: Agent,
+                          skip_initialization: bool = False,
                           step_percentage: int = 20,
                           min_percentage:int = 20,
                           max_percentage:int = 200,
@@ -251,6 +261,8 @@ def test_shape_robustness(agent: Agent,
     ----------
     agent : Agent
         The agent to run the shape robustness test on.
+    skip_initialization : bool, default=False
+        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
     step_percentage : int, default=20
         Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
     min_percentage : int, default=20
@@ -327,6 +339,7 @@ def test_shape_robustness(agent: Agent,
             n=n,
             start_points=start_points,
             environment=modified_environment,
+            skip_initialization=skip_initialization,
             print_progress=False,
             print_stats=print_stats,
             use_gpu=use_gpu)
@@ -406,6 +419,7 @@ def analyse_scale_robustness(all_histories: list[SimulationHistory],
 
 
 def test_scale_robustness(agent: Agent,
+                          skip_initialization: bool = False,
                           step_percentage: int = 20,
                           min_percentage:int = 20,
                           max_percentage:int = 200,
@@ -429,6 +443,8 @@ def test_scale_robustness(agent: Agent,
     ----------
     agent : Agent
         The agent to run the shape robustness test on.
+    skip_initialization : bool, default=False
+        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
     step_percentage : int, default=20
         Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
     min_percentage : int, default=20

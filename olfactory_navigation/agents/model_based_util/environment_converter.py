@@ -139,7 +139,8 @@ def exact_converter(agent : Agent) -> Model:
         reachable_states=reachable_states,
         observation_table=observations,
         end_states=end_states,
-        start_probabilities=environment.start_probabilities.ravel()
+        start_probabilities=environment.start_probabilities.ravel(),
+        seed=agent.seed
     )
     return model
 
@@ -295,7 +296,8 @@ def minimal_converter(agent : Agent,
         transitions = transition_probabilities,
         observation_table = observations,
         end_states = [cell_counts], # The very last state is the goal state
-        start_probabilities = start_probabilities
+        start_probabilities = start_probabilities,
+        seed=agent.seed
     )
 
     return model

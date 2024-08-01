@@ -49,9 +49,15 @@ class FSVI_Agent(PBVI_Agent):
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    seed : int, default=12131415
+        For reproducible randomness.
+    model : Model, optional
+        A POMDP model to use to represent the olfactory environment.
+        If not provided, the environment_converter parameter will be used.
     environment_converter : Callable, default=exact_converter
         A function to convert the olfactory environment instance to a POMDP Model instance.
         By default, we use an exact convertion that keeps the shape of the environment to make the amount of states of the POMDP Model.
+        This parameter will be ignored if the model parameter is provided.
     converter_parameters : dict, optional
         A set of additional parameters to be passed down to the environment converter.
 
@@ -70,6 +76,12 @@ class FSVI_Agent(PBVI_Agent):
         The place on disk where the agent has been saved (None if not saved yet).
     on_gpu : bool
         Whether the agent has been sent to the gpu or not.
+    class_name : str
+        The name of the class of the agent.
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -82,7 +94,12 @@ class FSVI_Agent(PBVI_Agent):
         Used only during simulations.
         Part of the Agent's status. Records what action was last played by the agent.
         A list of n actions played based on how many simulations are running at once.
+    mdp_policy : ValueFunction
+        The solution to the fully version of the problem.
     '''
+    # FSVI special attribute
+    mdp_policy = None
+
     def expand(self,
                belief_set: BeliefSet,
                value_function: ValueFunction,
@@ -169,7 +186,7 @@ class FSVI_Agent(PBVI_Agent):
               eps: float = 1e-6,
               use_gpu: bool = False,
               history_tracking_level: int = 1,
-              force: bool = False,
+              overwrite_training: bool = False,
               print_progress: bool = True,
               print_stats: bool = True
               ) -> TrainingHistory:
@@ -214,8 +231,8 @@ class FSVI_Agent(PBVI_Agent):
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
         history_tracking_level : int, default=1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
-        force : bool, default=False
-            Whether to force retraining if a value function already exists for this agent.
+        overwrite_training : bool, default=False
+            Whether to force the overwriting of the training if a value function already exists for this agent.
         print_progress : bool, default=True
             Whether or not to print out the progress of the value iteration process.
         print_stats : bool, default=True
@@ -226,16 +243,18 @@ class FSVI_Agent(PBVI_Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        if mdp_policy is None:
+        if mdp_policy is not None:
+            self.mdp_policy = mdp_policy
+        elif (self.mdp_policy is None) or overwrite_training:
             log('MDP_policy, not provided. Solving MDP with Value Iteration...')
-            mdp_policy, hist = vi_solver.solve(model = self.model,
-                                               horizon = 1000,
-                                               initial_value_function = initial_value_function,
-                                               gamma = gamma,
-                                               eps = eps,
-                                               use_gpu = use_gpu,
-                                               history_tracking_level = 1,
-                                               print_progress = print_progress)
+            self.mdp_policy, hist = vi_solver.solve(model = self.model,
+                                                    horizon = 1000,
+                                                    initial_value_function = initial_value_function,
+                                                    gamma = gamma,
+                                                    eps = eps,
+                                                    use_gpu = use_gpu,
+                                                    history_tracking_level = 1,
+                                                    print_progress = print_progress)
             
             if print_stats:
                 print(hist.summary)
@@ -253,7 +272,7 @@ class FSVI_Agent(PBVI_Agent):
                              eps = eps,
                              use_gpu = use_gpu,
                              history_tracking_level = history_tracking_level,
-                             force = force,
+                             overwrite_training = overwrite_training,
                              print_progress = print_progress,
                              print_stats = print_stats,
-                             mdp_policy = mdp_policy)
+                             mdp_policy = self.mdp_policy)

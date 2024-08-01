@@ -264,9 +264,15 @@ class PBVI_Agent(Agent):
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    seed : int, default=12131415
+        For reproducible randomness.
+    model : Model, optional
+        A POMDP model to use to represent the olfactory environment.
+        If not provided, the environment_converter parameter will be used.
     environment_converter : Callable, default=exact_converter
         A function to convert the olfactory environment instance to a POMDP Model instance.
         By default, we use an exact convertion that keeps the shape of the environment to make the amount of states of the POMDP Model.
+        This parameter will be ignored if the model parameter is provided.
     converter_parameters : dict, optional
         A set of additional parameters to be passed down to the environment converter.
 
@@ -285,6 +291,12 @@ class PBVI_Agent(Agent):
         The place on disk where the agent has been saved (None if not saved yet).
     on_gpu : bool
         Whether the agent has been sent to the gpu or not.
+    class_name : str
+        The name of the class of the agent.
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -303,6 +315,8 @@ class PBVI_Agent(Agent):
                  threshold: float | None = 3e-6,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None = None,
+                 seed: int = 12131415,
+                 model: Model | None = None,
                  environment_converter: Callable | None = None,
                  **converter_parameters
                  ) -> None:
@@ -310,11 +324,14 @@ class PBVI_Agent(Agent):
             environment = environment,
             threshold = threshold,
             actions = actions,
-            name = name
+            name = name,
+            seed = seed
         )
 
         # Converting the olfactory environment to a POMDP Model
-        if callable(environment_converter):
+        if model is not None:
+            loaded_model = model
+        elif callable(environment_converter):
             loaded_model = environment_converter(agent=self, **converter_parameters)
         else:
             # Using the exact converter
@@ -350,12 +367,14 @@ class PBVI_Agent(Agent):
         for arg, val in self.__dict__.items():
             if isinstance(val, np.ndarray):
                 setattr(gpu_agent, arg, cp.array(val))
+            elif arg == 'rnd_state':
+                setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
             elif isinstance(val, Model):
-                gpu_agent.model = self.model.gpu_model
+                setattr(gpu_agent, arg, val.gpu_model)
             elif isinstance(val, ValueFunction):
-                gpu_agent.value_function =self.value_function.to_gpu()
-            elif isinstance(val, BeliefSet):
-                gpu_agent.belief = self.belief.to_gpu()
+                setattr(gpu_agent, arg, val.to_gpu())
+            elif isinstance(val, BeliefSet) or isinstance(val, Belief):
+                setattr(gpu_agent, arg, val.to_gpu())
             else:
                 setattr(gpu_agent, arg, val)
 
@@ -418,6 +437,7 @@ class PBVI_Agent(Agent):
         if save_environment:
             self.environment.save(folder=folder)
 
+        # TODO: Add actions to save function
         # Generating the metadata arguments dictionary
         arguments = {}
         arguments['name'] = self.name
@@ -426,6 +446,7 @@ class PBVI_Agent(Agent):
         arguments['environment_name'] = self.environment.name
         arguments['environment_saved_at'] = self.environment.saved_at
         arguments['trained_at'] = self.trained_at
+        arguments['seed'] = self.seed
 
         # Output the arguments to a METADATA file
         with open(folder + '/METADATA.json', 'w') as json_file:
@@ -476,7 +497,8 @@ class PBVI_Agent(Agent):
         instance = cls(
             environment=environment,
             threshold=arguments['threshold'],
-            name=arguments['name']
+            name=arguments['name'],
+            seed=arguments['seed']
         )
 
         # Load and set the value function on the instance
@@ -504,7 +526,7 @@ class PBVI_Agent(Agent):
               eps: float = 1e-6,
               use_gpu: bool = False,
               history_tracking_level: int = 1,
-              force: bool = False,
+              overwrite_training: bool = False,
               print_progress: bool = True,
               print_stats: bool = True,
               **expand_arguments
@@ -546,8 +568,8 @@ class PBVI_Agent(Agent):
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
         history_tracking_level : int, default=1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
-        force : bool, default=False
-            Whether to force retraining if a value function already exists for this agent.
+        overwrite_training : bool, default=False
+            Whether to force the overwriting of the training if a value function already exists for this agent.
         print_progress : bool, default=True
             Whether or not to print out the progress of the value iteration process.
         print_stats : bool, default=True
@@ -577,7 +599,7 @@ class PBVI_Agent(Agent):
                 eps=eps,
                 use_gpu=use_gpu,
                 history_tracking_level=history_tracking_level,
-                force=force,
+                overwrite_training=overwrite_training,
                 print_progress=print_progress,
                 print_stats=print_stats,
                 **expand_arguments
@@ -601,12 +623,13 @@ class PBVI_Agent(Agent):
         
         # Handeling the case where the agent is already trained
         if (self.value_function is not None):
-            if not force:
-                raise Exception('Agent has already been trained. The force parameter needs to be set to "True" if training should still happen')
-            else:
+            if overwrite_training:
+                print('[warning] The value function is being overwritten')
                 self.trained_at = None
                 self.name = '-'.join(self.name.split('-')[:-1])
                 self.value_function = None
+            else:
+                initial_value_function = self.value_function
 
         # Initial value function
         if initial_value_function is None:
@@ -684,11 +707,11 @@ class PBVI_Agent(Agent):
 
                         # Select a random selection of vectors to delete
                         unuseful_alpha_vectors = xp.delete(xp.arange(len(value_function)), useful_alpha_vectors)
-                        random_vectors_to_delete = xp.random.choice(unuseful_alpha_vectors,
-                                                                    size=max_belief_growth,
-                                                                    p=(xp.arange(len(unuseful_alpha_vectors))[::-1] / xp.sum(xp.arange(len(unuseful_alpha_vectors)))))
-                                                                    # replace=False,
-                                                                    # p=1/len(unuseful_alpha_vectors))
+                        random_vectors_to_delete = self.rnd_state.choice(unuseful_alpha_vectors,
+                                                                         size=max_belief_growth,
+                                                                         p=(xp.arange(len(unuseful_alpha_vectors))[::-1] / xp.sum(xp.arange(len(unuseful_alpha_vectors)))))
+                                                                         # replace=False,
+                                                                         # p=1/len(unuseful_alpha_vectors))
 
                         value_function = ValueFunction(model=model,
                                                        alpha_vectors=xp.delete(value_function.alpha_vector_array, random_vectors_to_delete, axis=0),
@@ -715,7 +738,8 @@ class PBVI_Agent(Agent):
                 expand_max_change = self.compute_change(expand_value_function, value_function, belief_set)
 
                 if expand_max_change < max_allowed_change:
-                    print('Converged!')
+                    if print_progress:
+                        print('Converged!')
                     break
 
                 expand_value_function = value_function
@@ -978,7 +1002,7 @@ class PBVI_Agent(Agent):
     def update_state(self,
                      observation: np.ndarray,
                      source_reached: np.ndarray
-                     ) -> None:
+                     ) -> None | np.ndarray:
         '''
         Function to update the internal state(s) of the agent(s) based on the previous action(s) taken and the observation(s) received.
 
@@ -988,12 +1012,35 @@ class PBVI_Agent(Agent):
             The observation(s) the agent(s) made.
         source_reached : np.ndarray
             A boolean array of whether the agent(s) have reached the source or not.
+
+        Returns
+        -------
+        update_successfull : np.ndarray, optional
+            If nothing is returned, it means all the agent's state updates have been successfull.
+            Else, a boolean np.ndarray of size n can be returned confirming for each agent whether the update has been successful or not.
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 
-        # Binarize observations
-        observation_ids = np.where(observation > self.threshold, 1, 0).astype(int)
-        observation_ids[source_reached] = 2 # Observe source
+        # GPU support
+        xp = np if not self.on_gpu else cp
+
+        # TODO: Make dedicated observation discretization function
+        # Set the thresholds as a vector
+        threshold = self.threshold
+        if not isinstance(threshold, list):
+            threshold = [threshold]
+
+        # Ensure 0.0 and 1.0 begin and end the threshold list
+        if threshold[0] != -xp.inf:
+            threshold = [-xp.inf] + threshold
+
+        if threshold[-1] != xp.inf:
+            threshold = threshold + [xp.inf]
+        threshold = xp.array(threshold)
+
+        # Setting observation ids
+        observation_ids = xp.argwhere((observation[:,None] >= threshold[:-1][None,:]) & (observation[:,None] < threshold[1:][None,:]))[:,1]
+        observation_ids[source_reached] = len(threshold) # Observe source, goal is always last observation with len(threshold)-1 being the amount of observation buckets.
 
         # Update the set of beliefs
         self.belief = self.belief.update(actions=self.action_played, observations=observation_ids, throw_error=False)

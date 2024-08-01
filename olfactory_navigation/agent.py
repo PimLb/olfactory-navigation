@@ -68,6 +68,8 @@ class Agent:
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name for the agent. If it is not provided it will be named like "<class_name>-thresh_<threshold>".
+    seed : int, default=12131415
+        For reproducible randomness.
 
     Attributes
     ----------
@@ -84,15 +86,21 @@ class Agent:
         Whether the arrays are on the GPU memory or not. For this, the support for Cupy needs to be enabled and the agent needs to have been moved to the GPU using the to_gpu() function.
     class_name : str
         The name of the class of the agent.
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     '''
     def __init__(self,
                  environment: Environment,
                  threshold: float | list[float] = 3e-6,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
-                 name: str | None = None
+                 name: str | None = None,
+                 seed: int = 12131415
                  ) -> None:
         self.environment = environment
         self.threshold = threshold
+
         # Ensuring thresholds are sorted (if it is a list)
         if isinstance(self.threshold, list):
             self.threshold = sorted(self.threshold)
@@ -173,6 +181,10 @@ class Agent:
 
         self.on_gpu = False
         self._alternate_version = None
+
+        # random state
+        self.seed = seed
+        self.rnd_state = np.random.RandomState(seed = seed)
 
 
     @property
@@ -398,6 +410,8 @@ class Agent:
         for arg, val in self.__dict__.items():
             if isinstance(val, np.ndarray):
                 setattr(gpu_agent, arg, cp.array(val))
+            elif arg == 'rnd_state':
+                setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
             else:
                 setattr(gpu_agent, arg, val)
 

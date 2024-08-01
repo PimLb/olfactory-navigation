@@ -34,8 +34,6 @@ class QAgent(Agent):
         self.xp = cp if self.on_gpu else np
         self.learning_rate = learning_rate
         self.horizon = horizon
-        self.seed = seed
-        self.rnd_state = np.random.RandomState(seed = seed)
         self.eps_greedy = eps_greedy
         self.gamma = gamma
         self.delta = delta

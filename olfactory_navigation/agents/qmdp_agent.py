@@ -25,9 +25,15 @@ class QMDP_Agent(PBVI_Agent):
         If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
+    seed : int, default=12131415
+        For reproducible randomness.
+    model : Model, optional
+        A POMDP model to use to represent the olfactory environment.
+        If not provided, the environment_converter parameter will be used.
     environment_converter : Callable, default=exact_converter
         A function to convert the olfactory environment instance to a POMDP Model instance.
         By default, we use an exact convertion that keeps the shape of the environment to make the amount of states of the POMDP Model.
+        This parameter will be ignored if the model parameter is provided.
     converter_parameters : dict, optional
         A set of additional parameters to be passed down to the environment converter.
 
@@ -46,6 +52,12 @@ class QMDP_Agent(PBVI_Agent):
         The place on disk where the agent has been saved (None if not saved yet).
     on_gpu : bool
         Whether the agent has been sent to the gpu or not.
+    class_name : str
+        The name of the class of the agent.
+    seed : int
+        The seed used for the random operations (to allow for reproducability).
+    rnd_state : np.random.RandomState
+        The random state variable used to generate random values.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -66,7 +78,7 @@ class QMDP_Agent(PBVI_Agent):
               eps: float = 1e-6,
               use_gpu: bool = False,
               history_tracking_level: int = 1,
-              force: bool = False,
+              overwrite_training: bool = False,
               print_progress: bool = True,
               print_stats: bool = True
               ) -> TrainingHistory:
@@ -89,8 +101,8 @@ class QMDP_Agent(PBVI_Agent):
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
         history_tracking_level : int, default=1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
-        force : bool, default=False
-            Whether to force retraining if a value function already exists for this agent.
+        overwrite_training : bool, default=False
+            Whether to force the overwriting of the training if a value function already exists for this agent.
         print_progress : bool, default=True
             Whether or not to print out the progress of the value iteration process.
         print_stats : bool, default=True
@@ -102,12 +114,13 @@ class QMDP_Agent(PBVI_Agent):
             The history of the solving process with some plotting options.
         '''
         # Handeling the case where the agent is already trained
-        if (self.value_function is not None) and (not force):
-            raise Exception('Agent has already been trained. The force parameter needs to be set to "True" if training should still happen')
-        else:
-            self.trained_at = None
-            self.name = '-'.join(self.name.split('-')[:-1])
-            self.value_function = None
+        if (self.value_function is not None):
+            if overwrite_training:
+                self.trained_at = None
+                self.name = '-'.join(self.name.split('-')[:-1])
+                self.value_function = None
+            else:
+                initial_value_function = self.value_function
 
         model = self.model if not use_gpu else self.model.gpu_model
 

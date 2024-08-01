@@ -1,6 +1,7 @@
 import h5py
 import json
 import os
+import scipy
 import shutil
 
 from matplotlib import pyplot as plt
@@ -12,6 +13,7 @@ import numpy as np
 gpu_support = False
 try:
     import cupy as cp
+    from cupyx.scipy.interpolate import RegularGridInterpolator as CupyRegularGridInterpolator
     gpu_support = True
 except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
@@ -21,16 +23,28 @@ def _resize_array(array: np.ndarray,
                   new_shape: tuple,
                   interpolation: str
                   ) -> np.ndarray:
+    '''
+    Function to resize a numpy array in the same fashion as the cv2.resize function.
+    It uses the scipy.interpolate
+    '''
+    # GPU support
+    xp = cp.get_array_module(array) if gpu_support else np
+    Interpolator = None
+    if gpu_support and (xp == cp):
+        Interpolator = CupyRegularGridInterpolator
+    else:
+        Interpolator = RegularGridInterpolator
+
     # Gathering initial shape and indices along each axis
     shape = array.shape
-    indices = [np.linspace(start=0, stop=(ax_shape-1), num=ax_shape) for ax_shape in shape]
+    indices = [xp.linspace(start=0, stop=(ax_shape-1), num=ax_shape) for ax_shape in shape]
 
     # Building the Interpolator
-    interp = RegularGridInterpolator((*indices,), array , method=interpolation)
+    interp = Interpolator((*indices,), array , method=interpolation)
 
     # Building new indices along each axis and building all gridpoints
-    new_indices = [np.linspace(start=0, stop=(ax_shape-1), num=ax_new_shape) for ax_shape, ax_new_shape in zip(shape, new_shape)]
-    new_grid_points =  np.meshgrid(*new_indices, indexing='ij')
+    new_indices = [xp.linspace(start=0, stop=(ax_shape-1), num=ax_new_shape) for ax_shape, ax_new_shape in zip(shape, new_shape)]
+    new_grid_points =  xp.meshgrid(*new_indices, indexing='ij')
 
     # Generating new data points on this new grid
     new_array = interp((*new_grid_points,))
@@ -599,18 +613,18 @@ class Environment:
         else:
             # Case where we are dealing with a h5 file
             # Note: Can't use self.data_shape because we don't know whether the data is processed yet or no
-            selected_slices = np.zeros((layer_count, time_count, *self._data[0][0].shape)) if self.has_layers else np.zeros((time_count, *self._data[0].shape))
+            selected_slices = xp.zeros((layer_count, time_count, *self._data[0][0].shape)) if self.has_layers else xp.zeros((time_count, *self._data[0].shape))
             for i, t in enumerate(unique_times):
                 if self.has_layers:
                     for j, l in enumerate(unique_layers):
-                        selected_slices[j,i] = np.array(data[l][t])
+                        selected_slices[j,i] = xp.array(data[int(l)][int(t)])
                 else:
-                    selected_slices[i] = np.array(data[t])
+                    selected_slices[i] = xp.array(data[t])
             data = xp.array(selected_slices)
 
         # Handle the case it needs to be processed on the fly
         if not self.data_processed:
-            reshaped_data = np.zeros((layer_count, time_count, *self.data_shape)) if self.has_layers else np.zeros((time_count, *self.data_shape))
+            reshaped_data = xp.zeros((layer_count, time_count, *self.data_shape)) if self.has_layers else xp.zeros((time_count, *self.data_shape))
 
             for i in range(time_count):
                 if self.has_layers:
