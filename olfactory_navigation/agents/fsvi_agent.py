@@ -94,7 +94,12 @@ class FSVI_Agent(PBVI_Agent):
         Used only during simulations.
         Part of the Agent's status. Records what action was last played by the agent.
         A list of n actions played based on how many simulations are running at once.
+    mdp_policy : ValueFunction
+        The solution to the fully version of the problem.
     '''
+    # FSVI special attribute
+    mdp_policy = None
+
     def expand(self,
                belief_set: BeliefSet,
                value_function: ValueFunction,
@@ -238,16 +243,18 @@ class FSVI_Agent(PBVI_Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        if mdp_policy is None:
+        if mdp_policy is not None:
+            self.mdp_policy = mdp_policy
+        elif (self.mdp_policy is None) or overwrite_training:
             log('MDP_policy, not provided. Solving MDP with Value Iteration...')
-            mdp_policy, hist = vi_solver.solve(model = self.model,
-                                               horizon = 1000,
-                                               initial_value_function = initial_value_function,
-                                               gamma = gamma,
-                                               eps = eps,
-                                               use_gpu = use_gpu,
-                                               history_tracking_level = 1,
-                                               print_progress = print_progress)
+            self.mdp_policy, hist = vi_solver.solve(model = self.model,
+                                                    horizon = 1000,
+                                                    initial_value_function = initial_value_function,
+                                                    gamma = gamma,
+                                                    eps = eps,
+                                                    use_gpu = use_gpu,
+                                                    history_tracking_level = 1,
+                                                    print_progress = print_progress)
             
             if print_stats:
                 print(hist.summary)
@@ -268,4 +275,4 @@ class FSVI_Agent(PBVI_Agent):
                              overwrite_training = overwrite_training,
                              print_progress = print_progress,
                              print_stats = print_stats,
-                             mdp_policy = mdp_policy)
+                             mdp_policy = self.mdp_policy)

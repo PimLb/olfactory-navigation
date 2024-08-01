@@ -135,9 +135,9 @@ class Infotaxis_Agent(Agent):
             elif arg == 'rnd_state':
                 setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
             elif isinstance(val, Model):
-                gpu_agent.model = self.model.gpu_model
-            elif isinstance(val, BeliefSet):
-                gpu_agent.belief = self.belief.to_gpu()
+                setattr(gpu_agent, arg, val.gpu_model)
+            elif isinstance(val, BeliefSet) or isinstance(val, Belief):
+                setattr(gpu_agent, arg, val.to_gpu())
             else:
                 setattr(gpu_agent, arg, val)
 

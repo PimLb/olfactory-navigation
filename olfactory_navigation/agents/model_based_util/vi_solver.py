@@ -223,7 +223,8 @@ def solve(model: Model,
 
         # Convergence check
         if max_change < max_allowed_change:
-            iterator.close()
+            if print_progress:
+                iterator.close()
             break
 
     return V, solve_history

@@ -370,11 +370,11 @@ class PBVI_Agent(Agent):
             elif arg == 'rnd_state':
                 setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
             elif isinstance(val, Model):
-                gpu_agent.model = self.model.gpu_model
+                setattr(gpu_agent, arg, val.gpu_model)
             elif isinstance(val, ValueFunction):
-                gpu_agent.value_function =self.value_function.to_gpu()
-            elif isinstance(val, BeliefSet):
-                gpu_agent.belief = self.belief.to_gpu()
+                setattr(gpu_agent, arg, val.to_gpu())
+            elif isinstance(val, BeliefSet) or isinstance(val, Belief):
+                setattr(gpu_agent, arg, val.to_gpu())
             else:
                 setattr(gpu_agent, arg, val)
 
@@ -738,7 +738,8 @@ class PBVI_Agent(Agent):
                 expand_max_change = self.compute_change(expand_value_function, value_function, belief_set)
 
                 if expand_max_change < max_allowed_change:
-                    print('Converged!')
+                    if print_progress:
+                        print('Converged!')
                     break
 
                 expand_value_function = value_function
