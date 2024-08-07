@@ -26,6 +26,10 @@ theme:
     - navigation.path
     - navigation.top
     - navigation.tabs
+    - navigation.tabs.sticky
+    - toc.integrate
+  icon:
+    repo: fontawesome/brands/github
 
 plugins:
   - search
@@ -41,10 +45,12 @@ plugins:
       nav_file: SUMMARY.md
   - section-index
 
+repo_name: PimLb/olfactory-navigation
 repo_url: https://github.com/PimLb/olfactory-navigation
 
 nav:
   - Home: 'index.md'
   - Code Reference: reference/
   - Tutorials:
-    - 'How to Create an Agent?': 'agent_creation.md'
+    - 'How to create an Agent?': 'agent_creation.md'
+    - 'How does a simulation work?': 'simulation_process.md'
