@@ -1,18 +1,18 @@
-In this article, the [*run_test()*](reference/simulation.md#olfactory_navigation.simulation.run_test) function, used for simulating an olfactory problem, will be described in detail.
+In this article, the [*run_test()*](../reference/simulation.md#olfactory_navigation.simulation.run_test) function, used for simulating an olfactory problem, will be described in detail.
 
 
 ## Process
 
-The *run_test()* function works by, first, initialize the state of the agent. This initialization is made of initializing the positions of the *n* agents within the environment, and asking the agent to initialize it internal state ([*agent.initialize_state(n)*](agent_creation.md#state-initialization)).
+The *run_test()* function works by, first, initialize the state of the agent. This initialization is made of initializing the positions of the *n* agents within the environment, and asking the agent to initialize it internal state ([*agent.initialize_state(n)*](agent_description.md#state-initialization)).
 
-Then, the simulation loop starts. This loop goes on until the horizon is reached, or all the agents reached the source. Within this loop, first, it is asked of the agents to choose an action to take ([*agent.choose_action()*](agent_creation.md#action-choice)). These actions are then used to move the positions of the agents in the physical space (*environment.move()*). From this new position of the agents, an observation is querried (*environment.get_observation()*). Using the new positions, it is also checked whether the agents have reached the source or not (*environment.source_reached()*). The observations and whether or not the agents reached the source is then fed back to the agent in order to update the internal state ([*agent.update_state()*](agent_creation.md#state-update)). And finally, the agents that have reached the source are pruned from the simulation by removing their positions from the list and asking the agent to prune those simulations ([*agent.kill()*](agent_creation.md#agent-pruning)).
+Then, the simulation loop starts. This loop goes on until the horizon is reached, or all the agents reached the source. Within this loop, first, it is asked of the agents to choose an action to take ([*agent.choose_action()*](agent_description.md#action-choice)). These actions are then used to move the positions of the agents in the physical space (*environment.move()*). From this new position of the agents, an observation is querried (*environment.get_observation()*). Using the new positions, it is also checked whether the agents have reached the source or not (*environment.source_reached()*). The observations and whether or not the agents reached the source is then fed back to the agent in order to update the internal state ([*agent.update_state()*](agent_description.md#state-update)). And finally, the agents that have reached the source are pruned from the simulation by removing their positions from the list and asking the agent to prune those simulations ([*agent.kill()*](agent_description.md#agent-pruning)).
 
-Once the simulation process is over, a [SimulationHistory](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory) instance is returned. This will be expanded upon in the ["Output"](#output) section of this tutorial.
+Once the simulation process is over, a [SimulationHistory](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory) instance is returned. This will be expanded upon in the ["Output"](#output) section of this tutorial.
 
 
 ## Diagram
 
-![run_test function diagram](img/diagram_run_test_flat_bg.png)
+![run_test function diagram](../img/diagram_run_test_flat_bg.png)
 
 We can see that the simulation process of the olfactory navigation is mostly an interaction between an agent and the environment it lives in. The simulation (*run_test()*) function simply works as an interface between the agent and its environment. In the diagram the actions performed by the agent are in blue while the one of the environment are in green. We can also note that the position of the agent is never sent to the agent, representing the fact the agent is unaware of it's relative position to the odor source.
 
@@ -53,14 +53,14 @@ Multiple things can be changed when running a test. All of this can be done thro
 
 ## Output
 
-During the simulation process, the positions, actions and observations are recorded in a [SimulationHistory](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory) instance and are returned at the end of the *run_test()* function.
+During the simulation process, the positions, actions and observations are recorded in a [SimulationHistory](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory) instance and are returned at the end of the *run_test()* function.
 
-This object allows to compute statistics about the performance of the agent ([*summary*](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.summary)), easily save the results to csv files ([*save()*](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.save)), and plot trajectories ([*plot()*](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.plot)).
+This object allows to compute statistics about the performance of the agent ([*summary*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.summary)), easily save the results to csv files ([*save()*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.save)), and plot trajectories ([*plot()*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.plot)).
 
 
 ### Summary
 
-The [*summary*](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.summary) attribute is a string summarizing the performance metrics for the simulation process. The performance metrics that are considered are the following:
+The [*summary*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.summary) attribute is a string summarizing the performance metrics for the simulation process. The performance metrics that are considered are the following:
 
 - Convergence: The percentage of agent that managed to reach the source before the *horizon*.
 - Step count: The average amount of steps taken by the agents along the simulation.
@@ -73,7 +73,7 @@ Note: The performance metrics are each displayed with their standard deviation, 
 
 ### Trajectories saving
 
-The [*save()*](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.save) function allows to record the results of a simulation in a readable .csv file. The information recorded are all the information need to reproduce the trajectory of all agents. This information can be summarized in a table by appending under one another all the trajectories. This table can be viewed as a list of [Pandas](https://pandas.pydata.org/) DataFrame object by querrying the [*simulation_dfs*](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.simulation_dfs) attribute.
+The [*save()*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.save) function allows to record the results of a simulation in a readable .csv file. The information recorded are all the information need to reproduce the trajectory of all agents. This information can be summarized in a table by appending under one another all the trajectories. This table can be viewed as a list of [Pandas](https://pandas.pydata.org/) DataFrame object by querrying the [*simulation_dfs*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.simulation_dfs) attribute.
 
 A sample table of the trajectories on a 2 dimensional envrionment:
 
@@ -94,7 +94,7 @@ The sample shown above is of simulation on a 2 dimensonal environment. But simul
 
 ### Analysis saving
 
-An "analysis" table can also be built. This table summarizes the performance metrics described above for each of the agents and also computes the averages and standard deviations. This table is available as the [*analysis_df*](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.analysis_df) attribute.
+An "analysis" table can also be built. This table summarizes the performance metrics described above for each of the agents and also computes the averages and standard deviations. This table is available as the [*analysis_df*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.analysis_df) attribute.
 
 A sample table of the analysis of the trajectories on a 2 dimensional envrionment:
 
@@ -109,17 +109,17 @@ A sample table of the analysis of the trajectories on a 2 dimensional envrionmen
 
 As for the *summary* attribute, all the performance metrics are computed both for the full set of trajectories and when the trajectories are filtered to the successful ones only.
 
-Note that if the analysis .csv file has not been generated or does not exists, it is always possible to regenerate it by loading a SimulationHistory object using the [*load_from_file()*](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.load_from_file) function.
+Note that if the analysis .csv file has not been generated or does not exists, it is always possible to regenerate it by loading a SimulationHistory object using the [*load_from_file()*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.load_from_file) function.
 
 
 ### Trajectory plot
 
-The [*plot()*](reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.plot) function allows for one of the trajectories to be plot. It shows the path of the agent from the start point (green dot), and the observations it does along the way (blue dots). The source is marker with the red circle. If the agent querries odors at other layers, it will be marker with crosses of different colors.
+The [*plot()*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.plot) function allows for one of the trajectories to be plot. It shows the path of the agent from the start point (green dot), and the observations it does along the way (blue dots). The source is marker with the red circle. If the agent querries odors at other layers, it will be marker with crosses of different colors.
 
-![An example trjectory plot using the plot() function](img/trajectory_example.png)
+![An example trjectory plot using the plot() function](../img/trajectory_example.png)
 
 Note: the plotting function only works with simulations of environments in 2 dimensions.
 
 ## Going Further
 
-Using this simulation function, some more predefined tests have been defined. Some tests are just a predefined way to choose the starting positions ([*run_all_starts_test()*](reference/test_setups.md#olfactory_navigation.test_setups.run_all_starts_test), or [*run_n_by_cell_test()*](reference/test_setups.md#olfactory_navigation.test_setups.run_n_by_cell_test)), whereas some modify the environment entirely to test the robustness of the agent ([*test_shape_robustness()*](reference/test_setups.md#olfactory_navigation.test_setups.test_shape_robustness), or [*test_scale_robustness()*](reference/test_setups.md#olfactory_navigation.test_setups.test_scale_robustness)).
+Using this simulation function, some more predefined tests have been defined. Some tests are just a predefined way to choose the starting positions ([*run_all_starts_test()*](../reference/test_setups.md#olfactory_navigation.test_setups.run_all_starts_test), or [*run_n_by_cell_test()*](../reference/test_setups.md#olfactory_navigation.test_setups.run_n_by_cell_test)), whereas some modify the environment entirely to test the robustness of the agent ([*test_shape_robustness()*](../reference/test_setups.md#olfactory_navigation.test_setups.test_shape_robustness), or [*test_scale_robustness()*](../reference/test_setups.md#olfactory_navigation.test_setups.test_scale_robustness)).

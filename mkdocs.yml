@@ -22,12 +22,10 @@ theme:
         name: Switch to light mode
   features:
     - navigation.footer
-    - navigation.expand
     - navigation.path
     - navigation.top
     - navigation.tabs
     - navigation.tabs.sticky
-    - toc.integrate
   icon:
     repo: fontawesome/brands/github
 
@@ -52,5 +50,7 @@ nav:
   - Home: 'index.md'
   - Code Reference: reference/
   - Tutorials:
-    - 'What is an Agent?': 'agent_creation.md'
-    - 'How does a simulation work?': 'simulation_process.md'
+    - 'What is an Environment?': 'tutorials/environment_description.md'
+    - 'What is an Agent?': 'tutorials/agent_description.md'
+    - 'How does a simulation work?': 'tutorials/simulation_process.md'
+    - 'What tests are available?': 'tutorials/available_tests.md'

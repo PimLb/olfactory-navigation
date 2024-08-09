@@ -17,8 +17,13 @@ The framework aims to allow a user to create agents using different techniques a
 
 2. Tutorials
 
-    2.1 [What is an Agent?](agent_creation.md)
-    2.2 [How does a simulation work?](simulation_process.md)
+    2.1 [What is an Environment?](tutorials/environment_description.md)
+
+    2.2 [What is an Agent?](tutorials/agent_description.md)
+
+    2.3 [How does a simulation work?](tutorials/simulation_process.md)
+
+    2.4 [What tests are available?](tutorials/available_tests.md)
 
 
 ## PiMLb
