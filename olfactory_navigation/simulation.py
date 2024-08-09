@@ -31,11 +31,12 @@ __all__ = (
 
 class SimulationHistory:
     '''
-    Class to represent a list of the steps that happened during a simulation with:
+    Class to record the steps that happened during a simulation with the following information being saved:
 
-        - the positions the agents pass by
-        - the actions the agents take
-        - the observations the agents receive ('observations')
+    - the positions the agents pass by
+    - the actions the agents take
+    - the observations the agents receive ('observations')
+    - the time in the simulation process
 
 
     Parameters
@@ -196,7 +197,7 @@ class SimulationHistory:
         A Pandas DataFrame analyzing the results of the simulations.
         It aggregates the simulations in single rows, recording:
 
-         - <axis>:              The starting positions at the given axis
+         - axis:                The starting positions at the given axis
          - optimal_steps_count: The minimal amount of steps to reach the source
          - converged:           Whether or not the simulation reached the source
          - reached_horizon:     Whether the failed simulation reached to horizon

@@ -52,5 +52,5 @@ nav:
   - Home: 'index.md'
   - Code Reference: reference/
   - Tutorials:
-    - 'How to create an Agent?': 'agent_creation.md'
+    - 'What is an Agent?': 'agent_creation.md'
     - 'How does a simulation work?': 'simulation_process.md'
