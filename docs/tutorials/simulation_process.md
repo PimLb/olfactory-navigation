@@ -12,7 +12,7 @@ Once the simulation process is over, a [SimulationHistory](../reference/simulati
 
 ## Diagram
 
-![run_test function diagram](../img/diagram_run_test_flat_bg.png)
+![run_test function diagram](img/diagram_run_test_flat_bg.png)
 
 We can see that the simulation process of the olfactory navigation is mostly an interaction between an agent and the environment it lives in. The simulation (*run_test()*) function simply works as an interface between the agent and its environment. In the diagram the actions performed by the agent are in blue while the one of the environment are in green. We can also note that the position of the agent is never sent to the agent, representing the fact the agent is unaware of it's relative position to the odor source.
 
@@ -116,7 +116,7 @@ Note that if the analysis .csv file has not been generated or does not exists, i
 
 The [*plot()*](../reference/simulation.md#olfactory_navigation.simulation.SimulationHistory.plot) function allows for one of the trajectories to be plot. It shows the path of the agent from the start point (green dot), and the observations it does along the way (blue dots). The source is marker with the red circle. If the agent querries odors at other layers, it will be marker with crosses of different colors.
 
-![An example trjectory plot using the plot() function](../img/trajectory_example.png)
+![An example trjectory plot using the plot() function](img/trajectory_example.png)
 
 Note: the plotting function only works with simulations of environments in 2 dimensions.
 
