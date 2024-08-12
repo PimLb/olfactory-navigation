@@ -22,10 +22,12 @@ theme:
         name: Switch to light mode
   features:
     - navigation.footer
-    - navigation.expand
     - navigation.path
     - navigation.top
     - navigation.tabs
+    - navigation.tabs.sticky
+  icon:
+    repo: fontawesome/brands/github
 
 plugins:
   - search
@@ -41,10 +43,14 @@ plugins:
       nav_file: SUMMARY.md
   - section-index
 
+repo_name: PimLb/olfactory-navigation
 repo_url: https://github.com/PimLb/olfactory-navigation
 
 nav:
   - Home: 'index.md'
   - Code Reference: reference/
   - Tutorials:
-    - 'How to Create an Agent?': 'agent_creation.md'
+    - 'What is an Environment?': 'tutorials/environment_description.md'
+    - 'What is an Agent?': 'tutorials/agent_description.md'
+    - 'How does a simulation work?': 'tutorials/simulation_process.md'
+    - 'What tests are available?': 'tutorials/available_tests.md'
