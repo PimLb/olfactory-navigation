@@ -864,6 +864,10 @@ def run_test(agent: Agent,
         # Check if the source is reached
         source_reached = environment.source_reached(new_agent_position)
 
+        # Add the position to the observation if the agent is space aware
+        if agent.space_aware:
+            observation = xp.hstack((observation[:,None], agent_position))
+
         # Return the observation to the agent
         update_succeeded = agent.update_state(observation, source_reached)
         if update_succeeded is None:

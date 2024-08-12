@@ -473,7 +473,7 @@ class Environment:
     @property
     def _data_is_numpy(self) -> bool:
         '''
-        Wheter or nor the data is a numpy array or not.
+        Wheter the data is a numpy array or not.
         '''
         xp = cp if self.on_gpu else np
         return isinstance(self._data, xp.ndarray)

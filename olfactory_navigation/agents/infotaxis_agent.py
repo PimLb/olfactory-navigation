@@ -237,26 +237,8 @@ class Infotaxis_Agent(Agent):
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 
-        # GPU support
-        xp = np if not self.on_gpu else cp
-
-        # TODO: Make dedicated observation discretization function
-        # Set the thresholds as a vector
-        threshold = self.threshold
-        if not isinstance(threshold, list):
-            threshold = [threshold]
-
-        # Ensure 0.0 and 1.0 begin and end the threshold list
-        if threshold[0] != -xp.inf:
-            threshold = [-xp.inf] + threshold
-
-        if threshold[-1] != xp.inf:
-            threshold = threshold + [xp.inf]
-        threshold = xp.array(threshold)
-
-        # Setting observation ids
-        observation_ids = xp.argwhere((observation[:,None] >= threshold[:-1][None,:]) & (observation[:,None] < threshold[1:][None,:]))[:,1]
-        observation_ids[source_reached] = len(threshold) # Observe source, goal is always last observation with len(threshold)-1 being the amount of observation buckets.
+        # Discretizing observations
+        observation_ids = self.discretize_observations(observation, source_reached)
 
         # Update the set of belief
         self.belief = self.belief.update(actions=self.action_played, observations=observation_ids)
