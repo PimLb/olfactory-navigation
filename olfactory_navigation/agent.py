@@ -66,6 +66,9 @@ class Agent:
         Whether the agent is aware of it's own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
         Note: The observation array will have a different shape when returned to the update_state function!
+    spacial_subdivisions : np.ndarray, optional
+        How many spacial compartments the agent has to internally represent the space it lives in.
+        By default, it will be as many as there are grid points in the environment.
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
@@ -80,6 +83,7 @@ class Agent:
     environment : Environment
     threshold : float or list[float]
     space_aware : bool
+    spacial_subdivisions : np.ndarray
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
@@ -100,17 +104,25 @@ class Agent:
                  environment: Environment,
                  threshold: float | list[float] = 3e-6,
                  space_aware: bool = False,
+                 spacial_subdivisions: np.ndarray | None = None,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None = None,
                  seed: int = 12131415
                  ) -> None:
         self.environment = environment
-        self.threshold = threshold
         self.space_aware = space_aware
+        self.threshold = threshold
 
         # Ensuring thresholds are sorted (if it is a list)
         if isinstance(self.threshold, list):
             self.threshold = sorted(self.threshold)
+
+        # Spacial subdivisions
+        if spacial_subdivisions is None:
+            self.spacial_subdivisions = np.array(self.environment.shape)
+        else:
+            self.spacial_subdivisions = np.array(spacial_subdivisions)
+        assert len(self.spacial_subdivisions) == self.environment.dimensions, "The amount of spacial divisions must match the amount of dimensions of the environment."
 
         # Allowed actions
         self.action_labels = None
@@ -304,9 +316,10 @@ class Agent:
         if not self.space_aware:
             discrete_observations = observation_ids
         else:
-            position_observation = xp.clip(observation[:,1:], a_min=0, a_max=(xp.array(self.environment.shape)-1)).astype(int)
-            position_count = int(xp.prod(self.environment.shape))
-            position_ids = xp.ravel_multi_index(position_observation, dims=self.environment.shape)
+            position_clipped = xp.clip(observation[:,1:], a_min=0, a_max=(xp.array(self.environment.shape)-1))
+            position_observation = ((position_clipped / xp.array(self.environment.shape)) * self.spacial_subdivisions).astype(int)
+            position_count = int(xp.prod(self.spacial_subdivisions))
+            position_ids = xp.ravel_multi_index(position_observation, dims=list(self.spacial_subdivisions))
 
             # Add the amount of possible positions to the observation count
             observation_count *= position_count
