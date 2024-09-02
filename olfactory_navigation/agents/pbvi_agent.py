@@ -258,6 +258,13 @@ class PBVI_Agent(Agent):
     threshold : float or list[float], default=3e-6
         The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
         If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+    space_aware : bool, default=False
+        Whether the agent is aware of it's own position in space.
+        This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
+        Note: The observation array will have a different shape when returned to the update_state function!
+    spacial_subdivisions : np.ndarray, optional
+        How many spacial compartments the agent has to internally represent the space it lives in.
+        By default, it will be as many as there are grid points in the environment.
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
@@ -312,7 +319,9 @@ class PBVI_Agent(Agent):
     '''
     def __init__(self,
                  environment: Environment,
-                 threshold: float | None = 3e-6,
+                 threshold: float | list[float] = 3e-6,
+                 space_aware: bool = False,
+                 spacial_subdivisions: np.ndarray | None = None,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None = None,
                  seed: int = 12131415,
@@ -323,6 +332,8 @@ class PBVI_Agent(Agent):
         super().__init__(
             environment = environment,
             threshold = threshold,
+            space_aware = space_aware,
+            spacial_subdivisions = spacial_subdivisions,
             actions = actions,
             name = name,
             seed = seed
