@@ -319,7 +319,7 @@ class Agent:
             position_clipped = xp.clip(observation[:,1:], a_min=0, a_max=(xp.array(self.environment.shape)-1))
             position_observation = ((position_clipped / xp.array(self.environment.shape)) * self.spacial_subdivisions).astype(int)
             position_count = int(xp.prod(self.spacial_subdivisions))
-            position_ids = xp.ravel_multi_index(position_observation, dims=list(self.spacial_subdivisions))
+            position_ids = xp.ravel_multi_index(position_observation.T, dims=self.spacial_subdivisions.tolist())
 
             # Add the amount of possible positions to the observation count
             observation_count *= position_count
