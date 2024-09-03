@@ -84,7 +84,7 @@ class SimulationHistory:
         A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n positions as y,x vectors.
     observations : list[np.ndarray]
         A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n observations received by the agents.
-    done_at_step : np.ndarray
+    reached_source_at_step : np.ndarray
         A numpy array containing n elements that records when a given simulation reaches the source (-1 is not reached).
     '''
     def __init__(self,
@@ -116,7 +116,7 @@ class SimulationHistory:
         self.timestamps: list[datetime] = []
 
         self._running_sims = np.arange(self.n)
-        self.done_at_step = np.full(self.n, fill_value=-1)
+        self.reached_source_at_step = np.full(self.n, fill_value=-1)
 
         # Environment and agent attributes
         self.environment_dimensions = self.environment.dimensions
@@ -134,7 +134,7 @@ class SimulationHistory:
                  actions: np.ndarray,
                  next_positions: np.ndarray,
                  observations: np.ndarray,
-                 is_done: np.ndarray,
+                 reached_source: np.ndarray,
                  interupt: np.ndarray
                  ) -> None:
         '''
@@ -148,7 +148,7 @@ class SimulationHistory:
             The positions that were reached by the agents after having taken actions.
         observations : np.ndarray
             The observations the agents receive after having taken actions.
-        is_done : np.ndarray
+        reached_source : np.ndarray
             A boolean array of whether each agent has reached the source or not.
         interupt : np.ndarray
             A boolean array of whether each agent has to be terminated even if it hasnt reached the source yet.
@@ -166,7 +166,7 @@ class SimulationHistory:
             actions = actions if cp.get_array_module(actions) == np else cp.asnumpy(actions)
             next_positions = next_positions if cp.get_array_module(next_positions) == np else cp.asnumpy(next_positions)
             observations = observations if cp.get_array_module(observations) == np else cp.asnumpy(observations)
-            is_done = is_done if cp.get_array_module(is_done) == np else cp.asnumpy(is_done)
+            reached_source = reached_source if cp.get_array_module(reached_source) == np else cp.asnumpy(reached_source)
             interupt = interupt if cp.get_array_module(interupt) == np else cp.asnumpy(interupt)
 
         # Actions tracking
@@ -185,10 +185,10 @@ class SimulationHistory:
         self.observations.append(observation_all_sims)
 
         # Recording at which step the simulation is done if it is done
-        self.done_at_step[self._running_sims[is_done]] = len(self.positions)
+        self.reached_source_at_step[self._running_sims[reached_source]] = len(self.positions)
 
         # Updating the list of running sims
-        self._running_sims = self._running_sims[~is_done & ~interupt]
+        self._running_sims = self._running_sims[~reached_source & ~interupt]
 
 
     @property
@@ -218,9 +218,9 @@ class SimulationHistory:
         # Dataframe creation
         df = pd.DataFrame(self.start_points, columns=axes_labels)
         df['optimal_steps_count'] = self.environment.distance_to_source(self.start_points)
-        df['converged'] = self.done_at_step >= 0
-        df['reached_horizon'] = np.all(self.positions[-1] != -1, axis=1) & (self.done_at_step == -1) & (len(self.positions) == self.horizon)
-        df['steps_taken'] = np.where(df['converged'], self.done_at_step, len(self.positions))
+        df['converged'] = self.reached_source_at_step >= 0
+        df['reached_horizon'] = np.all(self.positions[-1] != -1, axis=1) & (self.reached_source_at_step == -1) & (len(self.positions) == self.horizon)
+        df['steps_taken'] = np.where(df['converged'], self.reached_source_at_step, len(self.positions))
         df['discounted_rewards'] = self.reward_discount ** df['steps_taken']
         df['extra_steps'] = df['steps_taken'] - df['optimal_steps_count']
         df['t_min_over_t'] = df['optimal_steps_count'] / df['steps_taken']
@@ -252,6 +252,38 @@ class SimulationHistory:
 
 
     @property
+    def done_count(self) -> int:
+        '''
+        Returns how many simulations are terminated (whether they reached the source or not).
+        '''
+        return self.n - len(self._running_sims)
+
+
+    @property
+    def successful_simulation(self) -> np.ndarray:
+        return (self.reached_source_at_step >= 0)
+
+
+    @property
+    def success_count(self) -> int:
+        '''
+        Returns how many simulations reached the source.
+        '''
+        return int(np.sum(self.successful_simulation))
+    
+
+    @property
+    def simulations_at_horizon(self) -> np.ndarray:
+        '''
+        Returns a boolean array of which simulations reached the horizon.
+        '''
+        last_position_exists = np.all(self.positions[-1] != -1, axis=1)
+        not_reached_source = (self.reached_source_at_step == -1)
+        simulation_reached_horizon = (len(self.positions) == self.horizon)
+        return last_position_exists & not_reached_source & simulation_reached_horizon
+
+
+    @property
     def summary(self) -> str:
         '''
         A string summarizing the performances of all the simulations.
@@ -264,12 +296,12 @@ class SimulationHistory:
         
         Along with the respective the standard deviations and equally for only for the successful simulations.
         '''
-        done_sim_count = np.sum(self.done_at_step >= 0)
-        failed_count = self.n - done_sim_count
-        reached_horizon_count = int(np.sum(np.all(self.positions[-1] != -1, axis=1) & (self.done_at_step == -1) & (len(self.positions) == self.horizon)))
-        summary_str = f'Simulations reached goal: {done_sim_count}/{self.n} ({failed_count} failures (reached horizon: {reached_horizon_count})) ({(done_sim_count*100)/self.n:.2f}% success)'
+        success_sim_count = self.success_count
+        failed_count = self.n - success_sim_count
+        reached_horizon_count = int(np.sum(self.simulations_at_horizon))
+        summary_str = f'Simulations reached goal: {success_sim_count}/{self.n} ({failed_count} failures (reached horizon: {reached_horizon_count})) ({(success_sim_count*100)/self.n:.2f}% success)'
 
-        if done_sim_count == 0:
+        if success_sim_count == 0:
             return summary_str
         
         # Metrics
@@ -320,7 +352,7 @@ class SimulationHistory:
 
             # Loop through the n simulations
             for i in range(self.n):
-                length = self.done_at_step[i] if self.done_at_step[i] >= 0 else len(states_array)
+                length = self.reached_source_at_step[i] if self.reached_source_at_step[i] >= 0 else len(states_array)
 
                 # Creation of the dataframe
                 df = {}
@@ -340,7 +372,7 @@ class SimulationHistory:
 
                 # - Other variables
                 df['o'] = np.hstack([[None], observation_array[:length, i]])
-                df['done'] = np.hstack([[None], np.where(np.arange(1,length+1) == self.done_at_step[i], 1, 0)])
+                df['done'] = np.hstack([[None], np.where(np.arange(1,length+1) == self.reached_source_at_step[i], 1, 0)])
 
                 # Append
                 self._simulation_dfs.append(pd.DataFrame(df))
@@ -571,7 +603,7 @@ class SimulationHistory:
         positions = all_simulation_arrays[1:, :, 1:(1+dimensions)]
         actions = all_simulation_arrays[1:, :, (1+dimensions):((1+dimensions) + (1 if has_layers else 0) + dimensions)]
         observations = all_simulation_arrays[1:, :, ((1+dimensions) + (1 if has_layers else 0) + dimensions)]
-        done_at_step = np.where(all_simulation_arrays[sizes-1, np.arange(n), ((1+dimensions) + (1 if has_layers else 0) + dimensions + 1)], sizes-1, -1)
+        reached_source_at_step = np.where(all_simulation_arrays[sizes-1, np.arange(n), ((1+dimensions) + (1 if has_layers else 0) + dimensions + 1)], sizes-1, -1)
 
         # Building SimulationHistory instance
         hist = cls.__new__(cls)
@@ -590,7 +622,7 @@ class SimulationHistory:
         hist.positions = [*positions]
         hist.actions = [*actions]
         hist.observations = [*observations]
-        hist.done_at_step = done_at_step
+        hist.reached_source_at_step = reached_source_at_step
         hist.timestamps = [datetime.strptime(ts, '%H%M%S%f') for ts in combined_df['timestamps'][1:max_length]]
 
         # Other attributes
@@ -710,6 +742,41 @@ class SimulationHistory:
         # Axes
         ax.set_xlabel('Iteration')
         ax.set_ylabel('Runtime (ms)')
+
+
+    def plot_successes(self,
+                       ax: plt.Axes | None = None
+                       ) -> None:
+        '''
+        Function to plot a 2D map of whether a given starting point was successfull or not (and whether it died early).
+
+        Parameters
+        ----------
+        ax : plt.Axes, optional
+            The ax on which to plot the path. (If not provided, a new axis will be created)
+        '''
+        assert self.environment.dimensions == 2, "Only implemented for 2D environments..."
+
+        # Generate ax is not provided
+        if ax is None:
+            _, ax = plt.subplots(figsize=(18,3))
+
+        # Setting up an empty grid of the starting points
+        start_points_grid = np.zeros(self.environment.shape)
+
+        # Compute the successful, failed and the ones that reached the horizon
+        success_points = self.start_points[self.successful_simulation]
+        failed_points = self.start_points[~self.successful_simulation]
+        failed_not_at_horizon_points = self.start_points[~self.successful_simulation & ~self.simulations_at_horizon]
+
+        start_points_grid[failed_points[:,0], failed_points[:,1]] = -1
+        start_points_grid[success_points[:,0], success_points[:,1]] = 1
+
+        ax.imshow(start_points_grid, cmap='RdBu')
+
+        # The crosses where the points did not reach the horizon
+        ax.scatter(failed_not_at_horizon_points[:,1], failed_not_at_horizon_points[:,0], marker='x', color='black', s=10, label='Died early')
+        ax.legend()
 
 
 def run_test(agent: Agent,
@@ -888,8 +955,8 @@ def run_test(agent: Agent,
         hist.add_step(
             actions=action,
             next_positions=new_agent_position,
-            observations=observation,
-            is_done=source_reached,
+            observations=observation[:,0] if agent.space_aware else observation,
+            reached_source=source_reached,
             interupt=to_terminate
         )
 
@@ -899,8 +966,13 @@ def run_test(agent: Agent,
 
         # Update progress bar
         if print_progress:
-            done_count = n-len(agent_position)
-            iterator.set_postfix({'done ': f' {done_count} of {n} ({(done_count*100)/n:.1f}%)'})
+            done_count = hist.done_count
+            success_count = hist.success_count
+            iterator.set_postfix({
+                'done ': f' {done_count}/{n} ({(done_count/n)*100:.1f}%)',
+                'success ': f' {success_count}/{done_count} ({(success_count/done_count)*100:.1f}%)',
+                'dead ': f' {done_count-success_count}/{done_count} ({((done_count-success_count)/done_count)*100:.1f}%)'
+            })
 
     # If requested print the simulation start
     if print_stats:
