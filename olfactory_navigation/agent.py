@@ -125,6 +125,28 @@ class Agent:
             self.spacial_subdivisions = np.array(spacial_subdivisions)
         assert len(self.spacial_subdivisions) == self.environment.dimensions, "The amount of spacial divisions must match the amount of dimensions of the environment."
 
+        # Mapping environment to spacial subdivisions
+        env_shape = np.array(self.environment.shape)
+
+        std_size = (env_shape / self.spacial_subdivisions).astype(int)
+        overflows = (env_shape % self.spacial_subdivisions)
+
+        cell_sizes = [(np.repeat(size, partitions) + np.array([np.floor(overflow / 2), *np.zeros(partitions-2), np.ceil(overflow / 2)])).astype(int)
+                    for partitions, size, overflow in zip(self.spacial_subdivisions, std_size, overflows)]
+        
+        # Finding the edges of the cells and filling a grid with ids
+        cell_edges = [np.concatenate(([0], np.cumsum(ax_sizes))) for ax_sizes in cell_sizes]
+
+        lower_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[:-1] for bounds_arr in cell_edges], indexing='ij')]).T
+        upper_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[1 :] for bounds_arr in cell_edges], indexing='ij')]).T
+
+        self._environment_to_subdivision_mapping = np.full(self.environment.shape, -1)
+        for i, (lower_b, upper_b) in enumerate(zip(lower_bounds, upper_bounds)):
+            slices = [slice(ax_lower, ax_upper) for ax_lower, ax_upper in zip(lower_b, upper_b)]
+
+            # Grid to cell mapping
+            self._environment_to_subdivision_mapping[*slices] = i
+
         # Allowed actions
         self.action_labels = None
         if actions is None:
@@ -318,9 +340,8 @@ class Agent:
             discrete_observations = observation_ids
         else:
             position_clipped = xp.clip(observation[:,1:], a_min=0, a_max=(xp.array(self.environment.shape)-1))
-            position_observation = ((position_clipped / xp.array(self.environment.shape)) * self.spacial_subdivisions).astype(int)
             position_count = int(xp.prod(self.spacial_subdivisions))
-            position_ids = xp.ravel_multi_index(position_observation.T, dims=self.spacial_subdivisions.tolist())
+            position_ids = self._environment_to_subdivision_mapping[*position_clipped.astype(int).T]
 
             # Add the amount of possible positions to the observation count
             observation_count *= position_count
