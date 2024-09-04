@@ -925,16 +925,16 @@ def run_test(agent: Agent,
         action = agent.choose_action()
 
         # Updating the agent's actual position (hidden to him)
-        new_agent_position = environment.move(pos=agent_position,
+        agent_position = environment.move(pos=agent_position,
                                               movement=(action if not environment.has_layers else action[:,1:])) # Getting only the physical component of the action vector if environment has layers.
 
         # Get an observation based on the new position of the agent
-        observation = environment.get_observation(pos=new_agent_position,
+        observation = environment.get_observation(pos=agent_position,
                                                   time=(time_shift + i),
                                                   layer=(0 if not environment.has_layers else action[:,0])) # Getting the layer information column of the action matrix.
 
         # Check if the source is reached
-        source_reached = environment.source_reached(new_agent_position)
+        source_reached = environment.source_reached(agent_position)
 
         # Add the position to the observation if the agent is space aware
         if agent.space_aware:
@@ -951,19 +951,19 @@ def run_test(agent: Agent,
         # Agents to terminate
         to_terminate = source_reached | sims_at_end | ~update_succeeded
 
-        # Interupt agents that reached the end
-        agent_position = new_agent_position[~to_terminate]
-        time_shift = time_shift[~to_terminate]
-        agent.kill(simulations_to_kill=to_terminate)
-
         # Send the values to the tracker
         hist.add_step(
             actions=action,
-            next_positions=new_agent_position,
+            next_positions=agent_position,
             observations=observation[:,0] if agent.space_aware else observation,
             reached_source=source_reached,
             interupt=to_terminate
         )
+
+        # Interupt agents that reached the end
+        agent_position = agent_position[~to_terminate]
+        time_shift = time_shift[~to_terminate]
+        agent.kill(simulations_to_kill=to_terminate)
 
         # Early stopping if all agents done
         if len(agent_position) == 0:
