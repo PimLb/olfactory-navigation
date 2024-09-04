@@ -133,7 +133,7 @@ class Agent:
 
         cell_sizes = [(np.repeat(size, partitions) + np.array([np.floor(overflow / 2), *np.zeros(partitions-2), np.ceil(overflow / 2)])).astype(int)
                     for partitions, size, overflow in zip(self.spacial_subdivisions, std_size, overflows)]
-        
+
         # Finding the edges of the cells and filling a grid with ids
         cell_edges = [np.concatenate(([0], np.cumsum(ax_sizes))) for ax_sizes in cell_sizes]
 
@@ -206,7 +206,7 @@ class Agent:
         else:
             self.action_set = np.ndarray(list(actions.values()))
             self.action_labels = list(actions.keys())
-            
+
         # Asertion that the shape of the actions set if right
         layered = 0 if not environment.has_layers else 1
         assert self.action_set.shape[1] == (layered + environment.dimensions), f"The shape of the action_set provided is not right. (Found {self.action_set.shape}; expected (., {layered + environment.dimensions}))"
@@ -463,7 +463,7 @@ class Agent:
         ----------
         folder : str
             The folder in which the agent was saved.
-        
+
         Returns
         -------
         loaded_agent : Agent
