@@ -14,6 +14,7 @@ from olfactory_navigation.agents.model_based_util.pomdp import Model
 from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
 from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
 from olfactory_navigation.agents.model_based_util.environment_converter import exact_converter
+from olfactory_navigation.simulation import SimulationHistory
 
 import numpy as np
 
@@ -87,13 +88,13 @@ class TrainingHistory:
                  initial_value_function: ValueFunction,
                  initial_belief_set: BeliefSet
                  ):
-        
+
         self.tracking_level = tracking_level
         self.model = model
         self.gamma = gamma
         self.eps = eps
         self.run_ts = datetime.now()
-        
+
         self.expand_append = expand_append
 
         # Time tracking
@@ -127,7 +128,7 @@ class TrainingHistory:
         '''
         assert self.tracking_level >= 2, "Tracking level is set too low, increase it to 2 if you want to have value function tracking as well."
         return self.value_functions[-1]
-    
+
 
     @property
     def explored_beliefs(self) -> BeliefSet:
@@ -136,7 +137,7 @@ class TrainingHistory:
         '''
         assert self.tracking_level >= 2, "Tracking level is set too low, increase it to 2 if you want to have belief sets tracking as well."
         return self.belief_sets[-1]
-    
+
 
     def add_expand_step(self,
                         expansion_time: float,
@@ -225,14 +226,14 @@ class TrainingHistory:
             else:
                 summary_str += f'and yielded on average {sum(self.beliefs_counts[1:]) / len(self.beliefs_counts[1:]):.2f} beliefs per iteration.'
             summary_str += f' ({np.sum(np.divide(self.expansion_times, self.beliefs_counts[1:])) / len(self.expansion_times):.4f}s/it/belief)'
-            
+
             summary_str += f'\n  - Backup function took on average {sum(self.backup_times) /len(self.backup_times):.4f}s '
             summary_str += f'and yielded on average {np.average(np.diff(self.alpha_vector_counts)):.2f} alpha vectors per iteration.'
             summary_str += f' ({np.sum(np.divide(self.backup_times, self.alpha_vector_counts[1:])) / len(self.backup_times):.4f}s/it/alpha)'
 
             summary_str += f'\n  - Pruning function took on average {sum(self.pruning_times) /len(self.pruning_times):.4f}s '
             summary_str += f'and yielded on average prunings of {sum(self.prune_counts) / len(self.prune_counts):.2f} alpha vectors per iteration.'
-        
+
         return summary_str
 
 
@@ -465,7 +466,7 @@ class PBVI_Agent(Agent):
 
         # Save value function
         self.value_function.save(folder=folder, file_name='Value_Function.npy')
-        
+
         # Finalization
         self.saved_at = os.path.abspath(folder).replace('\\', '/')
         print(f'Agent saved to: {folder}')
@@ -495,7 +496,7 @@ class PBVI_Agent(Agent):
         arguments = None
         with open(folder + '/METADATA.json', 'r') as json_file:
             arguments = json.load(json_file)
-        
+
         # Load environment
         environment = Environment.load(arguments['environment_saved_at'])
 
@@ -627,11 +628,11 @@ class PBVI_Agent(Agent):
         if initial_belief is None:
             belief_set = BeliefSet(model, [Belief(model)])
         elif isinstance(initial_belief, BeliefSet):
-            belief_set = initial_belief.to_gpu() if self.on_gpu else initial_belief 
+            belief_set = initial_belief.to_gpu() if self.on_gpu else initial_belief
         else:
             initial_belief = Belief(model, xp.array(initial_belief.values))
             belief_set = BeliefSet(model, [initial_belief])
-        
+
         # Handeling the case where the agent is already trained
         if (self.value_function is not None):
             if overwrite_training:
@@ -659,7 +660,7 @@ class PBVI_Agent(Agent):
                                            expand_append=full_backup,
                                            initial_value_function=value_function,
                                            initial_belief_set=belief_set)
-        
+
         # Loop
         iteration = 0
         expand_value_function = value_function
@@ -727,9 +728,9 @@ class PBVI_Agent(Agent):
                         value_function = ValueFunction(model=model,
                                                        alpha_vectors=xp.delete(value_function.alpha_vector_array, random_vectors_to_delete, axis=0),
                                                        action_list=xp.delete(value_function.actions, random_vectors_to_delete))
-                        
+
                         iterator_postfix['|useful|'] = useful_alpha_vectors.shape[0]
-                    
+
                     # Compute the change between value functions
                     max_change = self.compute_change(value_function, old_value_function, belief_set)
 
@@ -887,7 +888,7 @@ class PBVI_Agent(Agent):
             Whether to append the new alpha vectors generated to the old alpha vectors before pruning.
         belief_dominance_prune : bool, default=True
             Whether, before returning the new value function, checks what alpha vectors have a supperior value, if so it adds it.
-            
+
         Returns
         -------
         new_alpha_set : ValueFunction
@@ -899,7 +900,7 @@ class PBVI_Agent(Agent):
         # Step 1
         vector_array = value_function.alpha_vector_array
         vectors_array_reachable_states = vector_array[xp.arange(vector_array.shape[0])[:,None,None,None], model.reachable_states[None,:,:,:]]
-        
+
         gamma_a_o_t = gamma * xp.einsum('saor,vsar->aovs', model.reachable_transitional_observation_table, vectors_array_reachable_states)
 
         # Step 2
@@ -929,7 +930,7 @@ class PBVI_Agent(Agent):
         # Union with previous value function
         if append:
             new_value_function.extend(value_function)
-        
+
         return new_value_function
 
 
@@ -958,7 +959,7 @@ class PBVI_Agent(Agent):
         modified_agent = self.__class__(environment=new_environment,
                                         threshold=self.threshold,
                                         name=self.name)
-        
+
         # Modifying the value function
         if self.value_function is not None:
             reshaped_vf_array = np.array([cv2.resize(av, np.array(modified_agent.model.state_grid.shape)[::-1]).ravel()
@@ -976,7 +977,7 @@ class PBVI_Agent(Agent):
         To use an agent within a simulation, the agent's state needs to be initialized.
         The initialization consists of setting the agent's initial belief.
         Multiple agents can be used at once for simulations, for this reason, the belief parameter is a BeliefSet by default.
-        
+
         Parameters
         ----------
         n : int, default=1
@@ -1006,7 +1007,7 @@ class PBVI_Agent(Agent):
 
         # Converting action indexes to movement vectors
         movemement_vector = self.action_set[action,:]
-        
+
         return movemement_vector
 
 
@@ -1059,3 +1060,64 @@ class PBVI_Agent(Agent):
             self.belief = None
         else:
             self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~simulations_to_kill])
+
+
+    def generate_beliefs_from_trajectory(self,
+                                         history: SimulationHistory,
+                                         trajectory_i: int = 0,
+                                         initial_belief: Belief | None = None
+                                         ) -> BeliefSet:
+        '''
+        Function to generate a sequence of belief points from the trajectory from SimulationHistory instance.
+
+        Parameters
+        ----------
+        history : SimulationHistory
+            The simulation history from which the agent's trajectory is extracted.
+        trajectory_i : int, default=0
+            The id of the trajectory from which to build the belief sequence.
+        initial_belief : Belief, optional
+            The initial belief point from which to start the sequence.
+
+        Returns
+        -------
+        belief_sequence : BeliefSet
+            The sequence of beliefs the agent going through in the the trajectory of the simulation.
+        '''
+        # If the initial belief is not provided, generate one
+        if initial_belief is None:
+            initial_belief = Belief(self.model)
+
+        # Retrieve the trjactory's simulation dataframe
+        df = history.simulation_dfs[trajectory_i]
+
+        # Set the belief that will be iterate on
+        belief = initial_belief
+
+        # Belief sequence to be returned at the end
+        belief_sequence = [initial_belief]
+
+        for row_id, row in enumerate(df.iterrows()):
+            row = row[1]
+
+            # Skip initial position
+            if row_id == 0:
+                continue
+
+            # Retrieve observations
+            o = [row['o']]
+            if self.space_aware:
+                o += [row['y'],row['x']]
+
+            # Discretize observations
+            discrete_o = self.discretize_observations(observation=np.array([o]), source_reached=np.array([False]))[0]
+
+            # Check the ID of the action
+            a = np.argwhere(np.all((self.action_set == [row['dy'],row['dx']]), axis=1))[0,0]
+
+            # Update belief
+            belief = belief.update(a=a, o=discrete_o)
+
+            belief_sequence.append(belief)
+
+        return BeliefSet(self.model, belief_sequence)
