@@ -1115,9 +1115,11 @@ class PBVI_Agent(Agent):
             # Check the ID of the action
             a = np.argwhere(np.all((self.action_set == [row['dy'],row['dx']]), axis=1))[0,0]
 
-            # Update belief
-            belief = belief.update(a=a, o=discrete_o)
-
-            belief_sequence.append(belief)
+            try:
+                # Update belief
+                belief = belief.update(a=a, o=discrete_o)
+                belief_sequence.append(belief)
+            except:
+                print(f'[Warning] Update of belief failed at step {row_id}...')
 
         return BeliefSet(self.model, belief_sequence)
