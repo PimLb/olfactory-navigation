@@ -73,7 +73,7 @@ if __name__ == "__main__":
         startingRow = 0
     print("Inizio: ", time.ctime(), flush=True)
     dataC = np.load("PObs_Th5_Sx45.5_Sy91_M1_fine.npy")
-    os.makedirs(f"FSC/modelFree/M1/celani/row{startingRow}/{MC_max_steps}/{sys.argv[1]}", exist_ok=True)
+    os.makedirs(f"FSC/modelFree/M1/celani/row{startingRow}/maxIt_{maxIt}/{MC_max_steps}/{sys.argv[1]}", exist_ok=True)
     theta = (np.random.rand(2, 1, 4) -0.5) * 0.5
     theta[1, :, 0] += 0.5
     theta[1, :, 2] += 0.5 # Bias on upwind and downwind directions
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     grad = np.ones_like(theta)
     rho = np.zeros(SC)
     rho[startingRow * cols:cols *(startingRow+1)] = (1-dataC[0,startingRow * cols:cols *(startingRow+1)])/np.sum((1-dataC[0,startingRow * cols:cols *(startingRow+1)])) # Copiato dal loro
-    np.save(f"FSC/modelFree/M1/celani/row{startingRow}/{MC_max_steps}/{sys.argv[1]}/theta_START", theta)
+    np.save(f"FSC/modelFree/M1/celani/row{startingRow}/maxIt_{maxIt}/{MC_max_steps}/{sys.argv[1]}/theta_START", theta)
     i = 0
     while i < maxIt:
         s = time.perf_counter()
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         if np.any(grad != 0):
             print("Grad not zero at iteration ", i, flush=True)
         i+=1
-    np.save(f"FSC/modelFree/M1/celani/row{startingRow}/{MC_max_steps}/{sys.argv[1]}/theta_1000", theta)
+    np.save(f"FSC/modelFree/M1/celani/row{startingRow}/maxIt_{maxIt}/{MC_max_steps}/{sys.argv[1]}/theta_1000", theta)
     print(pi)
     print("Fine: ", time.ctime())
         
