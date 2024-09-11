@@ -47,7 +47,7 @@ def getTrajectories(start, pObs, max_MC_steps, pi):
     obs = np.array([a for a in map(get_observation, step, mapObs)])
     t = 0
     actions = np.zeros((num, 2), dtype=int)
-    rewards = np.zeros(num)
+    stepsDone = np.zeros(num)
     while np.any(~done) and t < max_MC_steps:
         for i in range(num): # TODO: sequenziale, sarebbe da parallelizare
             if not done[i]:
@@ -59,20 +59,24 @@ def getTrajectories(start, pObs, max_MC_steps, pi):
         step = move(step, actions)
         obs = np.array([a for a in map(get_observation, step, mapObs)])
         done = np.array([a for a in map(isEnd, step)])
-        rewards[~done] += reward
-    return np.mean(rewards)
+        stepsDone[~done] += 1
+    return stepsDone
 
 if __name__ == "__main__":
     thetaPath = sys.argv[1]
-    theta = np.load(thetaPath)
-    thetaName = thetaPath[thetaPath.rfind("/")+1:]
-    pi = softmax(theta, axis = 2)
+    if thetaPath == "celaniPi":
+        pi = np.array([[[0.452, 0.052, 0.444, 0.052]], [[0, 0, 1, 0]]])
+        thetaName = "celaniPolicy"
+    else:
+        theta = np.load(thetaPath)
+        thetaName = thetaPath[thetaPath.rfind("/")+1:-4]
+        pi = softmax(theta, axis = 2)
     print("PI to be evaluated: ", pi, flush= True)
     dataFile = sys.argv[2]
     dataC = np.load(f"../celaniData/{dataFile}.npy")
     rho = np.zeros(SC)
     rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
-    results = []
+    results = np.zeros(traj)
     print("Inizio: ", time.ctime(), flush=True)
     tmp = np.random.choice(range(SC), size=traj, replace=True, p = rho)
     starts = np.array(np.unravel_index(tmp, (131, 92))).T
@@ -80,12 +84,14 @@ if __name__ == "__main__":
 
     N = traj // procNumber
     remainder = traj % procNumber
-    for i in range(N):
-        args = [(starts[i: (i+1)* procNumber], dataC, maxStep, pi) ] * procNumber
-        with mp.Pool(procNumber) as p:
-            rewardList = p.starmap(getTrajectories, args)
-        results += rewardList
-        print(f"Fine iterazione {i}/{N}: ", time.ctime(), flush=True)
-    print("Mean: ", np.mean(results)," STD: ", np.std(results))
+    args = [(starts[i * procNumber: (i+1)* procNumber], dataC, maxStep, pi) for i in range(N)]
+    with mp.Pool(procNumber) as p:
+        rewardList = p.starmap(getTrajectories, args)
+    print(time.ctime())
+    for i, rl in enumerate(rewardList):
+        results[procNumber*i:procNumber*(i+1)] += rl
+    # results = getTrajectories(starts, dataC, 10000, pi)
+    np.save(f"results{thetaName}", results)
     plt.hist(results, 50)
     plt.savefig(f"{thetaName}.png")
+    print("Mean: ", np.mean(results)," STD: ", np.std(results))
