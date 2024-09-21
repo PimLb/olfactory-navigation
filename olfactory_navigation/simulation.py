@@ -777,7 +777,7 @@ class SimulationHistory:
         start_points_grid[failed_points[:,0], failed_points[:,1]] = -1
         start_points_grid[success_points[:,0], success_points[:,1]] = 1
 
-        ax.imshow(start_points_grid, cmap='RdBu')
+        ax.imshow(start_points_grid, cmap='RdBu', vmin=-1, vmax=1)
 
         # The crosses where the points did not reach the horizon
         ax.scatter(failed_not_at_horizon_points[:,1], failed_not_at_horizon_points[:,0], marker='x', color='black', s=10, label='Died early')
