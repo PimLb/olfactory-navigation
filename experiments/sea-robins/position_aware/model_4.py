@@ -173,7 +173,8 @@ def generate_model(
         grid_cells = build_grid_mapping(space_shape=space_shape,
                                         cells=cells,
                                         source_position=source_pos,
-                                        source_radius=source_radius)
+                                        source_radius=source_radius,
+                                        source_cell_resolution=source_cell_resolution)
         cells_from_indices = grid_cells[*spacial_indices_array.T]
 
         move_probabilities = []
@@ -315,11 +316,11 @@ def generate_model(
         corner_cells = corner_cells[valid_corner_cells]
         corner_cells_ids = np.ravel_multi_index(corner_cells.T, cells)
 
-        # Computing multipliers for actual cell and edge cell observations
-        edge_cell_mult = 0.0
-        corner_cell_mult = 0.0
-        # edge_cell_mult = 0.1
-        # corner_cell_mult = 0.05
+        # Computing multipliers for actual cell and edge cell observations # ! Change to modify imperfect obs parameters
+        # edge_cell_mult = 0.0
+        # corner_cell_mult = 0.0
+        edge_cell_mult = 0.1
+        corner_cell_mult = 0.05
         actual_cell_mult = 1.0 - (len(edge_cells_ids) * edge_cell_mult) - (len(corner_cells_ids) * corner_cell_mult)
 
         # Setting the probabilities in the matrix
