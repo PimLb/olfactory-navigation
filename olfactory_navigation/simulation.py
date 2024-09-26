@@ -162,7 +162,7 @@ class SimulationHistory:
         self.timestamps.append(datetime.now())
 
         # Check if environment if layered and/or 3D
-        layered = 0 if not self.environment.has_layers else 1
+        layered = 0 if self.environment_layer_labels is None else 1
 
         # Handle case cupy arrays are provided
         if gpu_support:
@@ -173,12 +173,12 @@ class SimulationHistory:
             interupt = interupt if cp.get_array_module(interupt) == np else cp.asnumpy(interupt)
 
         # Actions tracking
-        action_all_sims = np.full((self.n, (layered + self.environment.dimensions)), fill_value=-1)
+        action_all_sims = np.full((self.n, (layered + self.environment_dimensions)), fill_value=-1)
         action_all_sims[self._running_sims] = actions
         self.actions.append(action_all_sims)
 
         # Next states tracking
-        next_position_all_sims = np.full((self.n, self.environment.dimensions), fill_value=-1)
+        next_position_all_sims = np.full((self.n, self.environment_dimensions), fill_value=-1)
         next_position_all_sims[self._running_sims] = next_positions
         self.positions.append(next_position_all_sims)
 
@@ -193,6 +193,33 @@ class SimulationHistory:
 
         # Updating the list of running sims
         self._running_sims = self._running_sims[~reached_source & ~interupt]
+
+
+    def compute_distance_to_source(self) -> np.ndarray:
+        '''
+        Function to compute the optimal distance to the source of each starting point according to the optimal_distance_metric attribute.
+
+        Returns
+        -------
+        distance : np.ndarray
+            The optimal distances to the source point.
+        '''
+        point = self.start_points
+
+        # Handling the case we have a single point
+        is_single_point = (len(point.shape) == 1)
+        if is_single_point:
+            point = point[None,:]
+
+        # Computing dist
+        dist = None
+        # if self.optimal_distance_metric == 'manhattan': # TODO Allow for other metrics to be used
+        dist = np.sum(np.abs(self.environment_source_position[None,:] - point), axis=-1) - self.environment_source_radius
+
+        if dist is None: # Meaning it was not computed
+            raise NotImplementedError('This distance metric has not yet been implemented')
+
+        return float(dist[0]) if is_single_point else dist
 
 
     @property
@@ -214,14 +241,14 @@ class SimulationHistory:
         '''
         # Get axes labels
         axes_labels = None
-        if self.environment.dimensions <= 3:
-            axes_labels = ['z', 'y', 'x'][-self.environment.dimensions:]
+        if self.environment_dimensions <= 3:
+            axes_labels = ['z', 'y', 'x'][-self.environment_dimensions:]
         else:
-            axes_labels = [f'x{i}' for i in range(self.environment.dimensions)]
+            axes_labels = [f'x{i}' for i in range(self.environment_dimensions)]
 
         # Dataframe creation
         df = pd.DataFrame(self.start_points, columns=axes_labels)
-        df['optimal_steps_count'] = self.environment.distance_to_source(self.start_points)
+        df['optimal_steps_count'] = self.compute_distance_to_source()
         df['converged'] = self.reached_source
         df['reached_horizon'] = np.all(self.positions[-1] != -1, axis=1) & ~self.reached_source & (len(self.positions) == self.horizon)
         df['steps_taken'] = np.where(self.done_at_step >= 0, self.done_at_step, len(self.positions))
@@ -348,10 +375,10 @@ class SimulationHistory:
 
             # Get axes labels
             axes_labels = None
-            if self.environment.dimensions <= 3:
-                axes_labels = ['z', 'y', 'x'][-self.environment.dimensions:]
+            if self.environment_dimensions <= 3:
+                axes_labels = ['z', 'y', 'x'][-self.environment_dimensions:]
             else:
-                axes_labels = [f'x{i}' for i in range(self.environment.dimensions)]
+                axes_labels = [f'x{i}' for i in range(self.environment_dimensions)]
 
             # Loop through the n simulations
             for i in range(self.n):
@@ -366,11 +393,11 @@ class SimulationHistory:
                     df[axis] = np.hstack([self.start_points[i, axis_i], states_array[:length, i, axis_i]])
 
                 # - Action variables
-                if self.environment.has_layers:
+                if self.environment_layer_labels is not None:
                     df['layer'] = np.hstack([[None], action_array[:length, i, 0]])
 
                 for axis_i, axis in enumerate(axes_labels):
-                    axis_i += (0 if not self.environment.has_layers else 1)
+                    axis_i += (0 if self.environment_layer_labels is None else 1)
                     df['d' + axis]   = np.hstack([[None], action_array[:length, i, axis_i]])
 
                 # - Other variables
@@ -414,7 +441,7 @@ class SimulationHistory:
 
         # Handle file name
         if file is None:
-            env_name = f's_' + '_'.join([str(axis_shape) for axis_shape in self.environment.shape])
+            env_name = f's_' + '_'.join([str(axis_shape) for axis_shape in self.environment_shape])
             file = f'Simulations-{env_name}-n_{self.n}-{self.start_time.strftime("%Y%m%d_%H%M%S")}-horizon_{len(self.positions)}.csv'
 
         if not file.endswith('.csv'):
@@ -760,14 +787,14 @@ class SimulationHistory:
         ax : plt.Axes, optional
             The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
-        assert self.environment.dimensions == 2, "Only implemented for 2D environments..."
+        assert self.environment_dimensions == 2, "Only implemented for 2D environments..."
 
         # Generate ax is not provided
         if ax is None:
             _, ax = plt.subplots(figsize=(18,3))
 
         # Setting up an empty grid of the starting points
-        start_points_grid = np.zeros(self.environment.shape)
+        start_points_grid = np.zeros(self.environment_shape)
 
         # Compute the successful, failed and the ones that reached the horizon
         success_points = self.start_points[self.successful_simulation]
