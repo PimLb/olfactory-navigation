@@ -16,22 +16,21 @@ def generate_model(
         ) -> Model:
 
     # Building probability map
-    indices = np.arange(space_shape[0])
-    x,y = np.meshgrid(indices, indices)
+    x,y = np.meshgrid(np.arange(space_shape[0]), np.arange(space_shape[1]))
     pos = np.dstack((x, y))
     rv = multivariate_normal(data_mean, data_covariance)
-    probability_map = rv.pdf(pos)
+    probability_map = rv.pdf(pos).T
 
     # Normalize to have 1 at the center
     probability_map /= np.max(probability_map)
 
     # Building a grid-cell-mapping
-    def build_grid_mapping(space_shape: np.ndarray = np.array([101,101]),
-                       cells: np.ndarray = np.array([3,3]),
-                       source_position: np.ndarray = np.array([50,50]),
-                       source_radius: int = 4,
-                       source_cell_resolution: np.ndarray = np.array([3,3])
-                       ) -> np.ndarray:
+    def build_grid_mapping(space_shape: np.ndarray,
+                           cells: np.ndarray,
+                           source_position: np.ndarray,
+                           source_radius: int,
+                           source_cell_resolution: np.ndarray
+                           ) -> np.ndarray:
         # Finding the sizes of the cells
         cell_size_standard = (space_shape / cells).astype(int)
         cell_size_overflow = (space_shape % cells).astype(int)
@@ -157,7 +156,7 @@ def generate_model(
 
     # Building transition probabilities
     source_positions = find_cell_centers(space_shape=space_shape,
-                                     cells=cells)
+                                         cells=cells)
 
     # Spacial indices
     spacial_indices = list(np.ndindex(tuple(space_shape)))
@@ -264,7 +263,7 @@ def generate_model(
         slices = [slice(ax_lower, ax_upper) for ax_lower, ax_upper in zip(lower_b, upper_b)]
 
         # TODO: Make it flexible to multi thresh
-        cell_probabilities[*cell] = np.average(probability_map[*slices])
+        cell_probabilities[*cell] = np.average(probability_map[*slices].astype(float))
 
     source_cell_shape = np.array(cell_size_standard)
 
@@ -296,7 +295,7 @@ def generate_model(
         upper_b += lower_bound_center_cell
         slices = [slice(ax_lower, ax_upper) for ax_lower, ax_upper in zip(lower_b, upper_b)]
 
-        sub_grid_cell_probabilities[*cell] = np.average(probability_map[*slices])
+        sub_grid_cell_probabilities[*cell] = np.average(probability_map[*slices].astype(float))
 
     # Indices array
     indices_array = np.array(indices_list)

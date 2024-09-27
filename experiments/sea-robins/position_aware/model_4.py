@@ -16,22 +16,21 @@ def generate_model(
         ) -> Model:
 
     # Building probability map
-    indices = np.arange(space_shape[0])
-    x,y = np.meshgrid(indices, indices)
+    x,y = np.meshgrid(np.arange(space_shape[0]), np.arange(space_shape[1]))
     pos = np.dstack((x, y))
     rv = multivariate_normal(data_mean, data_covariance)
-    probability_map = rv.pdf(pos)
+    probability_map = rv.pdf(pos).T
 
     # Normalize to have 1 at the center
     probability_map /= np.max(probability_map)
 
     # Building a grid-cell-mapping
-    def build_grid_mapping(space_shape: np.ndarray = np.array([101,101]),
-                       cells: np.ndarray = np.array([3,3]),
-                       source_position: np.ndarray = np.array([50,50]),
-                       source_radius: int = 4,
-                       source_cell_resolution: np.ndarray = np.array([3,3])
-                       ) -> np.ndarray:
+    def build_grid_mapping(space_shape: np.ndarray,
+                           cells: np.ndarray,
+                           source_position: np.ndarray,
+                           source_radius: int,
+                           source_cell_resolution: np.ndarray
+                           ) -> np.ndarray:
         # Finding the sizes of the cells
         cell_size_standard = (space_shape / cells).astype(int)
         cell_size_overflow = (space_shape % cells).astype(int)
