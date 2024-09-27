@@ -153,7 +153,7 @@ def run_test(grid, sub_grid, folder):
 
 def main():
     # Set GPU used
-    cuda_runtime.setDevice(0)
+    cuda_runtime.setDevice(1)
 
     grid_sizes = [3,5,7,9]
     sub_grid_sizes = [3,5,7]

@@ -20,7 +20,7 @@ def generate_model(
     x,y = np.meshgrid(indices, indices)
     pos = np.dstack((x, y))
     rv = multivariate_normal(data_mean, data_covariance)
-    probability_map = rv.pdf(pos)
+    probability_map = rv.pdf(pos).T
 
     # Normalize to have 1 at the center
     probability_map /= np.max(probability_map)
