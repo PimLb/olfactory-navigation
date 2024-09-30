@@ -31,7 +31,7 @@ def run_full_test(grid, sub_grid, folder):
     source_cell_resolution = np.array([sub_grid,sub_grid])
 
     # Artificial data
-    data_covariance = 50
+    data_covariance = 5
 
     # Data path
     data_folder = '/storage/arnaud/tank_odor_field_2024_06_13/'
@@ -124,6 +124,8 @@ def run_full_test(grid, sub_grid, folder):
     # ---------------------
     # Testing different thresholds
     threshold_scales = np.arange(8) + 1
+    total_it = len(threshold_scales) * len(environments)
+    i = 0
     for thresh_scale in threshold_scales:
         thresh = 1 / (10 ** thresh_scale)
         ag.threshold = thresh
@@ -132,7 +134,7 @@ def run_full_test(grid, sub_grid, folder):
         for env_i, env in enumerate(environments):
 
             print('--------------------------------------------')
-            print(f'Threshold: 1e-{thresh_scale}; Environment: {env_i}')
+            print(f'[{i} / {total_it}] Threshold: 1e-{thresh_scale}; Environment: {env_i}')
             print()
 
             # Run test
@@ -148,6 +150,7 @@ def run_full_test(grid, sub_grid, folder):
             # Saving history
             hist.save(file=f't_e{thresh_scale}-env_{env_i}', folder=folder)
 
+            i += 1
 
     # Refresh memory
     cp._default_memory_pool.free_all_blocks()
@@ -155,13 +158,13 @@ def run_full_test(grid, sub_grid, folder):
 
 def main():
     # Set GPU used
-    cuda_runtime.setDevice(1)
+    cuda_runtime.setDevice(3)
 
     grid_sizes = [5,7,9]
-    sub_grid_sizes = [7]
+    sub_grid_sizes = [5,7]
 
-    root_folder = './'
-    # os.mkdir(root_folder)
+    root_folder = './real_data_test_small_plume_results/'
+    os.mkdir(root_folder)
 
     for grid_s in grid_sizes:
         for sub_grid_s in sub_grid_sizes:

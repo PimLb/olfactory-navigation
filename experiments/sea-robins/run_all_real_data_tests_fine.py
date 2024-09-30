@@ -123,16 +123,20 @@ def run_full_test(grid, sub_grid, folder):
 
     # ---------------------
     # Testing different thresholds
-    threshold_scales = np.arange(8) + 1
-    for thresh_scale in threshold_scales:
-        thresh = 1 / (10 ** thresh_scale)
+    thresholds = np.array(np.linspace(0.1, 0.01, 9, endpoint=False).tolist() +
+                          np.linspace(0.01, 0.001, 9, endpoint=False).tolist() +
+                          np.linspace(0.001, 0.0001, 10).tolist())
+
+    total_it = len(thresholds) * len(environments)
+    i = 0
+    for thresh in thresholds:
         ag.threshold = thresh
 
         # And different environments
         for env_i, env in enumerate(environments):
 
             print('--------------------------------------------')
-            print(f'Threshold: 1e-{thresh_scale}; Environment: {env_i}')
+            print(f'[{i} / {total_it}] Threshold: {thresh}; Environment: {env_i}')
             print()
 
             # Run test
@@ -146,8 +150,9 @@ def run_full_test(grid, sub_grid, folder):
             )
 
             # Saving history
-            hist.save(file=f't_e{thresh_scale}-env_{env_i}', folder=folder)
+            hist.save(file=f't_{thresh}-env_{env_i}', folder=folder)
 
+            i += 1
 
     # Refresh memory
     cp._default_memory_pool.free_all_blocks()
@@ -158,10 +163,10 @@ def main():
     cuda_runtime.setDevice(1)
 
     grid_sizes = [5,7,9]
-    sub_grid_sizes = [7]
+    sub_grid_sizes = [5,7]
 
-    root_folder = './'
-    # os.mkdir(root_folder)
+    root_folder = './real_data_test_fine_results/'
+    os.mkdir(root_folder)
 
     for grid_s in grid_sizes:
         for sub_grid_s in sub_grid_sizes:
