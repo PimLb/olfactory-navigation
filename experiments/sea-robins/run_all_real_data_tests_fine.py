@@ -162,11 +162,11 @@ def main():
     # Set GPU used
     cuda_runtime.setDevice(1)
 
-    grid_sizes = [5,7,9]
+    grid_sizes = [9]
     sub_grid_sizes = [5,7]
 
-    root_folder = './real_data_test_fine_results/'
-    os.mkdir(root_folder)
+    root_folder = '/storage/arnaud/real_data_test_fine_results/'
+    # os.mkdir(root_folder)
 
     for grid_s in grid_sizes:
         for sub_grid_s in sub_grid_sizes:

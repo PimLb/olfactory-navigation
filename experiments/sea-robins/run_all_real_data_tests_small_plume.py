@@ -31,7 +31,7 @@ def run_full_test(grid, sub_grid, folder):
     source_cell_resolution = np.array([sub_grid,sub_grid])
 
     # Artificial data
-    data_covariance = 5
+    data_covariance = 25
 
     # Data path
     data_folder = '/storage/arnaud/tank_odor_field_2024_06_13/'
@@ -158,12 +158,12 @@ def run_full_test(grid, sub_grid, folder):
 
 def main():
     # Set GPU used
-    cuda_runtime.setDevice(3)
+    cuda_runtime.setDevice(2)
 
-    grid_sizes = [5,7,9]
-    sub_grid_sizes = [5,7]
+    grid_sizes = [9]
+    sub_grid_sizes = [7]
 
-    root_folder = './real_data_test_small_plume_results/'
+    root_folder = '/storage/arnaud/real_data_test_small_plume_results_cov/'
     os.mkdir(root_folder)
 
     for grid_s in grid_sizes:
@@ -172,7 +172,7 @@ def main():
                 print('----------------------------')
                 print(f'({grid_s} by {grid_s})' + ' - ' + f'({sub_grid_s} by {sub_grid_s})')
 
-                folder = root_folder + f'threshold_tests-{grid_s}_{grid_s}' + '-' + f'{sub_grid_s}_{sub_grid_s}'
+                folder = root_folder + f'threshold_tests-{grid_s}_{grid_s}' + '-' + f'{sub_grid_s}_{sub_grid_s}-cov_25'
                 os.mkdir(folder)
 
                 run_full_test(grid=grid_s,
