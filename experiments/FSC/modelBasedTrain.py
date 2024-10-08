@@ -2,11 +2,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 import cupy as cp
 from scipy.special import softmax as softmax
+import scipy.sparse as sparse
+import cupyx.scipy.sparse as cSparse
+from itertools import chain
 import time
 import sys
 import os
 # from cupyx.scipy.special import softmax as softmax
-from utils import get_value
+# from utils import get_value
 
 #Azioni sono [North, East, South, West]
 SC = 92 * 131 # Number of States
@@ -19,6 +22,56 @@ def getReachable(s):
     ret[2] = s + 92 if r + 1  < 131  else s
     ret[3] = s  -1 if c - 1 >= 0 else s
     return ret
+
+
+def invT(pi, dataC, rSource, cSource, find_range, R, rho):
+    T = get_Transition_Matrix_vect(pi, dataC,rSource, cSource, find_range)
+    Tinv = cp.linalg.inv( cp.eye(SC) - gamma * cp.asarray(T)).get()
+    Vold = np.matmul(Tinv, R)
+    eta = np.matmul(rho, Tinv)
+    return Vold, eta
+
+def iterT(pi, dataC, rSource, cSource, find_range, R, rho):
+    T = get_Transition_Matrix_sparse(pi, dataC, rSource, cSource, find_range)
+    AV = cSparse.eye(SC) - gamma * T
+    Aeta = cSparse.eye(SC) - gamma * T.T
+    V = cSparse.linalg.spsolve(AV, R)
+    eta = cSparse.linalg.spsolve(Aeta, rho)
+    return V, eta
+
+# Se ho fatto bene i test, questo dovrebbe essere il più veloce di tutti. Continuo a non capire perchè usare la GPU non mi aiuta
+def iterTCPU(pi, dataC, rSource, cSource, find_range, R, rho):
+    T = get_Transition_Matrix_sparse_CPU(pi, dataC, rSource, cSource, find_range)
+    AV = sparse.eye(SC, format="csr") - gamma * T
+    Aeta = sparse.eye(SC, format="csr") - gamma * T.T
+    V = sparse.linalg.spsolve(AV, R)
+    eta = sparse.linalg.spsolve(Aeta, rho)
+    return V, eta
+
+def get_Transition_Matrix_sparse(pi, pObs, rSource, cSource, find_range):
+    rowIdx = np.array(range(SC)).repeat(4) # Ogni riga ha 4 azioni possibili (per ora), quindi 4 stati raggiungibili
+    colIdx = np.array(list(chain.from_iterable(map(getReachable, range(SC))))) # Per ogni stato prendo gli stati raggiungibili e li metto in una lista
+    toSum = np.sum(pi[None, :, 0, :].T * pObs[:, :], axis = 1).T.reshape(-1)
+    final = np.argwhere(np.array([(s // 92 - rSource) ** 2 + (s % 92 -cSource) **2 < find_range**2 for s in range(SC)]))
+    # Sono gli stati finali. Ad ognuno di essi cambio gli stati raggiungibili
+    for i in range(len(final)):
+        toSum[int(final[i][0]*4):int(final[i][0]+1) * 4] = 0.25 # Le coordinate doppie vengono sommate tra loro
+        colIdx[final[i][0]*4:(final[i][0]+1) * 4] = final[i][0]
+    # per qualche motivo, cupy si lamenta che row, col e toSUm non sono 1-D, anche se in realtà si, ma così aggiro il problema
+    return cSparse.csr_matrix(sparse.csr_matrix((toSum, (rowIdx, colIdx))))
+
+def get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range):
+    rowIdx = np.array(range(SC)).repeat(4) # Ogni riga ha 4 azioni possibili (per ora), quindi 4 stati raggiungibili
+    colIdx = np.array(list(chain.from_iterable(map(getReachable, range(SC))))) # Per ogni stato prendo gli stati raggiungibili e li metto in una lista
+    toSum = np.sum(pi[None, :, 0, :].T * pObs[:, :], axis = 1).T.reshape(-1)
+    final = np.argwhere(np.array([(s // 92 - rSource) ** 2 + (s % 92 -cSource) **2 < find_range**2 for s in range(SC)]))
+    # Sono gli stati finali. Ad ognuno di essi cambio gli stati raggiungibili
+    for i in range(len(final)):
+        toSum[int(final[i][0]*4):int(final[i][0]+1) * 4] = 0.25 # Le coordinate doppie vengono sommate tra loro
+        colIdx[final[i][0]*4:(final[i][0]+1) * 4] = final[i][0]
+    # per qualche motivo, cupy si lamenta che row, col e toSUm non sono 1-D, anche se in realtà si, ma così aggiro il problema
+    return sparse.csr_matrix((toSum, (rowIdx, colIdx)))
+
 
 def get_Transition_Matrix_vect(pi, pObs, rSource, cSource, find_range):
     T = np.zeros((SC, SC))
@@ -68,7 +121,7 @@ if __name__ == "__main__":
     gamma = 0.99975
     cols = 92
     rows = 131
-    maxIt = 70000
+    maxIt = 35000
     lr = 0.01
     tol = 1e-8
     print("Inizio: ", time.ctime(), flush=True)
@@ -80,6 +133,7 @@ if __name__ == "__main__":
         theta = (np.random.rand(2, 1, 4) -0.5) * 0.5
         theta[1, :, 0] += 0.5
         theta[1, :, 2] += 0.5 # Bias on upwind and downwind directions
+        theta = np.load("results/modelBased/M1/celani/fine5/alpha1e-3_noRescaled_noSubtract/theta_START.npy")
         np.save(f"results/modelBased/M1/celani/{dataFile}/{folder}/theta_START", theta)
         pi = softmax(theta, axis = 2)
         print("THETA_START", theta)
@@ -109,11 +163,13 @@ if __name__ == "__main__":
         for i in range(maxIt):
             s = time.perf_counter()
             grad = find_grad(Q, eta, dataC)
-            # grad -= np.mean(grad, axis = 2, keepdims=True)
+#            grad -= np.max(grad, axis = 2, keepdims=True)
             # print(f"GRAD {i} ", grad)
             # print(f"Meano GRAD {i} ", grad - np.mean(grad, axis = 2, keepdims=True))
-            theta += lr * grad
-            theta -= np.mean(theta, axis = 2, keepdims=True)
+            theta += lr / (np.max(np.abs(grad))) * grad
+            #theta += lr * grad
+            print(f"Grad {i}: ", grad)
+            # theta -= np.mean(theta, axis = 2, keepdims=True)
             # print("THETA dopo mean", theta)
             pi = softmax(theta, axis = 2)
             # print("PI", pi)
@@ -134,6 +190,7 @@ if __name__ == "__main__":
                 if delta < tol:
                     print(f"Converged in {i+1} iterations")
                     np.save(f"results/modelBased/M1/celani/{dataFile}/{folder}/theta_Conv{i+1}", theta)
+                    np.save(f"results/modelBased/M1/celani/{dataFile}/{folder}/V_Conv{i+1}", V)
                     print("Theta END: ", theta, flush=True)
                     print("PI END: ", pi, flush=True)
                     converged = True
@@ -142,8 +199,10 @@ if __name__ == "__main__":
 #                oldObjective = objective
 #                oldValueLoro = valueLoro
                 np.save(f"results/modelBased/M1/celani/{dataFile}/{folder}/theta_{i+1}", theta)
+                np.save(f"results/modelBased/M1/celani/{dataFile}/{folder}/V_{i+1}", V)
                 print("last iteration took ", e-s, " seconds", flush=True)
         if not converged:
             np.save(f"results/modelBased/M1/celani/{dataFile}/{folder}/theta_{maxIt}", theta)
+            np.save(f"results/modelBased/M1/celani/{dataFile}/{folder}/V_{maxIt}", V)
             print("Theta END not conv :", theta)
             print("PI END not COnv", pi, flush = True)
