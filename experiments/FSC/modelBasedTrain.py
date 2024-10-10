@@ -40,7 +40,7 @@ def iterT(pi, dataC, rSource, cSource, find_range, R, rho):
     return V, eta
 
 # Se ho fatto bene i test, questo dovrebbe essere il più veloce di tutti. Continuo a non capire perchè usare la GPU non mi aiuta
-def iterTCPU(pi, dataC, rSource, cSource, find_range, R, rho):
+def sparse_T_CPU(pi, dataC, rSource, cSource, find_range, R, rho):
     T = get_Transition_Matrix_sparse_CPU(pi, dataC, rSource, cSource, find_range)
     AV = sparse.eye(SC, format="csr") - gamma * T
     Aeta = sparse.eye(SC, format="csr") - gamma * T.T
@@ -148,12 +148,13 @@ if __name__ == "__main__":
         # RGPU = np.asarray(R)
         rho = np.zeros(SC)
         rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols])) # Copiato dal loro
-        T = get_Transition_Matrix_vect(pi, dataC,rSource, cSource, find_range)
-        Tinv = cp.linalg.inv( cp.eye(SC) - gamma * cp.asarray(T)).get()
-        Vold = np.matmul(Tinv, R)
+#         T = get_Transition_Matrix_vect(pi, dataC,rSource, cSource, find_range)
+#         Tinv = cp.linalg.inv( cp.eye(SC) - gamma * cp.asarray(T)).get()
+#         Vold = np.matmul(Tinv, R)
+# #        oldObjective = np.matmul(Vold, rho)
+#         eta = np.matmul(rho, Tinv)
+        Vold, eta = sparse_T_CPU(pi, dataC, rSource, cSource, find_range, R, rho)
         Vconv = Vold.copy()
-#        oldObjective = np.matmul(Vold, rho)
-        eta = np.matmul(rho, Tinv)
         Q = calc_Q(Vold, R)
 #        oldValueLoro = get_value(Q.reshape(-1), pi, dataC, 131*92, rho)
         # np.save("V", Vold)
@@ -163,21 +164,22 @@ if __name__ == "__main__":
         for i in range(maxIt):
             s = time.perf_counter()
             grad = find_grad(Q, eta, dataC)
-#            grad -= np.max(grad, axis = 2, keepdims=True)
+            grad -= np.max(grad, axis = 2, keepdims=True)
             # print(f"GRAD {i} ", grad)
             # print(f"Meano GRAD {i} ", grad - np.mean(grad, axis = 2, keepdims=True))
             theta += lr / (np.max(np.abs(grad))) * grad
-            #theta += lr * grad
+            # theta += lr * grad
             print(f"Grad {i}: ", grad)
             # theta -= np.mean(theta, axis = 2, keepdims=True)
             # print("THETA dopo mean", theta)
             pi = softmax(theta, axis = 2)
             # print("PI", pi)
-            T = get_Transition_Matrix_vect(pi, dataC, rSource, cSource, find_range)
-            Tinv = cp.linalg.inv( cp.eye(SC) - gamma * cp.asarray(T)).get()
-            V = np.matmul(Tinv, R)
-            Vold = V
-            eta = np.matmul(rho, Tinv)
+            # T = get_Transition_Matrix_vect(pi, dataC, rSource, cSource, find_range)
+            # Tinv = cp.linalg.inv( cp.eye(SC) - gamma * cp.asarray(T)).get()
+            # V = np.matmul(Tinv, R)
+            # Vold = V
+            # eta = np.matmul(rho, Tinv)
+            V, eta = sparse_T_CPU(pi, dataC, rSource, cSource, find_range, R, rho)
             Q = calc_Q(V, R)
             e = time.perf_counter()
             if (i+1) % 1000 == 0:
