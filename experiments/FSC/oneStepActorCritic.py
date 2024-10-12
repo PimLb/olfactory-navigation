@@ -1,0 +1,87 @@
+import numpy as np
+from matplotlib import pyplot as plt
+import cupy as cp
+from scipy.special import softmax as softmax
+import multiprocessing as mp
+import time
+import os
+import sys
+
+# Setting Parameters
+SC = 92 * 131 # Number of States
+cSource = 45.5 # Source coordinates
+rSource = 91
+cols = 92
+rows = 131
+find_range = 1.1 # Source radius
+gamma = 0.99975
+lr = 0.01
+tol = 1e-8
+reward = -(1 -gamma)
+ActionDict = np.asarray([
+            [-1,  0], # North
+            [ 0,  1], # East
+            [ 1,  0], # South
+            [ 0, -1]  # West
+        ])
+dataC = np.load("celaniData/fine5.npy")
+rho = np.zeros(SC)
+rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
+
+# Algo Parameters
+numberEpisodes = 1000
+maxStepsPerEpisode = 10000
+actor_lr = 0.1
+critic_lr = 0.1
+
+V = np.zeros(SC)
+# V = np.load("results/modelBased/M1/celani/fine5/alpha1e-2_Rescaled_Subtract/V_Conv7000.npy")
+theta = (np.random.rand(2, 1, 4) -0.5) * 0.5
+theta[1, :, 0] += 0.5
+theta[1, :, 2] += 0.5
+# theta = np.load("results/modelBased/M1/celani/fine5/alpha1e-2_Rescaled_Subtract/theta_Conv7000.npy")
+pi = softmax(theta, axis=2)
+
+def isEnd(s):
+    r, c = s // cols, s % cols
+    return (r - rSource) ** 2 + (c -cSource) **2 < find_range**2
+
+def takeAction(s, a):
+    r, c = s // cols, s % cols
+    action = ActionDict[a]
+    rNew = r + action[0]
+    cNew = c + action[1]
+    r = rNew if rNew >= 0 and rNew < 131 else r
+    c = cNew if cNew >= 0 and cNew < 92 else c
+    return r * 92 + c
+
+s = time.perf_counter()
+print(f" Startinng {numberEpisodes} episodes at {time.ctime()}", flush=True)
+print("Starting pi:", pi)
+for i in range(numberEpisodes):
+    start = np.random.choice(range(SC), p = rho)
+    eligibility = 1
+    curState = start
+    curStep = 0
+    while( not isEnd(curState) and curStep < maxStepsPerEpisode):
+        obs = np.random.choice(2, p = dataC[:, curState])
+        action = np.random.choice(4, p= pi[obs, 0])
+        newState = takeAction(curState, action)
+        reward = -(1 - gamma) if not isEnd(newState) else 0
+        # print(curState, obs, action, newState, reward)
+        tdError = reward + gamma * V[newState] - V[curState]
+        # Caso speciale per Natural Gradient e softmax. Credo sia giusto
+        theta[obs, 0, action] = theta[obs, 0, action] + actor_lr * tdError * eligibility / pi[obs, 0, action] 
+        V[curState] += critic_lr * tdError # Caso speciale per V tabulare. Credo sia giusto
+        eligibility *= gamma
+        pi = softmax(theta, axis = 2)
+        curState = newState
+        curStep += 1
+        # print(f"Step {curStep}/{maxStepsPerEpisode} of episode {i}/{numberEpisodes} took {e-s} seconds")
+    # if(isEnd(curState)):
+    #     print(f"Episode {i} has reached the source in {curStep} steps")
+
+e = time.perf_counter()
+print(f"{numberEpisodes} episodes done in {e -s } seconds, at {time.ctime()}")
+print("Learned pi:", pi)
+np.save("thetaActorCritic.npy", theta)
