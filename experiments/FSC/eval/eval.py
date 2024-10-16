@@ -69,7 +69,7 @@ if __name__ == "__main__":
         thetaName = "celaniPolicy"
     else:
         theta = np.load(thetaPath)
-        thetaName = thetaPath[thetaPath.rfind("/")+1:-4]
+        thetaName = sys.argv[3]
         pi = softmax(theta, axis = 2)
     print("PI to be evaluated: ", pi, flush= True)
     dataFile = sys.argv[2]

@@ -1,0 +1,28 @@
+La sottrazione del max al gradiente dovrebbe essere un'operazione innocua a causa del softmax.
+In primis, la funzione softmax di scipy, per evitare problemi numerici e di overflow, lo fa già di suo.
+In più, se nel passo, oltre ad alpha, moltiplichiamo anche per l'inverso della norma del gradiente, abbiamo che
+dopo aver sottratto il max, la norma è tendenzialmente minore di 1; In questo modo, effettivamente allunghiamo il passo.
+N.B.: Non sono super convinto che sia una cosa buona in generale, ma forse in questo caso non da problemi.
+
+Infine, anche "logicamente", non dovrebbe essere un probelma perchè noi stiamo cercando la policy(theta) che massimizza J,
+non i theta veri e propri. Quindi, la sottrazione del max al gradiente, non è un'operazione carina in R^n, dove vivono i theta,
+ma nello spazio delle policy è un'operazione neutra, che lascia inalterata la policy.
+
+
+Ho runnato di nuovo con alpha 0.001 senza fare la divisione per la norma infinito del gradiente.
+Togliendo il max per righe al gradiente oppure lasciandolo così com'è la differenza di risultati sulla policy è attorno al 10^-12,
+errore che suppongo più imputabile a errori floating point che altro.
+
+Ho runnato facendo anche rescaling e togliendo il max. La norma inf dei gradienti è inizialmente ~7, ma 
+diminuisce velocemente assestandosi attorno a ~0.5, quindi è come che abbia un alpha più grande; 
+ed infatti, dopo 30000 iterazioni "converge", mentre senza rescaling avrebbe continuato anche dopo le 35000
+
+Ho runnato facendo rescaling ma senza togliere il max. La norma inf dei gradienti è sempre molto grande, quindi il passo effettivo
+è praticamente nullo: dopo 35000 iterazioni, il massimo della differenza con la policy inziale è del 1%
+
+
+Ho rifatto le run con alpha 0.01. Se non faccio rescaling, sia che sottragga che no, "convergo" alla policy che trovavo già da prima.
+Se invece, faccio rescaling con la norma infinito del gradiente e sottraggo, allora "convergo" alla policy che trovano anche loro.
+Se faccio rescaling ma non sottraggo, allora il passo sarà troppo breve, esattamente come sopra.
+
+Nell'actor critic inizializzare V a -1 sembra essere o uguale o un po' peggio che inizializzare a 0
