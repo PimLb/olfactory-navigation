@@ -105,24 +105,21 @@ def get_Transition_Matrix_vect(pi, pObs, rSource, cSource, find_range):
     return T 
 
 
-def calc_Q(V, R):
+def calc_Q(V, R, M):
     Q = np.zeros((SC, 4))
-    for s in range(SC):
-        if (s // 92 - rSource) ** 2 + (s % 92 -cSource) **2 < find_range**2:
-            continue
-        reach = getReachable(s)
-        for a in range(4):
-            r = reach[a]
-            Q[s, a ] += (R[r] + gamma * V[r])
+    RV = R + gamma * V
+    toSum = np.array([RV[getReachable(s, M)] for s in range(SC)])
+    for a in range(4):
+        np.add.at(Q, (np.arange(SC, dtype=int), a), toSum[:, a])
+    mask = np.array([(s // 92 - rSource) ** 2 + (s % 92 -cSource) **2 < find_range**2 for s in range(SC)])
+    Q[mask] = 0
     return Q
 
 def find_grad(Q, eta, pObs):
     grad = np.zeros((2, 1, 4))
     O, M, AM = grad.shape
-    for o in range(O):
-        for a in range(4):
-            for s in range(SC):
-                grad[o, 0, a] += eta[s] * pObs[o, s] * Q[s, a]
+    for a in range(4):
+        grad[:, 0, a] = np.sum(pObs * eta * Q[:, a], axis=1)
     return grad
 
 if __name__ == "__main__":
@@ -138,7 +135,7 @@ if __name__ == "__main__":
     print("Inizio: ", time.ctime(), flush=True)
     dataFile = sys.argv[1]
     folder = sys.argv[2]
-    M = sys.argv[3]
+    M = int(sys.argv[3])
     os.makedirs(f"results/modelBased/M{M}/celani/{dataFile}/{folder}", exist_ok=True)
     with cp.cuda.Device(3):
         dataC = np.load(f"celaniData/{dataFile}.npy")
