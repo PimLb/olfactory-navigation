@@ -26,3 +26,33 @@ Se invece, faccio rescaling con la norma infinito del gradiente e sottraggo, all
 Se faccio rescaling ma non sottraggo, allora il passo sarà troppo breve, esattamente come sopra.
 
 Nell'actor critic inizializzare V a -1 sembra essere o uguale o un po' peggio che inizializzare a 0
+
+Ho rilanciato modelBased con alpha 1e-2, facendo rescaling e sottraendo, e tutte le volte arriva alla policy corretta, partendo ogni volta da policy diverse
+
+
+Risultati dei test Actor Critic con vari learning rate
+    test actor 0.1    critic 0.1    5000 è arrivato ad una policy vicina.
+    test actor 0.1    critic 0.01   5000 è rimasto ad una policy particamente uniforme quando non osserva
+    test actor 0.1    critic 0.005  5000 forse stava andando nella "direzione" giusta, ma gli episodi non bastavano.
+    test actor 0.01   critic 0.1    5000 verso la fine sembra che stesse andando correttamente, anche se non "dritto"
+    test actor 0.01   critic 0.01   5000 è rimasto ad una policy particamente uniforme quando non osserva
+    test actor 0.01   critic 0.005  5000 sembra stia andando nella direzione sbagliata
+    test actor 0.005  critic 0.1    5000 sembra stesse andando nella direzione giusta. Quando osserva va solo a destra*
+    test actor 0.005  critic 0.01   5000 sembra stesse andando nella direzione sbagliata. 
+    test actor 0.005  critic 0.005  5000 forse stava andando nella direzione giusta, ma  non bastavano gli episodi
+
+* Deve essere che in un episodio è arrivato nello stato affianco a sinistra della sorgente, nonostante ci fosse ~6e-8 probabilità di scegliere
+l'azione destra, ha scelto quella, che quindi lo ha portato alla sorgente. Perciò TDerror positivo e dividendo per 6e-8, ha sommato una valore 
+molto grande. Difatti, nelle iterazioni successive, stava piano piano diminuendo, ma troppo lentamente
+
+
+Risultati dei test Actor Critic partendo da una policy molto vicina con il critic corrispondente
+    test actor 0.1    critic 0.1    5000 quando non osserva va a destra sempre. Forse stesso motivo di sopra, anche se non ha così senso
+    test actor 0.1    critic 0.01   5000 quando non osserva va sempre downwind. Ha cambiato la direzione un paio di volte
+    test actor 0.1    critic 0.005  5000 quando non osserva va a destra sempre. Ha cambiato la direzione un paio di volte
+    test actor 0.01   critic 0.1    5000 va sempre a sinistra, sia che osservi che no. Ha cambiato la direzione un paio di volte
+    test actor 0.01   critic 0.01   5000 quando non osserva va a sinistra sempre. è rimasto vicino alla policy corretta molto più degli altri
+    test actor 0.01   critic 0.005  5000 va sempre downwind, sia che osservi che no.
+    test actor 0.005  critic 0.1    5000 ha una policy diversa, ma non troppo da quella corretta. 
+    test actor 0.005  critic 0.01   5000 quando non osserva va a sinistra sempre
+    test actor 0.005  critic 0.005  5000 è rimasto vicino alla policy corretta

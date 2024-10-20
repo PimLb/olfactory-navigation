@@ -29,10 +29,10 @@ rho = np.zeros(SC)
 rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
 
 # Algo Parameters
-numberEpisodes = 10000
+numberEpisodes = 100000
 maxStepsPerEpisode = 10000
-actor_lr = 0.01
-critic_lr = 0.01
+actor_lr = 0.001
+critic_lr = 0.001
 
 def isEnd(s):
     r, c = s // cols, s % cols
@@ -47,28 +47,42 @@ def takeAction(s, a):
     c = cNew if cNew >= 0 and cNew < 92 else c
     return r * 92 + c
 
-# V = np.zeros(SC)
-V = np.ones(SC) * -1
-mask = np.array([isEnd(s) for s in range(SC)])
-V[mask] = 0
-print(np.argwhere(V == 0), flush=True)
+V = np.zeros(SC)
+# V = np.ones(SC) * -1
+# mask = np.array([isEnd(s) for s in range(SC)])
+# V[mask] = 0
+# print(np.argwhere(V == 0), flush=True)
 # V = np.load("results/modelBased/M1/celani/fine5/alpha1e-2_Rescaled_Subtract/V_Conv7000.npy")
 theta = (np.random.rand(2, 1, 4) -0.5) * 0.5
 theta[1, :, 0] += 0.5
 theta[1, :, 2] += 0.5
-theta = np.load("results/oneStepAC/M1/alphaCritic_0.01_alphaActor_0.01/initZero_episodes_10000/thetaSTART.npy")
-pi = softmax(theta, axis=2)
+
 try:
-    run = sys.argv[1]
+    critic_lr = float(sys.argv[1])
+    actor_lr = float(sys.argv[2])
+    numberEpisodes = int(sys.argv[3])
+except IndexError:
+    print(f"Specify actor and critic learning rate. Usage: python3 {sys.argv[0]} critic_lr actor_lr episodes [run_name starting_theta starting_V]")
+    sys.exit(-1)
+try:
+    run = sys.argv[4]
     saveDir = os.path.join(f"results/oneStepAC/M1/alphaCritic_{critic_lr}_alphaActor_{actor_lr}", f"{run}_episodes_{numberEpisodes}")
 except IndexError:
     saveDir = os.path.join(f"results/oneStepAC/M1/alphaCritic_{critic_lr}_alphaActor_{actor_lr}", f"episodes_{numberEpisodes}")
-
+try:
+    theta = np.load(sys.argv[5])
+except IndexError:
+    pass    
+try:
+    V = np.load(sys.argv[6])
+except IndexError:
+    pass
+pi = softmax(theta, axis=2)
 os.makedirs(saveDir)
 ouput = open(os.path.join(saveDir, "results.out"), "w")
 s = time.perf_counter()
-print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=ouput, flush=True)
-print("Starting pi:", pi,file=ouput)
+print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=ouput)
+print("Starting pi:", pi,file=ouput, flush=True)
 np.save(os.path.join(saveDir, "thetaSTART.npy"), theta)
 for i in range(numberEpisodes):
     start = np.random.choice(range(SC), p = rho)
@@ -82,7 +96,7 @@ for i in range(numberEpisodes):
         reward = -(1 - gamma) if not isEnd(newState) else 0
         # print(curState, obs, action, newState, reward)
         tdError = reward + gamma * V[newState] - V[curState]
-        print(f"Ep {i} step {curStep} O: {obs}, A:{action}, TD error: {tdError}", flush=True)
+        #print(f"Ep {i} state {curState} O: {obs}, A:{action}, TD error: {tdError}", flush=True)
         # Caso speciale per Natural Gradient e softmax. Credo sia giusto
         theta[obs, 0, action] = theta[obs, 0, action] + actor_lr * tdError * eligibility / pi[obs, 0, action] 
         V[curState] += critic_lr * tdError # Caso speciale per V tabulare. Credo sia giusto
@@ -96,9 +110,9 @@ for i in range(numberEpisodes):
         print(f"PI at episode {i+1}: {pi}", flush=True,file=ouput)
         np.save(os.path.join(saveDir , f"theta{i+1}.npy"), theta)
         np.save(os.path.join(saveDir , f"critic{i+1}.npy"), V)
-    if(isEnd(curState)):
-        print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)
-        print(f"Episode {i} has reached the source in {curStep} steps", flush=True)
+    # if(isEnd(curState)):
+    #     print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)
+    #     print(f"Episode {i} has reached the source in {curStep} steps", flush=True)
 
 e = time.perf_counter()
 print(f"{numberEpisodes} episodes done in {e -s } seconds, at {time.ctime()}",file=ouput)
