@@ -104,20 +104,20 @@ def get_Transition_Matrix_vect(pi, pObs, rSource, cSource, find_range):
 
 
 def calc_Q(V, R, M):
-    Q = np.zeros((SC, 4))
+    Q = np.zeros((SC * M, 4*M))
     RV = R + gamma * V
-    toSum = np.array([RV[getReachable(s, M)] for s in range(SC)])
-    for a in range(4):
-        np.add.at(Q, (np.arange(SC, dtype=int), a), toSum[:, a])
-    mask = np.array([(s // 92 - rSource) ** 2 + (s % 92 -cSource) **2 < find_range**2 for s in range(SC)])
+    toSum = np.array([RV[getReachable(s, M)] for s in range(SC*M)])
+    for a in range(4*M):
+        np.add.at(Q, (np.arange(SC * M, dtype=int), a), toSum[:, a])
+    mask = np.array([((s % SC) // 92 - rSource) ** 2 + (s % 92 -cSource) **2 < find_range**2 for s in range(SC * M)])
     Q[mask] = 0
     return Q
 
-def find_grad(Q, eta, pObs):
-    grad = np.zeros((2, 1, 4))
-    O, M, AM = grad.shape
+def find_grad(Q, eta, pObs, M):
+    grad = np.zeros((2, M, 4 *M))
+    tmp = np.tile(pObs, M)
     for a in range(4):
-        grad[:, 0, a] = np.sum(pObs * eta * Q[:, a], axis=1)
+        grad[:, 0, a] = np.sum(tmp * eta * Q[:, a], axis=1)
     return grad
 
 #Risolvere il sistema lineare con CUPY ci mette di più che un'intera iterazione di Gradient Ascent con scipy
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     for i in range(maxIt):
         s = time.perf_counter()
         
-        grad = find_grad(Q, eta, dataC)
+        grad = find_grad(Q, eta, dataC, M)
         if subtract:
             grad -= np.max(grad, axis = 2, keepdims=True)
         if rescale:  

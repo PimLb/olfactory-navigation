@@ -6,6 +6,8 @@ import multiprocessing as mp
 import time
 import os
 import sys
+import argparse as ap
+
 
 # Setting Parameters
 SC = 92 * 131 # Number of States
@@ -15,8 +17,6 @@ cols = 92
 rows = 131
 find_range = 1.1 # Source radius
 gamma = 0.99975
-lr = 0.01
-tol = 1e-8
 reward = -(1 -gamma)
 ActionDict = np.asarray([
             [-1,  0], # North
@@ -47,36 +47,43 @@ def takeAction(s, a):
     c = cNew if cNew >= 0 and cNew < 92 else c
     return r * 92 + c
 
-V = np.zeros(SC)
-# V = np.ones(SC) * -1
-# mask = np.array([isEnd(s) for s in range(SC)])
-# V[mask] = 0
-# print(np.argwhere(V == 0), flush=True)
-# V = np.load("results/modelBased/M1/celani/fine5/alpha1e-2_Rescaled_Subtract/V_Conv7000.npy")
-theta = (np.random.rand(2, 1, 4) -0.5) * 0.5
-theta[1, :, 0] += 0.5
-theta[1, :, 2] += 0.5
 
-try:
-    critic_lr = float(sys.argv[1])
-    actor_lr = float(sys.argv[2])
-    numberEpisodes = int(sys.argv[3])
-except IndexError:
-    print(f"Specify actor and critic learning rate. Usage: python3 {sys.argv[0]} critic_lr actor_lr episodes [run_name starting_theta starting_V]")
-    sys.exit(-1)
-try:
-    run = sys.argv[4]
-    saveDir = os.path.join(f"results/oneStepAC/M1/alphaCritic_{critic_lr}_alphaActor_{actor_lr}", f"{run}_episodes_{numberEpisodes}")
-except IndexError:
+parser = ap.ArgumentParser()
+parser.add_argument("actor_lr", type=float, help="the learning rate for the actor")
+parser.add_argument("critic_lr", type=float, help="the learning rate for the critic")
+parser.add_argument("episodes", type=int, help="How many episodes to run")
+parser.add_argument("-n", "--name", help="subfolder name in which to save the results")
+parser.add_argument("-t","--thetaStart", help="the path to a .npy file containing the starting values of theta")
+parser.add_argument("-v","--vStart", help="the path to a .npy file containing the starting values of V")
+args = parser.parse_args()
+print(args)
+actor_lr = args.actor_lr
+critic_lr = args.critic_lr
+numberEpisodes = args.episodes
+
+if args.name is not None:
+    saveDir = os.path.join(f"results/oneStepAC/M1/alphaCritic_{critic_lr}_alphaActor_{actor_lr}", f"{args.name}_episodes_{numberEpisodes}")
+else:
     saveDir = os.path.join(f"results/oneStepAC/M1/alphaCritic_{critic_lr}_alphaActor_{actor_lr}", f"episodes_{numberEpisodes}")
-try:
-    theta = np.load(sys.argv[5])
-except IndexError:
-    pass    
-try:
-    V = np.load(sys.argv[6])
-except IndexError:
-    pass
+
+if args.thetaStart is not None:
+    theta = np.load(args.thetaStart)
+else:
+    theta = (np.random.rand(2, 1, 4) -0.5) * 0.5
+    theta[1, :, 0] += 0.5
+    theta[1, :, 2] += 0.5
+
+if args.vStart is not None:
+    V = np.load(args.vStart)
+else:
+    V = np.zeros(SC)
+    # V = np.ones(SC) * -1
+    # mask = np.array([isEnd(s) for s in range(SC)])
+    # V[mask] = 0
+    # print(np.argwhere(V == 0), flush=True)
+    # V = np.load("results/modelBased/M1/celani/fine5/alpha1e-2_Rescaled_Subtract/V_Conv7000.npy")
+
+
 pi = softmax(theta, axis=2)
 os.makedirs(saveDir)
 ouput = open(os.path.join(saveDir, "results.out"), "w")
