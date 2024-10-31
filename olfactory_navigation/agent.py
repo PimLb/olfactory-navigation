@@ -59,9 +59,13 @@ class Agent:
     ----------
     environment : Environment
         The olfactory environment the agent is meant to evolve in.
-    threshold : float or list[float], default=3e-6
-        The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
-        If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+
+    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default=3e-6
+        The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
+        If a list of thresholds is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+        A dictionary of (list of) thresholds can also be provided when the environment is layered.
+        In such case, the number of layers provided must match the environment's layers and their labels must match.
+        The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
     space_aware : bool, default=False
         Whether the agent is aware of it's own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
@@ -81,7 +85,9 @@ class Agent:
     Attributes
     ----------
     environment : Environment
-    threshold : float or list[float]
+    thresholds : np.ndarray
+        An array of the thresholds of detection, starting with -inf and ending with +inf.
+        In the case of a 2D array of thresholds, the rows of thresholds apply to the different layers of the environment.
     space_aware : bool
     spacial_subdivisions : np.ndarray
     name : str
@@ -102,7 +108,7 @@ class Agent:
     '''
     def __init__(self,
                  environment: Environment,
-                 threshold: float | list[float] = 3e-6,
+                 thresholds: float | list[float] | dict[str, float] | dict[str, list[float]] = 3e-6,
                  space_aware: bool = False,
                  spacial_subdivisions: np.ndarray | None = None,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
@@ -112,11 +118,55 @@ class Agent:
         # TODO: Add spatial arguments to save/load and name
         self.environment = environment
         self.space_aware = space_aware
-        self.threshold = threshold
 
-        # Ensuring thresholds are sorted (if it is a list)
-        if isinstance(self.threshold, list):
-            self.threshold = sorted(self.threshold)
+        # Handle thresholds
+        if isinstance(thresholds, float):
+            thresholds = [thresholds]
+
+        if isinstance(thresholds, list):
+            # Ensure -inf and +inf begin and end the thresholds list
+            if -np.inf not in thresholds:
+                thresholds = [-np.inf] + thresholds
+
+            if np.inf not in thresholds:
+                thresholds = thresholds + [np.inf]
+
+            self.thresholds = np.array(thresholds)
+
+        # Handle the case where a dict of thresholds is provided in the case of a layered environment and ensuring they are ordered.
+        elif isinstance(thresholds, dict):
+            assert self.environment.has_layers, "Thresholds can only be provided as a dict if the environment is layered."
+            assert len(thresholds) == len(self.environment.layer_labels), "Thresholds must be given for each layers."
+
+            if all(isinstance(layer_thresholds, list) for layer_thresholds in thresholds.values()):
+                layer_thresholds_count = len(thresholds.values()[0])
+                assert all(len(layer_thresholds) == layer_thresholds_count for layer_thresholds in thresholds.values()), "If provided as lists, the threshold lists must all be of the same length."
+            else:
+                assert all(isinstance(layer_threshold, float) for layer_threshold in thresholds.values()), "The thresholds provided in a dictionary must all be list or float, not a combination of both."
+
+            # Processing layers of thresholds
+            layer_thresholds_list = []
+            for layer_label in enumerate(self.environment.layer_labels):
+                assert layer_label in thresholds, f"Environment's layer [{layer_label}] was not matched to any layers of the environment."
+                layer_thresholds = thresholds[layer_label]
+
+                if not isinstance(layer_thresholds, list):
+                    layer_thresholds = [layer_thresholds]
+
+                # Ensure -inf and +inf begin and end the thresholds list
+                if -np.inf not in layer_thresholds:
+                    layer_thresholds = [-np.inf] + layer_thresholds
+
+                if np.inf not in layer_thresholds:
+                    layer_thresholds = layer_thresholds + [np.inf]
+
+                layer_thresholds_list.append(layer_thresholds)
+
+            # Building an array with the layers of thresholds
+            self.thresholds = np.array(layer_thresholds_list)
+
+        # Ensuring the thresholds are in ascending order
+        self.thresholds.sort()
 
         # Spacial subdivisions
         if spacial_subdivisions is None:
@@ -214,7 +264,11 @@ class Agent:
         # setup name
         if name is None:
             self.name = self.class_name
-            self.name += f'-tresh_' + (str(self.threshold) if not isinstance(self.threshold, list) else '_'.join(str(t) for t in self.threshold))
+            if len(self.thresholds.shape) == 2:
+                thresh_string = '-'.join(['_'.join([f'l{row_i}'] + [str(item) for item in row]) for row_i, row in enumerate(self.thresholds[:,1:-1])])
+            else:
+                thresh_string = '_'.join([str(item) for item in self.thresholds])
+            self.name += f'-tresholds-' + thresh_string
             self.name += '-space_aware' if self.space_aware else ''
         else:
             self.name = name
@@ -286,6 +340,7 @@ class Agent:
 
     def discretize_observations(self,
                                 observation: np.ndarray,
+                                action: np.ndarray,
                                 source_reached: np.ndarray
                                 ) -> np.ndarray:
         '''
@@ -299,6 +354,8 @@ class Agent:
         ----------
         observation : np.ndarray
             The observations the agent receives, in the case the agent is space_aware, the position point is also included.
+        action: np.ndarray
+            The action the agent did. This parameter is used in the particular case where the environment has layers and the odor thresholds are layer dependent.
         source_reached : np.ndarray
             A 1D array of boolean values signifying whether each agent reached or not the source.
 
@@ -316,24 +373,17 @@ class Agent:
         # Gather olfactory observation
         olfactory_observation = observation if not self.space_aware else observation[:,0]
 
-        # Set the thresholds as a vector
-        threshold = self.threshold
-        if not isinstance(threshold, list):
-            threshold = [threshold]
-
-        # Ensure 0.0 and 1.0 begin and end the threshold list
-        if threshold[0] != -xp.inf:
-            threshold = [-xp.inf] + threshold
-
-        if threshold[-1] != xp.inf:
-            threshold = threshold + [xp.inf]
-        threshold = xp.array(threshold)
-
         # Compute the amount of observations available
-        observation_count = len(threshold) - 1 # |threshold| - 1 observation buckets
+        observation_count = self.thresholds.shape[-1] - 1 # |thresholds| - 1 observation buckets
 
-        # Setting observation ids
-        observation_ids = xp.argwhere((olfactory_observation[:,None] >= threshold[:-1][None,:]) & (olfactory_observation[:,None] < threshold[1:][None,:]))[:,1]
+        # Handle the special case where we have a layered environment and different thresholds for these layers
+        if self.environment.has_layers and len(self.thresholds.shape) == 2:
+            layer_ids = action[:,0] # First column of actions is the layer
+            action_layer_thresholds = self.thresholds[layer_ids]
+            observation_ids = xp.argwhere((olfactory_observation[:,None] >= action_layer_thresholds[:,:-1]) & (olfactory_observation[:,None] < action_layer_thresholds[:,1:]))[:,1]
+        else:
+            # Setting observation ids
+            observation_ids = xp.argwhere((olfactory_observation[:,None] >= self.thresholds[:-1][None,:]) & (olfactory_observation[:,None] < self.thresholds[1:][None,:]))[:,1]
 
         # If needed, multiply observation indices by position indices
         if not self.space_aware:
@@ -357,15 +407,18 @@ class Agent:
 
 
     def update_state(self,
+                     action: np.ndarray,
                      observation: np.ndarray,
                      source_reached: np.ndarray
                      ) -> None | np.ndarray:
         '''
         Function to update the internal state(s) of the agent(s) based on the action(s) taken and the observation(s) received.
-        The observations are then compared with the threshold to decide whether something was sensed or not.
+        The observations are then compared with the thresholds to decide whether something was sensed or not or to what level.
 
         Parameters
         ----------
+        action : np.ndarray
+            A 2D array of n movement vectors. If the environment is layered, the 1st component should be the layer.
         observation : np.ndarray
             A n by 1 (or 1 + environment.dimensions if space_aware) array of odor cues (float values) retrieved from the environment.
         source_reached : np.array
@@ -486,7 +539,7 @@ class Agent:
         '''
         Function to modify the environment of the agent.
 
-        Note: By default, a new agent is created with the same threshold and name but with a this new environment!
+        Note: By default, a new agent is created with the same thresholds and name but with a this new environment!
         If there are any trained elements to the agent, they are to be modified in this method to be adapted to this new environment.
 
         Parameters
@@ -500,7 +553,7 @@ class Agent:
             A new Agent whose environment has been replaced.
         '''
         modified_agent = self.__class__(environment=new_environment,
-                                        threshold=self.threshold,
+                                        thresholds=self.thresholds,
                                         name=self.name)
         return modified_agent
 

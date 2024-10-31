@@ -19,9 +19,12 @@ class PBVI_SSEA_Agent(PBVI_Agent):
     ----------
     environment : Environment
         The olfactory environment to train the agent with.
-    threshold : float or list[float], default=3e-6
-        The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
-        If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default=3e-6
+        The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
+        If a list of thresholds is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+        A dictionary of (list of) thresholds can also be provided when the environment is layered.
+        In such case, the number of layers provided must match the environment's layers and their labels must match.
+        The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
@@ -43,7 +46,9 @@ class PBVI_SSEA_Agent(PBVI_Agent):
     Attributes
     ---------
     environment : Environment
-    threshold : float or list[float]
+    thresholds : np.ndarray
+        An array of the thresholds of detection, starting with -inf and ending with +inf.
+        In the case of a 2D array of thresholds, the rows of thresholds apply to the different layers of the environment.
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
@@ -83,7 +88,7 @@ class PBVI_SSEA_Agent(PBVI_Agent):
         Stochastic Simulation with Exploratory Action.
         Simulates running steps forward for each possible action knowing we are a state s, chosen randomly with according to the belief probability.
         These lead to a new state s_p and a observation o for each action.
-        From all these and observation o we can generate updated beliefs. 
+        From all these and observation o we can generate updated beliefs.
         Then it takes the belief that is furthest away from other beliefs, meaning it explores the most the belief space.
 
         Parameters
@@ -109,7 +114,7 @@ class PBVI_SSEA_Agent(PBVI_Agent):
 
         # Generation of successors
         successor_beliefs = xp.array([[[b.update(a,o).values for o in model.observations] for a in model.actions] for b in belief_set.belief_list])
-        
+
         # Compute the distances between each pair and of successor are source beliefs
         diff = (belief_set.belief_array[:, None,None,None, :] - successor_beliefs)
         dist = xp.sqrt(xp.einsum('bnaos,bnaos->bnao', diff, diff))

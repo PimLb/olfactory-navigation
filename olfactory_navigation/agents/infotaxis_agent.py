@@ -31,9 +31,12 @@ class Infotaxis_Agent(Agent):
     ----------
     environment : Environment
         The olfactory environment to train the agent with.
-    threshold : float or list[float], default=3e-6
-        The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
-        If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default=3e-6
+        The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
+        If a list of thresholds is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+        A dictionary of (list of) thresholds can also be provided when the environment is layered.
+        In such case, the number of layers provided must match the environment's layers and their labels must match.
+        The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
     space_aware : bool, default=False
         Whether the agent is aware of it's own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
@@ -62,7 +65,9 @@ class Infotaxis_Agent(Agent):
     Attributes
     ---------
     environment : Environment
-    threshold : float or list[float]
+    thresholds : np.ndarray
+        An array of the thresholds of detection, starting with -inf and ending with +inf.
+        In the case of a 2D array of thresholds, the rows of thresholds apply to the different layers of the environment.
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
@@ -91,7 +96,7 @@ class Infotaxis_Agent(Agent):
     '''
     def __init__(self,
                  environment: Environment,
-                 threshold: float | list[float] = 3e-6,
+                 thresholds: float | list[float] | dict[str, float] | dict[str, list[float]] = 3e-6,
                  space_aware: bool = False,
                  spacial_subdivisions: np.ndarray | None = None,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
@@ -103,7 +108,7 @@ class Infotaxis_Agent(Agent):
                  ) -> None:
         super().__init__(
             environment = environment,
-            threshold = threshold,
+            thresholds = thresholds,
             space_aware = space_aware,
             spacial_subdivisions = spacial_subdivisions,
             actions = actions,
@@ -167,7 +172,7 @@ class Infotaxis_Agent(Agent):
         To use an agent within a simulation, the agent's state needs to be initialized.
         The initialization consists of setting the agent's initial belief.
         Multiple agents can be used at once for simulations, for this reason, the belief parameter is a BeliefSet by default.
-        
+
         Parameters
         ----------
         n : int, default=1
@@ -189,7 +194,7 @@ class Infotaxis_Agent(Agent):
         xp = np if not self.on_gpu else cp
 
         n = len(self.belief)
-        
+
         best_entropy = xp.ones(n) * -1
         best_action = xp.ones(n, dtype=int) * -1
 
@@ -211,12 +216,12 @@ class Infotaxis_Agent(Agent):
                 b_prob = xp.dot(self.belief.belief_array, xp.sum(self.model.reachable_transitional_observation_table[:,a,o,:], axis=1))
 
                 total_entropy += (b_prob * (current_entropy - b_ao_entropy))
-            
+
             # Checking if action is superior to previous best
             superiority_mask = best_entropy < total_entropy
             best_action[superiority_mask] = a
             best_entropy[superiority_mask] = total_entropy[superiority_mask]
-        
+
         # Recording the action played
         self.action_played = best_action
 
@@ -227,6 +232,7 @@ class Infotaxis_Agent(Agent):
 
 
     def update_state(self,
+                     action: np.ndarray,
                      observation: np.ndarray,
                      source_reached: np.ndarray
                      ) -> None | np.ndarray:
@@ -235,6 +241,8 @@ class Infotaxis_Agent(Agent):
 
         Parameters
         ----------
+        action : np.ndarray
+            A 2D array of n movement vectors. If the environment is layered, the 1st component should be the layer.
         observation : np.ndarray
             The observation(s) the agent(s) made.
         source_reached : np.ndarray
@@ -248,8 +256,9 @@ class Infotaxis_Agent(Agent):
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 
+
         # Discretizing observations
-        observation_ids = self.discretize_observations(observation, source_reached)
+        observation_ids = self.discretize_observations(observation=observation, action=action, source_reached=source_reached)
 
         # Update the set of belief
         self.belief = self.belief.update(actions=self.action_played, observations=observation_ids)
