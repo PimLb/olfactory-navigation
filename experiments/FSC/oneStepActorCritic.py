@@ -47,6 +47,21 @@ def takeAction(s, a):
     c = cNew if cNew >= 0 and cNew < 92 else c
     return r * 92 + c
 
+def totalTime(end, start, file = None):
+    tot = end - start
+    seconds = int(tot % 60)
+    minutes = int((tot // 60) % 60)
+    hours = int(tot // 3600)
+    print(f"End time: {time.ctime()}", file=file)
+    if hours >= 24:
+        days = hours // 24
+        hours = hours % 24
+        print(f"Total time: {days}d {hours}:{minutes}:{seconds}", file=file)
+        return
+    if hours == 0:
+        print(f"Total time: {minutes}m:{seconds}s", file=file)
+        return
+    print(f"Total time: {hours}h:{minutes}m:{seconds}s", file=file)
 
 parser = ap.ArgumentParser()
 parser.add_argument("actor_lr", type=float, help="the learning rate for the actor")
@@ -56,16 +71,16 @@ parser.add_argument("-n", "--name", help="subfolder name in which to save the re
 parser.add_argument("-t","--thetaStart", help="the path to a .npy file containing the starting values of theta")
 parser.add_argument("-v","--vStart", help="the path to a .npy file containing the starting values of V")
 args = parser.parse_args()
-print(args)
 actor_lr = args.actor_lr
 critic_lr = args.critic_lr
 numberEpisodes = args.episodes
 
 if args.name is not None:
-    saveDir = os.path.join(f"results/oneStepAC/M1/alphaCritic_{critic_lr}_alphaActor_{actor_lr}", f"{args.name}_episodes_{numberEpisodes}")
+    saveDir = os.path.join(f"results/oneStepAC/M1/alphaActor_{actor_lr}_alphaCritic_{critic_lr}", f"{args.name}_episodes_{numberEpisodes}")
 else:
-    saveDir = os.path.join(f"results/oneStepAC/M1/alphaCritic_{critic_lr}_alphaActor_{actor_lr}", f"episodes_{numberEpisodes}")
-
+    saveDir = os.path.join(f"results/oneStepAC/M1/alphaActor_{actor_lr}_alphaCritic_{critic_lr}", f"episodes_{numberEpisodes}")
+critDir = os.path.join(saveDir, "Critics")
+actDir = os.path.join(saveDir, "Actors")
 if args.thetaStart is not None:
     theta = np.load(args.thetaStart)
 else:
@@ -86,11 +101,13 @@ else:
 
 pi = softmax(theta, axis=2)
 os.makedirs(saveDir)
-ouput = open(os.path.join(saveDir, "results.out"), "w")
+os.makedirs(critDir)
+os.makedirs(actDir)
+ouput = open(os.path.join(saveDir, "_results.out"), "w")
 s = time.perf_counter()
 print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=ouput)
 print("Starting pi:", pi,file=ouput, flush=True)
-np.save(os.path.join(saveDir, "thetaSTART.npy"), theta)
+np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 for i in range(numberEpisodes):
     start = np.random.choice(range(SC), p = rho)
     eligibility = 1
@@ -115,13 +132,13 @@ for i in range(numberEpisodes):
     if (i +1) % 1000 == 0:
         print(f"Episode {i+1} done at {time.ctime()}",file=ouput)
         print(f"PI at episode {i+1}: {pi}", flush=True,file=ouput)
-        np.save(os.path.join(saveDir , f"theta{i+1}.npy"), theta)
-        np.save(os.path.join(saveDir , f"critic{i+1}.npy"), V)
+        np.save(os.path.join(actDir , f"theta{i+1}.npy"), theta)
+        np.save(os.path.join(critDir , f"critic{i+1}.npy"), V)
     # if(isEnd(curState)):
     #     print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)
     #     print(f"Episode {i} has reached the source in {curStep} steps", flush=True)
 
 e = time.perf_counter()
-print(f"{numberEpisodes} episodes done in {e -s } seconds, at {time.ctime()}",file=ouput)
 print("Learned pi:", pi,file=ouput)
-np.save(os.path.join(saveDir,"thetaActorCriticFInale.npy"), theta)
+np.save(os.path.join(actDir,"thetaActorCriticFInale.npy"), theta)
+totalTime(e, s, ouput)
