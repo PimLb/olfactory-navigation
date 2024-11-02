@@ -22,6 +22,13 @@ class QMDP_Agent(PBVI_Agent):
         A dictionary of (list of) thresholds can also be provided when the environment is layered.
         In such case, the number of layers provided must match the environment's layers and their labels must match.
         The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
+    space_aware : bool, default=False
+        Whether the agent is aware of it's own position in space.
+        This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
+        Note: The observation array will have a different shape when returned to the update_state function!
+    spacial_subdivisions : np.ndarray, optional
+        How many spacial compartments the agent has to internally represent the space it lives in.
+        By default, it will be as many as there are grid points in the environment.
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
@@ -46,6 +53,8 @@ class QMDP_Agent(PBVI_Agent):
     thresholds : np.ndarray
         An array of the thresholds of detection, starting with -inf and ending with +inf.
         In the case of a 2D array of thresholds, the rows of thresholds apply to the different layers of the environment.
+    space_aware : bool
+    spacial_subdivisions : np.ndarray
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
