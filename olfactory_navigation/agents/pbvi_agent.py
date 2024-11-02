@@ -293,6 +293,8 @@ class PBVI_Agent(Agent):
     thresholds : np.ndarray
         An array of the thresholds of detection, starting with -inf and ending with +inf.
         In the case of a 2D array of thresholds, the rows of thresholds apply to the different layers of the environment.
+    space_aware : bool
+    spacial_subdivisions : np.ndarray
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
