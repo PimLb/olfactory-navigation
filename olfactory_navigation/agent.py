@@ -114,7 +114,6 @@ class Agent:
                  name: str | None = None,
                  seed: int = 12131415
                  ) -> None:
-        # TODO: Add spatial arguments to save/load and name
         self.environment = environment
         self.space_aware = space_aware
 
