@@ -456,17 +456,21 @@ class PBVI_Agent(Agent):
         if save_environment:
             self.environment.save(folder=folder)
 
-        # TODO: Add actions and space awareness to save function
+        # TODO: Add MODEL to save function
         # Generating the metadata arguments dictionary
         arguments = {}
         arguments['name'] = self.name
         arguments['class'] = self.class_name
         if len(self.thresholds.shape) == 2:
-            arguments['thresholds'] = {layer_lab: layer_thresholds.tolist() for layer_lab, layer_thresholds in zip(self.environment.layer_labels, self.thresholds)}
+            arguments['thresholds'] = {layer_lab: layer_thresholds for layer_lab, layer_thresholds in zip(self.environment.layer_labels, self.thresholds.tolist())}
         else:
             arguments['thresholds'] = self.thresholds.tolist()
         arguments['environment_name'] = self.environment.name
         arguments['environment_saved_at'] = self.environment.saved_at
+        arguments['space_aware'] = self.space_aware
+        arguments['spacial_subdivisions'] = self.spacial_subdivisions.tolist()
+        arguments['action_labels'] = self.action_labels
+        arguments['action_set'] = self.action_set.tolist()
         arguments['trained_at'] = self.trained_at
         arguments['seed'] = self.seed
 
@@ -517,10 +521,13 @@ class PBVI_Agent(Agent):
 
         # Build instance
         instance = cls(
-            environment=environment,
-            thresholds=arguments['thresholds'],
-            name=arguments['name'],
-            seed=arguments['seed']
+            environment = environment,
+            thresholds = arguments['thresholds'],
+            space_aware = arguments['space_aware'],
+            spacial_subdivisions = np.array(arguments['spacial_subdivisions']),
+            actions = {a_label: a_vector for a_label, a_vector in zip(arguments['action_labels'], arguments['action_set'])},
+            name = arguments['name'],
+            seed = arguments['seed']
         )
 
         # Load and set the value function on the instance
