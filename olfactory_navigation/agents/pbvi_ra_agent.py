@@ -83,10 +83,6 @@ class PBVI_RA_Agent(PBVI_Agent):
         Used only during simulations.
         Part of the Agent's status. Where the agent believes he is over the state space.
         It is a list of n belief points based on how many simulations are running at once.
-    action_played : list[int]
-        Used only during simulations.
-        Part of the Agent's status. Records what action was last played by the agent.
-        A list of n actions played based on how many simulations are running at once.
     '''
     def expand(self,
                belief_set: BeliefSet,
