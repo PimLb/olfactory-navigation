@@ -91,10 +91,6 @@ class Infotaxis_Agent(Agent):
         Used only during simulations.
         Part of the Agent's status. Where the agent believes he is over the state space.
         It is a list of n belief points based on how many simulations are running at once.
-    action_played : list[int]
-        Used only during simulations.
-        Part of the Agent's status. Records what action was last played by the agent.
-        A list of n actions played based on how many simulations are running at once.
     '''
     def __init__(self,
                  environment: Environment,
@@ -130,7 +126,6 @@ class Infotaxis_Agent(Agent):
 
         # Status variables
         self.belief = None
-        self.action_played = None
 
 
     def to_gpu(self) -> Agent:
@@ -224,9 +219,6 @@ class Infotaxis_Agent(Agent):
             best_action[superiority_mask] = a
             best_entropy[superiority_mask] = total_entropy[superiority_mask]
 
-        # Recording the action played
-        self.action_played = best_action
-
         # Converting action indexes to movement vectors
         movemement_vector = self.action_set[best_action,:]
 
@@ -262,7 +254,7 @@ class Infotaxis_Agent(Agent):
         observation_ids = self.discretize_observations(observation=observation, action=action, source_reached=source_reached)
 
         # Update the set of belief
-        self.belief = self.belief.update(actions=self.action_played, observations=observation_ids)
+        self.belief = self.belief.update(actions=action, observations=observation_ids)
 
         # Check for failed updates
         update_successful = (self.belief.belief_array.sum(axis=1) != 0.0)
