@@ -745,19 +745,29 @@ class SimulationHistory:
                            zorder=2,
                            label=layer_label)
 
-        # TODO: Fix this to use np.ndarray thresholds
-        # Something sensed
-        if isinstance(self.agent_thresholds, list):
-            thresholds = self.agent_thresholds + [np.inf]
-            odor_cues = sim['o'][1:].to_numpy()
-            for level_i, (lower_threshold, upper_lower_threshold) in enumerate(zip(thresholds[:-1], lower_threshold[1:])):
-                cues_at_level = ((odor_cues >= lower_threshold) & (odor_cues < upper_lower_threshold))
+        # Process odor cues
+        odor_cues = sim['o'][1:].to_numpy()
+        observation_ids = None
+        if self.environment.has_layers and len(self.agent_thresholds.shape) == 2:
+            layer_ids = sim[['layer']][1:].to_numpy()
+            action_layer_thresholds = self.agent_thresholds[layer_ids]
+            observation_ids = np.argwhere((odor_cues[:,None] >= action_layer_thresholds[:,:-1]) & (odor_cues[:,None] < action_layer_thresholds[:,1:]))[:,1]
+        else:
+            # Setting observation ids
+            observation_ids = np.argwhere((odor_cues[:,None] >= self.agent_thresholds[:-1][None,:]) & (odor_cues[:,None] < self.agent_thresholds[1:][None,:]))[:,1]
+
+        # Check whether the odor detection is binary or by level
+        odor_bins = self.agent_thresholds.shape[-1] - 1
+        if odor_bins > 2:
+            odor_levels = np.arange(odor_bins) + 1
+            for level in odor_levels:
+                cues_at_level = (observation_ids == level)
                 ax.scatter(seq[1:][cues_at_level,0], seq[1:][cues_at_level,1],
                            zorder=1,
-                           alpha=((1/len(thresholds)) * (1+level_i)),
-                           label=f'Sensed level {level_i}')
+                           alpha=(level / odor_bins),
+                           label=f'Sensed level {level}')
         else:
-            something_sensed = (sim['o'][1:].to_numpy() > self.agent_thresholds)
+            something_sensed = (observation_ids == 1)
             ax.scatter(seq[1:][something_sensed,0], seq[1:][something_sensed,1],
                        zorder=1,
                        label='Something observed')
