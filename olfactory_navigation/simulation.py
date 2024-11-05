@@ -72,8 +72,8 @@ class SimulationHistory:
         The radius of the odor source in the environment.
     environment_layer_labels : list[str] or None
         A list of the layer labels if the environment has layers.
-    agent_threshold : float or list[float]
-        The olfaction threshold of the agent.
+    agent_thresholds : np.ndarray
+        An array of the olfaction thresholds of the agent.
     n : int
         The amount of simulations.
     start_time : datetime
@@ -127,7 +127,7 @@ class SimulationHistory:
         self.environment_source_position = self.environment.source_position
         self.environment_source_radius = self.environment.source_radius
         self.environment_layer_labels = self.environment.layer_labels
-        self.agent_threshold = self.agent.threshold
+        self.agent_thresholds = self.agent.thresholds
 
         # Other parameters
         self._simulation_dfs = None
@@ -488,11 +488,18 @@ class SimulationHistory:
         ]
         combined_df['environment'] = (environment_info + padding[:-len(environment_info)])
 
+        # Converting the thresholds array to a string to be saved
+        thresholds_string = ''
+        if len(self.agent_thresholds.shape) == 2:
+            thresholds_string = '-'.join(['_'.join([str(item) for item in row]) for row_i, row in enumerate(self.agent_thresholds[:,1:-1])])
+        else:
+            thresholds_string = '_'.join([str(item) for item in self.agent_thresholds])
+
         agent_info = [
             self.agent.name,
             self.agent.class_name,
             self.agent.saved_at,
-            (str(self.agent_threshold) if not isinstance(self.agent_threshold, list) else '_'.join(str(t) for t in self.agent_threshold))
+            thresholds_string
         ]
         combined_df['agent'] = (agent_info + padding[:-len(agent_info)])
 
@@ -597,9 +604,17 @@ class SimulationHistory:
         layer_entery = combined_df['environment'][6]
         environment_layer_labels = (None if ((not isinstance(layer_entery, str)) or (len(layer_entery) == 0)) else layer_entery.split('&'))
 
-        agent_threshold = [float(t) for t in combined_df['agent'][3].split('_')]
-        if len(agent_threshold) == 1:
-            agent_threshold = agent_threshold[0]
+        # Processing the threshold string
+        thresholds_string = combined_df['agent'][3]
+        if '-' in thresholds_string:
+            rows_thresholds_string = thresholds_string.split('-')
+            layer_thresholds = []
+            for row in rows_thresholds_string:
+                layer_thresholds.append([float(item) for item in row.split('_')])
+            agent_thresholds = np.array(layer_thresholds)
+
+        else:
+            agent_thresholds = np.array([float(item) for item in thresholds_string.split('_')])
 
         # Columns to retrieve
         columns = [col for col in columns if col not in ['reward_discount', 'environment', 'agent']]
@@ -663,7 +678,7 @@ class SimulationHistory:
         hist.environment_source_position = environment_source_position
         hist.environment_source_radius = environment_source_radius
         hist.environment_layer_labels = environment_layer_labels
-        hist.agent_threshold = agent_threshold
+        hist.agent_thresholds = agent_thresholds
 
         # Saving simulation dfs back
         hist._simulation_dfs = simulation_dfs
@@ -730,9 +745,10 @@ class SimulationHistory:
                            zorder=2,
                            label=layer_label)
 
+        # TODO: Fix this to use np.ndarray thresholds
         # Something sensed
-        if isinstance(self.agent_threshold, list):
-            thresholds = self.agent_threshold + [np.inf]
+        if isinstance(self.agent_thresholds, list):
+            thresholds = self.agent_thresholds + [np.inf]
             odor_cues = sim['o'][1:].to_numpy()
             for level_i, (lower_threshold, upper_lower_threshold) in enumerate(zip(thresholds[:-1], lower_threshold[1:])):
                 cues_at_level = ((odor_cues >= lower_threshold) & (odor_cues < upper_lower_threshold))
@@ -741,7 +757,7 @@ class SimulationHistory:
                            alpha=((1/len(thresholds)) * (1+level_i)),
                            label=f'Sensed level {level_i}')
         else:
-            something_sensed = (sim['o'][1:].to_numpy() > self.agent_threshold)
+            something_sensed = (sim['o'][1:].to_numpy() > self.agent_thresholds)
             ax.scatter(seq[1:][something_sensed,0], seq[1:][something_sensed,1],
                        zorder=1,
                        label='Something observed')
@@ -953,7 +969,7 @@ def run_test(agent: Agent,
 
         # Updating the agent's actual position (hidden to him)
         agent_position = environment.move(pos=agent_position,
-                                              movement=(action if not environment.has_layers else action[:,1:])) # Getting only the physical component of the action vector if environment has layers.
+                                          movement=(action if not environment.has_layers else action[:,1:])) # Getting only the physical component of the action vector if environment has layers.
 
         # Get an observation based on the new position of the agent
         observation = environment.get_observation(pos=agent_position,
@@ -968,7 +984,9 @@ def run_test(agent: Agent,
             observation = xp.hstack((observation[:,None], agent_position))
 
         # Return the observation to the agent
-        update_succeeded = agent.update_state(observation, source_reached)
+        update_succeeded = agent.update_state(action=action,
+                                              observation=observation,
+                                              source_reached=source_reached)
         if update_succeeded is None:
             update_succeeded = xp.ones(len(source_reached) , dtype=bool)
 
