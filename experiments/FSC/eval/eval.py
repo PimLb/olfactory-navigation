@@ -64,13 +64,17 @@ def getTrajectories(start, pObs, max_MC_steps, pi):
 
 if __name__ == "__main__":
     thetaPath = sys.argv[1]
+    piLoro = np.array([[[0.452, 0.052, 0.444, 0.052]], [[0, 0, 1, 0]]])
     if thetaPath == "celaniPi":
-        pi = np.array([[[0.452, 0.052, 0.444, 0.052]], [[0, 0, 1, 0]]])
+        pi = piLoro
         thetaName = "celaniPolicy"
     else:
         theta = np.load(thetaPath)
         thetaName = sys.argv[3]
         pi = softmax(theta, axis = 2)
+        # pi = piLoro.copy()
+        # pi[0,0] = piLoro[0,0] + [0, 5e-3, 0, -5e-3]
+        print("Diff from optimal: ", pi - piLoro)
     print("PI to be evaluated: ", pi, flush= True)
     dataFile = sys.argv[2]
     dataC = np.load(f"../celaniData/{dataFile}.npy")
@@ -91,7 +95,7 @@ if __name__ == "__main__":
     for i, rl in enumerate(rewardList):
         results[procNumber*i:procNumber*(i+1)] += rl
     # results = getTrajectories(starts, dataC, 10000, pi)
-    np.save(f"results{thetaName}", results)
+    np.save(f"results/{thetaName}", results)
     plt.hist(results, 50)
-    plt.savefig(f"{thetaName}.png")
+    plt.savefig(f"pngs/{thetaName}.png")
     print("Mean: ", np.mean(results)," STD: ", np.std(results))
