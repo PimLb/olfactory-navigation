@@ -97,5 +97,6 @@ if __name__ == "__main__":
     # results = getTrajectories(starts, dataC, 10000, pi)
     np.save(f"results/{thetaName}", results)
     plt.hist(results, 50)
+    plt.ylim(0, 5000)
     plt.savefig(f"pngs/{thetaName}.png")
     print("Mean: ", np.mean(results)," STD: ", np.std(results))
