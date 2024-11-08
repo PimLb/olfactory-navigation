@@ -14,7 +14,7 @@ from olfactory_navigation.agents import FSVI_Agent
 from olfactory_navigation.simulation import run_test
 from olfactory_navigation.test_setups import run_all_starts_test
 
-from position_aware.model_7 import generate_model
+from ..position_aware.model_7 import generate_model
 
 from cupy.cuda import runtime as cuda_runtime
 
