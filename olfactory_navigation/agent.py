@@ -398,7 +398,6 @@ class Agent:
             discrete_observations = (observation_ids * position_count) + position_ids
 
         # Adding the goal observation
-        observation_count += 1
         discrete_observations[source_reached] = observation_count
 
         return discrete_observations
