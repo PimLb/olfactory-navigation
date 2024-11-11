@@ -60,16 +60,16 @@ class Environment:
     From this environment, the various parameters are applied in the following order:
 
     0. The source position is set
-    1. The margins are added and the shape (total size) of the environment are set. 
+    1. The margins are added and the shape (total size) of the environment are set.
     2. The data file's x and y components are squished and streched the to fit the inter-marginal shape of the environment.
     3. The source's position is also moved to stay at the same position within the data.
     4. The multiplier is finally applied to modify the data file's x and y components a final time by growing or shrinking the margins to account for the multiplier. (The multiplication applies with the source position as a center point)
-    
-    Note: to modify the shape of the data file's x and y components the OpenCV library's resize function is used. And the interpolation method is controlled by the interpolation_method parameter. 
+
+    Note: to modify the shape of the data file's x and y components the OpenCV library's resize function is used. And the interpolation method is controlled by the interpolation_method parameter.
 
 
     Then, the starting probability map is built. Either an array can be provided directly or preset option can be chosen:
-    
+
     - 'data_zone': The agent can start at any point in the data_zone (after all the modification parameters have been applied)
     - 'odor_present': The agent can start at any point where an odor cue above the odor_present_threshold can be found at any timestep during the simulation
 
@@ -229,7 +229,7 @@ class Environment:
                         self.layer_labels = [str(layer) for layer in range(len(loaded_data))]
                     else:
                         assert (len(self.layers) == len(loaded_data)), "The amount of layers provided dont match the amount in the dataset."
-                        
+
                         # Re-ordering the layers
                         loaded_data = loaded_data[self.layers]
 
@@ -298,7 +298,7 @@ class Environment:
 
             # Computing the new shape of the data
             new_data_shape: np.ndarray = (shape - np.sum(self.margins, axis=1)).astype(int)
-            
+
             # New source position
             self.data_source_position = (self.data_source_position * (new_data_shape / self.data_shape)).astype(int)
         else:
@@ -368,7 +368,7 @@ class Environment:
         # Converting the shape tuple to integer sets
         self.shape: tuple[int] = tuple([int(el) for el in self.shape])
         self.data_shape: tuple[int] = tuple([int(el) for el in self.data_shape])
-        
+
         # Building a data bounds
         self.data_bounds = np.array([self.margins[:,0], self.margins[:,0] + np.array(self.data_shape)]).T
 
@@ -565,7 +565,7 @@ class Environment:
         A set of observations can also be requested, either at a single position for multiple timestamps or with the same amoung of positions as timestamps provided.
 
         Note: The position will not be checked against boundary conditions; if a position is out-of-bounds it will simply return 0.0!
-        
+
         Parameters
         ----------
         pos : np.ndarray
@@ -587,7 +587,7 @@ class Environment:
         is_single_point = (len(pos.shape) == 1)
         if is_single_point:
             pos = pos[None,:]
-    
+
         # Counting how many position points we are dealing with
         pos_count = len(pos)
 
@@ -698,7 +698,7 @@ class Environment:
         Returns
         -------
         random_states_2d : np.ndarray
-            The n random 2d points in a n x 2 array. 
+            The n random 2d points in a n x 2 array.
         '''
         xp = cp if self.on_gpu else np
 
@@ -795,7 +795,7 @@ class Environment:
         is_single_point = (len(point.shape) == 1)
         if is_single_point:
             point = point[None,:]
-        
+
         # Computing dist
         dist = None
         if metric == 'manhattan':
@@ -1130,7 +1130,7 @@ class Environment:
         Returns
         -------
         modified_environment : Environment
-            The environment with the scale factor applied. 
+            The environment with the scale factor applied.
         '''
         modified_source_radius = self.source_radius * scale_factor
         modified_shape = (np.array(self.shape) * scale_factor).astype(int)
