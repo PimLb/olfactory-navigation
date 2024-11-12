@@ -15,7 +15,7 @@ def run_all_starts_test(agent: Agent,
                         time_shift: int | np.ndarray = 0,
                         time_loop: bool = True,
                         horizon: int = 1000,
-                        skip_initialization: bool = False,
+                        initialization_values: dict = {},
                         reward_discount: float = 0.99,
                         print_progress: bool = True,
                         print_stats: bool = True,
@@ -39,8 +39,9 @@ def run_all_starts_test(agent: Agent,
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    skip_initialization : bool, default=False
-        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
+    initialization_values : dict, default={}
+        In the case the agent is to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
@@ -75,7 +76,7 @@ def run_all_starts_test(agent: Agent,
         time_shift = time_shift,
         time_loop = time_loop,
         horizon = horizon,
-        skip_initialization = skip_initialization,
+        initialization_values = initialization_values,
         reward_discount = reward_discount,
         print_progress = print_progress,
         print_stats = print_stats,
@@ -90,7 +91,7 @@ def run_n_by_cell_test(agent: Agent,
                        time_shift: int | np.ndarray = 0,
                        time_loop: bool = True,
                        horizon: int = 1000,
-                       skip_initialization: bool = False,
+                       initialization_values: dict = {},
                        reward_discount: float = 0.99,
                        print_progress: bool = True,
                        print_stats: bool = True,
@@ -119,8 +120,9 @@ def run_n_by_cell_test(agent: Agent,
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    skip_initialization : bool, default=False
-        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
+    initialization_values : dict, default={}
+        In the case the agent is to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
@@ -172,7 +174,7 @@ def run_n_by_cell_test(agent: Agent,
         time_shift = time_shift,
         time_loop = time_loop,
         horizon = horizon,
-        skip_initialization = skip_initialization,
+        initialization_values = initialization_values,
         reward_discount = reward_discount,
         print_progress = print_progress,
         print_stats = print_stats,
@@ -238,7 +240,7 @@ def test_shape_robustness(agent: Agent,
                           time_shift: int | np.ndarray = 0,
                           time_loop: bool = True,
                           horizon: int = 1000,
-                          skip_initialization: bool = False,
+                          initialization_values: dict = {},
                           reward_discount: float = 0.99,
                           step_percentage: int = 20,
                           min_percentage:int = 20,
@@ -274,8 +276,9 @@ def test_shape_robustness(agent: Agent,
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    skip_initialization : bool, default=False
-        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
+    initialization_values : dict, default={}
+        In the case the agent is to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
@@ -362,7 +365,7 @@ def test_shape_robustness(agent: Agent,
             time_shift = time_shift,
             time_loop = time_loop,
             horizon = horizon,
-            skip_initialization = skip_initialization,
+            initialization_values = initialization_values,
             reward_discount = reward_discount,
             print_progress = False,
             print_stats = print_stats,
@@ -448,7 +451,7 @@ def test_scale_robustness(agent: Agent,
                           time_shift: int | np.ndarray = 0,
                           time_loop: bool = True,
                           horizon: int = 1000,
-                          skip_initialization: bool = False,
+                          initialization_values: dict = {},
                           reward_discount: float = 0.99,
                           step_percentage: int = 20,
                           min_percentage:int = 20,
@@ -484,8 +487,9 @@ def test_scale_robustness(agent: Agent,
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    skip_initialization : bool, default=False
-        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
+    initialization_values : dict, default={}
+        In the case the agent is to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
@@ -567,7 +571,7 @@ def test_scale_robustness(agent: Agent,
             time_shift = time_shift,
             time_loop = time_loop,
             horizon = horizon,
-            skip_initialization = skip_initialization,
+            initialization_values = initialization_values,
             reward_discount = reward_discount,
             print_progress = False,
             print_stats = print_stats,
