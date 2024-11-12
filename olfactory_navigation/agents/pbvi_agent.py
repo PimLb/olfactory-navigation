@@ -1047,7 +1047,8 @@ class PBVI_Agent(Agent):
 
 
     def initialize_state(self,
-                         n: int = 1
+                         n: int = 1,
+                         belief: BeliefSet | None = None
                          ) -> None:
         '''
         To use an agent within a simulation, the agent's state needs to be initialized.
@@ -1058,10 +1059,22 @@ class PBVI_Agent(Agent):
         ----------
         n : int, default=1
             How many agents are to be used during the simulation.
+        belief : BeliefSet, optional
+            An optional set of beliefs to initialize the simulations with.
         '''
         assert self.value_function is not None, "Agent was not trained, run the training function first..."
 
-        self.belief = BeliefSet(self.model, [Belief(self.model) for _ in range(n)])
+        if belief is None:
+            self.belief = BeliefSet(self.model, [Belief(self.model) for _ in range(n)])
+        else:
+            assert len(belief) == n, f"The amount of beliefs provided ({len(belief)}) to initialize the state need to match the amount of stimulations to initialize (n={n})."
+
+            if self.on_gpu and not belief.is_on_gpu:
+                self.belief = belief.to_gpu()
+            elif not self.on_gpu and belief.is_on_gpu:
+                self.belief = belief.to_cpu()
+            else:
+                self.belief = belief
 
 
     def choose_action(self) -> np.ndarray:
