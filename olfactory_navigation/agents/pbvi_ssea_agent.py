@@ -75,6 +75,10 @@ class PBVI_SSEA_Agent(PBVI_Agent):
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
+    cpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
+    gpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction

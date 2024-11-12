@@ -312,6 +312,10 @@ class PBVI_Agent(Agent):
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
+    cpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
+    gpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -366,16 +370,25 @@ class PBVI_Agent(Agent):
         self.action_played = None
 
 
-    def to_gpu(self) -> Agent:
+    def to_gpu(self) -> 'PBVI_Agent':
         '''
         Function to send the numpy arrays of the agent to the gpu.
-        It returns a new instance of the Agent class with the arrays on the gpu
+        It returns a new instance of the Agent class with the arrays on the gpu.
 
         Returns
         -------
         gpu_agent : Agent
             A copy of the agent with the arrays on the GPU.
         '''
+        # Check whether the agent is already on the gpu or not
+        if self.on_gpu:
+            return self
+
+        # Warn and overwrite alternate_version in case it already exists
+        if self._alternate_version is not None:
+            print('[warning] A GPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
         assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
 
         # Generating a new instance
@@ -403,6 +416,51 @@ class PBVI_Agent(Agent):
 
         gpu_agent.on_gpu = True
         return gpu_agent
+
+
+    def to_cpu(self) -> 'PBVI_Agent':
+        '''
+        Function to send the numpy arrays of the agent to the cpu.
+        It returns a new instance of the Agent class with the arrays on the cpu.
+
+        Returns
+        -------
+        cpu_agent : Agent
+            A new environment instance where the arrays are on the cpu memory.
+        '''
+        # Check whether the agent is already on the cpu or not
+        if not self.on_gpu:
+            return self
+
+        if self._alternate_version is not None:
+            print('[warning] A CPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
+        # Generating a new instance
+        cls = self.__class__
+        cpu_agent = cls.__new__(cls)
+
+        # Copying arguments to gpu
+        for arg, val in self.__dict__.items():
+            if isinstance(val, cp.ndarray):
+                setattr(cpu_agent, arg, cp.asnumpy(val))
+            elif arg == 'rnd_state':
+                setattr(cpu_agent, arg, np.random.RandomState(self.seed))
+            elif isinstance(val, Model):
+                setattr(cpu_agent, arg, val.cpu_model)
+            elif isinstance(val, ValueFunction):
+                setattr(cpu_agent, arg, val.to_cpu())
+            elif isinstance(val, BeliefSet) or isinstance(val, Belief):
+                setattr(cpu_agent, arg, val.to_cpu())
+            else:
+                setattr(cpu_agent, arg, val)
+
+        # Self reference instances
+        self._alternate_version = cpu_agent
+        cpu_agent._alternate_version = self
+
+        cpu_agent.on_gpu = True
+        return cpu_agent
 
 
     def save(self,
@@ -433,7 +491,7 @@ class PBVI_Agent(Agent):
 
         # GPU support
         if self.on_gpu:
-            self.to_cpu().save(folder=folder, force=force, save_environment=save_environment)
+            self.cpu_version.save(folder=folder, force=force, save_environment=save_environment)
             return
 
         # Adding env name to folder path
@@ -968,6 +1026,7 @@ class PBVI_Agent(Agent):
         modified_agent : PBVI_Agent
             A new pbvi agent with a modified environment
         '''
+        # TODO: Fix this to account for other init parameters
         # GPU support
         if self.on_gpu:
             return self.to_cpu().modify_environment(new_environment=new_environment)

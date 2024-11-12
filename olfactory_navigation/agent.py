@@ -105,6 +105,10 @@ class Agent:
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
+    cpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
+    gpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
     '''
     def __init__(self,
                  environment: Environment,
@@ -550,6 +554,7 @@ class Agent:
         modified_agent : Agent
             A new Agent whose environment has been replaced.
         '''
+        # TODO: Fix this to account for other init parameters
         modified_agent = self.__class__(environment=new_environment,
                                         thresholds=self.thresholds,
                                         name=self.name)
@@ -566,6 +571,15 @@ class Agent:
         gpu_agent : Agent
             A new environment instance where the arrays are on the gpu memory.
         '''
+        # Check whether the agent is already on the gpu or not
+        if self.on_gpu:
+            return self
+
+        # Warn and overwrite alternate_version in case it already exists
+        if self._alternate_version is not None:
+            print('[warning] A GPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
         assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
 
         # Generating a new instance
@@ -591,16 +605,68 @@ class Agent:
 
     def to_cpu(self) -> 'Agent':
         '''
-        Function to send the numpy arrays of the agent to the gpu.
-        It returns a new instance of the Agent class with the arrays on the gpu.
+        Function to send the numpy arrays of the agent to the cpu.
+        It returns a new instance of the Agent class with the arrays on the cpu.
 
         Returns
         -------
         cpu_agent : Agent
             A new environment instance where the arrays are on the cpu memory.
         '''
-        if self.on_gpu:
-            assert self._alternate_version is not None, "Something went wrong"
-            return self._alternate_version
+        # Check whether the agent is already on the cpu or not
+        if not self.on_gpu:
+            return self
 
-        return self
+        if self._alternate_version is not None:
+            print('[warning] A CPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
+        # Generating a new instance
+        cls = self.__class__
+        cpu_agent = cls.__new__(cls)
+
+        # Copying arguments to gpu
+        for arg, val in self.__dict__.items():
+            if isinstance(val, cp.ndarray):
+                setattr(cpu_agent, arg, cp.asnumpy(val))
+            elif arg == 'rnd_state':
+                setattr(cpu_agent, arg, np.random.RandomState(self.seed))
+            else:
+                setattr(cpu_agent, arg, val)
+
+        # Self reference instances
+        self._alternate_version = cpu_agent
+        cpu_agent._alternate_version = self
+
+        cpu_agent.on_gpu = True
+        return cpu_agent
+
+
+    @property
+    def gpu_version(self):
+        '''
+        A version of the Agent on the GPU.
+        If the agent is already on the GPU it returns itself, otherwise the to_gpu function is called to generate a new one.
+        '''
+        if self.on_gpu:
+            return self
+        else:
+            if self._alternate_version is not None: # Check if an alternate version already exists
+                return self._alternate_version
+            else: # Generate an alternate version on the gpu
+                return self.to_gpu()
+
+
+    @property
+    def cpu_version(self):
+        '''
+        A version of the Agent on the CPU.
+        If the agent is already on the CPU it returns itself, otherwise the to_cpu function is called to generate a new one.
+        '''
+        if not self.on_gpu:
+            return self
+        else:
+            if self._alternate_version is not None: # Check if an alternate version already exists
+                return self._alternate_version
+            else: # Generate an alternate version on the cpu
+                return self.to_cpu()
