@@ -179,6 +179,10 @@ class Environment:
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
+    cpu_version : Environment
+        An instance of the environment on the CPU. If it already is, it returns itself.
+    gpu_version : Environment
+        An instance of the environment on the CPU. If it already is, it returns itself.
     '''
     def __init__(self,
                  data_file: str | np.ndarray,
@@ -1011,6 +1015,15 @@ class Environment:
         gpu_environment : Environment
             A new environment instance where the arrays are on the gpu memory.
         '''
+        # Check whether the environment is already on the gpu or not
+        if self.on_gpu:
+            return self
+
+        # Warn and overwrite alternate_version in case it already exists
+        if self._alternate_version is not None:
+            print('[warning] A GPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
         assert gpu_support, "GPU support is not enabled..."
 
         # Generating a new instance
@@ -1044,11 +1057,63 @@ class Environment:
         cpu_environment : Environment
             A new environment instance where the arrays are on the cpu memory.
         '''
-        if self.on_gpu:
-            assert self._alternate_version is not None, "Something went wrong"
-            return self._alternate_version
+        # Check whether the agent is already on the cpu or not
+        if not self.on_gpu:
+            return self
 
-        return self
+        if self._alternate_version is not None:
+            print('[warning] A CPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
+        # Generating a new instance
+        cls = self.__class__
+        cpu_environment = cls.__new__(cls)
+
+        # Copying arguments to gpu
+        for arg, val in self.__dict__.items():
+            if isinstance(val, cp.ndarray):
+                setattr(cpu_environment, arg, cp.asnumpy(val))
+            elif arg == 'rnd_state':
+                setattr(cpu_environment, arg, np.random.RandomState(self.seed))
+            else:
+                setattr(cpu_environment, arg, val)
+
+        # Self reference instances
+        self._alternate_version = cpu_environment
+        cpu_environment._alternate_version = self
+
+        cpu_environment.on_gpu = True
+        return cpu_environment
+
+
+    @property
+    def gpu_version(self) -> 'Environment':
+        '''
+        A version of the Environment on the GPU.
+        If the environment is already on the GPU it returns itself, otherwise the to_gpu function is called to generate a new one.
+        '''
+        if self.on_gpu:
+            return self
+        else:
+            if self._alternate_version is not None: # Check if an alternate version already exists
+                return self._alternate_version
+            else: # Generate an alternate version on the gpu
+                return self.to_gpu()
+
+
+    @property
+    def cpu_version(self) -> 'Environment':
+        '''
+        A version of the Environment on the CPU.
+        If the environment is already on the CPU it returns itself, otherwise the to_cpu function is called to generate a new one.
+        '''
+        if not self.on_gpu:
+            return self
+        else:
+            if self._alternate_version is not None: # Check if an alternate version already exists
+                return self._alternate_version
+            else: # Generate an alternate version on the cpu
+                return self.to_cpu()
 
 
     def modify(self,
@@ -1086,7 +1151,8 @@ class Environment:
             A copy of the environment where the modified parameters have been applied.
         '''
         if self.on_gpu:
-            return self.to_cpu().modify(
+            cpu_environment = self.cpu_version
+            new_cpu_environment = cpu_environment.modify(
                 data_source_position = data_source_position,
                 source_radius        = source_radius,
                 shape                = shape,
@@ -1095,6 +1161,7 @@ class Environment:
                 interpolation_method = interpolation_method,
                 boundary_condition   = boundary_condition
             )
+            return new_cpu_environment.to_gpu()
 
         modified_environment = Environment(
             data_file              = (self.data_file_path if (self.data_file_path is not None) else self._data),

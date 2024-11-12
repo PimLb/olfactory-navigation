@@ -103,8 +103,8 @@ class SimulationHistory:
 
         # Fixed parameters
         self.n = len(start_points)
-        self.environment = environment.to_cpu()
-        self.agent = agent.to_cpu()
+        self.environment = environment.cpu_version
+        self.agent = agent.cpu_version
         self.time_shift = time_shift if gpu_support and cp.get_array_module(time_shift) == np else cp.asnumpy(time_shift)
         self.horizon = horizon
         self.reward_discount = reward_discount
@@ -655,8 +655,8 @@ class SimulationHistory:
         hist = cls.__new__(cls)
 
         hist.n = len(start_points)
-        hist.environment = environment.to_cpu() if isinstance(environment, Environment) else None
-        hist.agent = agent.to_cpu() if isinstance(agent, Agent) else None
+        hist.environment = environment.cpu_version if isinstance(environment, Environment) else None
+        hist.agent = agent.cpu_version if isinstance(agent, Agent) else None
         hist.time_shift = time_shift
         hist.horizon = horizon
         hist.reward_discount = reward_discount
@@ -938,8 +938,8 @@ def run_test(agent: Agent,
         xp = cp
 
         # Move instances to GPU
-        agent = agent.to_gpu()
-        environment = environment.to_gpu()
+        agent = agent.gpu_version
+        environment = environment.gpu_version
         time_shift = cp.array(time_shift)
 
         if start_points is not None:

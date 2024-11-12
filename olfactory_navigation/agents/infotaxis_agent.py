@@ -87,6 +87,10 @@ class Infotaxis_Agent(Agent):
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
+    cpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
+    gpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
     belief : BeliefSet
         Used only during simulations.
         Part of the Agent's status. Where the agent believes he is over the state space.
@@ -136,12 +140,23 @@ class Infotaxis_Agent(Agent):
     def to_gpu(self) -> Agent:
         '''
         Function to send the numpy arrays of the agent to the gpu.
-        It returns a new instance of the Agent class with the arrays on the gpu
+        It returns a new instance of the Agent class with the arrays on the gpu.
 
         Returns
         -------
         gpu_agent
         '''
+        # Check whether the agent is already on the gpu or not
+        if self.on_gpu:
+            return self
+
+        # Warn and overwrite alternate_version in case it already exists
+        if self._alternate_version is not None:
+            print('[warning] A GPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
+        assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
+
         # Generating a new instance
         cls = self.__class__
         gpu_agent = cls.__new__(cls)
