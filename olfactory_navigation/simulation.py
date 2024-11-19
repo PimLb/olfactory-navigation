@@ -8,7 +8,7 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib import colors
 from matplotlib.patches import Circle
-from tqdm.auto import trange
+from tqdm.auto import trange, tqdm
 
 from olfactory_navigation import Agent
 from olfactory_navigation.environment import Environment
@@ -83,7 +83,7 @@ class SimulationHistory:
     positions : list[np.ndarray]
         A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n positions as y,x vectors.
     observations : list[np.ndarray]
-        A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n observations received by the agents.
+        A list of numpy arrays. At each step of the simulation, an array of shape n is appended to this list representing the n observations received by the agents.
     reached_source : np.ndarray
         A numpy array of booleans saying whether the simulations reached the source or not.
     done_at_step : np.ndarray
@@ -408,6 +408,58 @@ class SimulationHistory:
                 self._simulation_dfs.append(pd.DataFrame(df))
 
         return self._simulation_dfs
+
+
+    def __add__(self, other_hist: 'SimulationHistory'):
+        # Asserting the SimulationHistory objects are compatible
+        assert self.horizon == other_hist.horizon, "The 'horizon' parameters must match between the two SimulationHistory objects..."
+        assert self.reward_discount == other_hist.reward_discount, "The 'reward_discount' parameters must match between the two SimulationHistory objects..."
+        assert self.environment_dimensions == other_hist.environment_dimensions, "The 'environment_dimensions' parameters must match between the two SimulationHistory objects..."
+        assert self.environment_shape == other_hist.environment_shape, "The 'environment_shape' parameters must match between the two SimulationHistory objects..."
+        assert self.environment_layer_labels == other_hist.environment_layer_labels, "The 'environment_layer_labels' parameters must match between the two SimulationHistory objects..."
+        assert all(self.environment_source_position == other_hist.environment_source_position), "The 'environment_source_position' parameters must match between the two SimulationHistory objects..."
+        assert self.environment_source_radius == other_hist.environment_source_radius, "The 'environment_source_radius' parameters must match between the two SimulationHistory objects..."
+        assert all(self.agent_thresholds == other_hist.agent_thresholds), "The 'agent_thresholds' parameters must match between the two SimulationHistory objects..."
+
+        # Combining arrays
+        combined_start_points = np.vstack([self.start_points,
+                                           other_hist.start_points])
+        combined_time_shifts = np.hstack([self.time_shift,
+                                          other_hist.time_shift])
+        combined_reached_source = np.hstack([self.reached_source,
+                                             other_hist.reached_source])
+        combined_done_at_step = np.hstack([self.done_at_step,
+                                           other_hist.done_at_step])
+
+        combined_actions = []
+        combined_positions = []
+        combined_observations = []
+        for step_i in range(max([len(self.actions), len(other_hist.actions)])):
+            self_in_range = (step_i < len(self.actions))
+            other_in_range = (step_i < len(other_hist.actions))
+            combined_actions.append(np.vstack([self.actions if self_in_range else np.full_like(other_hist.actions, fill_value=-1),
+                                               other_hist.actions if other_in_range else np.full_like(self.actions, fill_value=-1)]))
+            combined_positions.append(np.vstack([self.positions if self_in_range else np.full_like(other_hist.positions, fill_value=-1),
+                                                 other_hist.positions if other_in_range else np.full_like(self.positions, fill_value=-1)]))
+            combined_observations.append(np.hstack([self.observations if self_in_range else np.full_like(other_hist.observations, fill_value=-1),
+                                                    other_hist.observations if other_in_range else np.full_like(self.observations, fill_value=-1)]))
+
+        # Creating the combined simulation history object
+        combined_hist = SimulationHistory(start_points = combined_start_points,
+                                          environment = self.environment,
+                                          agent = self.agent,
+                                          time_shift = combined_time_shifts,
+                                          horizon = self.horizon,
+                                          reward_discount = self.reward_discount)
+
+        combined_hist.start_time = self.start_time
+        combined_hist.actions
+        combined_hist.positions
+        combined_hist.observations
+        combined_hist.reached_source = combined_reached_source
+        combined_hist.done_at_step = combined_done_at_step
+
+        return combined_hist
 
 
     def save(self,
@@ -848,7 +900,8 @@ def run_test(agent: Agent,
              reward_discount: float = 0.99,
              print_progress: bool = True,
              print_stats: bool = True,
-             use_gpu: bool = False
+             use_gpu: bool = False,
+             batches: int = -1
              ) -> SimulationHistory:
     '''
     Function to run n simulations for a given agent in its environment (or a given modified environment).
@@ -903,6 +956,10 @@ def run_test(agent: Agent,
         Wheter to print the stats at the end of the run.
     use_gpu : bool, default=False
         Whether to run the simulations on the GPU or not.
+    batches : int, default=-1
+        In how many batches the simulations should be run.
+        This is useful in the case there are too many simulations and the memory can fill up.
+        The value of batches=-1 will make it that different batches amount are tried in increasing order if a MemoryError is encountered.
 
     Returns
     -------
@@ -945,6 +1002,60 @@ def run_test(agent: Agent,
 
         if start_points is not None:
             start_points = cp.array(start_points)
+
+    # Auto batches selector where the amount of batches increases if a memory error is detected
+    if batches < 0:
+        all_try_batches = (2**np.arange(np.log2(11000), dtype=int))
+        for try_batches in all_try_batches:
+            try:
+                hist = run_test(agent = agent,
+                                n = b_n,
+                                start_points = start_points[n_start:n_start+b_n],
+                                environment = environment,
+                                time_shift = time_shift[n_start:n_start+b_n],
+                                time_loop = time_loop,
+                                horizon = horizon,
+                                initialization_values = initialization_values,
+                                reward_discount = reward_discount,
+                                print_progress = print_progress,
+                                print_stats = print_stats,
+                                use_gpu = use_gpu,
+                                batches = try_batches)
+                return hist
+            except MemoryError as e:
+                print(f'Memory full: {e}')
+                print('Increasing the amount of batches...')
+
+    # If more than one batch is selected, split the starting point arrays by the amounts of simulations in each batch
+    elif batches > 1:
+        # Computing the amount of simulations to be in each batch
+        n_batches = np.array([n / batches] * batches)
+        n_batches[:(n%batches)] += 1
+        n_start = 0
+
+        # List to accumulate the simulation histories
+        all_hist = []
+
+        # Batches loop
+        batch_iterator = tqdm(batch_iterator) if print_progress else n_batches
+        for b_n in batch_iterator:
+            b_hist = run_test(agent = agent,
+                              n = b_n,
+                              start_points = start_points[n_start:n_start+b_n],
+                              environment = environment,
+                              time_shift = time_shift[n_start:n_start+b_n],
+                              time_loop = time_loop,
+                              horizon = horizon,
+                              initialization_values = initialization_values,
+                              reward_discount = reward_discount,
+                              print_progress = print_progress,
+                              print_stats = print_stats,
+                              use_gpu = use_gpu,
+                              batches = 1)
+            n_start += b_n
+            all_hist.append(b_hist)
+
+        return all_hist
 
     # Set start positions
     agent_position = None
