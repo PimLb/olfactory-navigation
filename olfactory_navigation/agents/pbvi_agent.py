@@ -691,7 +691,12 @@ class PBVI_Agent(Agent):
                 print_stats=print_stats,
                 **expand_arguments
             )
+
+            # Setting parameters of CPU agent after the training
             self.value_function = gpu_agent.value_function.to_cpu()
+            self.trained_at = gpu_agent.trained_at
+            self.name = gpu_agent.name
+
             return solver_history
 
         xp = np if not self.on_gpu else cp
