@@ -437,12 +437,12 @@ class SimulationHistory:
         for step_i in range(max([len(self.actions), len(other_hist.actions)])):
             self_in_range = (step_i < len(self.actions))
             other_in_range = (step_i < len(other_hist.actions))
-            combined_actions.append(np.vstack([self.actions if self_in_range else np.full_like(other_hist.actions, fill_value=-1),
-                                               other_hist.actions if other_in_range else np.full_like(self.actions, fill_value=-1)]))
-            combined_positions.append(np.vstack([self.positions if self_in_range else np.full_like(other_hist.positions, fill_value=-1),
-                                                 other_hist.positions if other_in_range else np.full_like(self.positions, fill_value=-1)]))
-            combined_observations.append(np.hstack([self.observations if self_in_range else np.full_like(other_hist.observations, fill_value=-1),
-                                                    other_hist.observations if other_in_range else np.full_like(self.observations, fill_value=-1)]))
+            combined_actions.append(np.vstack([self.actions[step_i] if self_in_range else np.full_like(other_hist.actions[step_i], fill_value=-1),
+                                               other_hist.actions[step_i] if other_in_range else np.full_like(self.actions[step_i], fill_value=-1)]))
+            combined_positions.append(np.vstack([self.positions[step_i] if self_in_range else np.full_like(other_hist.positions[step_i], fill_value=-1),
+                                                 other_hist.positions[step_i] if other_in_range else np.full_like(self.positions[step_i], fill_value=-1)]))
+            combined_observations.append(np.hstack([self.observations[step_i] if self_in_range else np.full_like(other_hist.observations[step_i], fill_value=-1),
+                                                    other_hist.observations[step_i] if other_in_range else np.full_like(self.observations[step_i], fill_value=-1)]))
 
         # Creating the combined simulation history object
         combined_hist = SimulationHistory(start_points = combined_start_points,
@@ -453,9 +453,9 @@ class SimulationHistory:
                                           reward_discount = self.reward_discount)
 
         combined_hist.start_time = self.start_time
-        combined_hist.actions
-        combined_hist.positions
-        combined_hist.observations
+        combined_hist.actions = combined_actions
+        combined_hist.positions = combined_positions
+        combined_hist.observations = combined_observations
         combined_hist.reached_source = combined_reached_source
         combined_hist.done_at_step = combined_done_at_step
 
@@ -989,30 +989,16 @@ def run_test(agent: Agent,
         assert time_shift.shape == (n,), f"time_shift array has a wrong shape (Given: {time_shift.shape}, expected ({n},))"
     time_shift = time_shift.astype(int)
 
-    # Move things to GPU if needed
-    xp = np
-    if use_gpu:
-        assert gpu_support, f"GPU support is not enabled, the use_gpu option is not available."
-        xp = cp
-
-        # Move instances to GPU
-        agent = agent.gpu_version
-        environment = environment.gpu_version
-        time_shift = cp.array(time_shift)
-
-        if start_points is not None:
-            start_points = cp.array(start_points)
-
     # Auto batches selector where the amount of batches increases if a memory error is detected
     if batches < 0:
         all_try_batches = (2**np.arange(np.log2(11000), dtype=int))
         for try_batches in all_try_batches:
             try:
                 hist = run_test(agent = agent,
-                                n = b_n,
-                                start_points = start_points[n_start:n_start+b_n],
+                                n = n,
+                                start_points = start_points,
                                 environment = environment,
-                                time_shift = time_shift[n_start:n_start+b_n],
+                                time_shift = time_shift,
                                 time_loop = time_loop,
                                 horizon = horizon,
                                 initialization_values = initialization_values,
@@ -1029,15 +1015,18 @@ def run_test(agent: Agent,
     # If more than one batch is selected, split the starting point arrays by the amounts of simulations in each batch
     elif batches > 1:
         # Computing the amount of simulations to be in each batch
-        n_batches = np.array([n / batches] * batches)
+        n_batches = np.array([n / batches] * batches).astype(int)
         n_batches[:(n%batches)] += 1
         n_start = 0
 
-        # List to accumulate the simulation histories
-        all_hist = []
+        # Full SimulationHistory object
+        combined_hist = None
+
+        # Time tracking
+        all_sim_start_ts = datetime.now()
 
         # Batches loop
-        batch_iterator = tqdm(batch_iterator) if print_progress else n_batches
+        batch_iterator = tqdm(n_batches, desc='Expansions') if print_progress else n_batches
         for b_n in batch_iterator:
             b_hist = run_test(agent = agent,
                               n = b_n,
@@ -1049,13 +1038,38 @@ def run_test(agent: Agent,
                               initialization_values = initialization_values,
                               reward_discount = reward_discount,
                               print_progress = print_progress,
-                              print_stats = print_stats,
+                              print_stats = False, # Forced false to not print too many things
                               use_gpu = use_gpu,
                               batches = 1)
             n_start += b_n
-            all_hist.append(b_hist)
 
-        return all_hist
+            # Combining SimulationHistory objects
+            if combined_hist is None:
+                combined_hist = b_hist
+            else:
+                combined_hist += b_hist
+
+        # Print stats of the complete history is asked
+        if print_stats:
+            all_sim_end_ts = datetime.now()
+            print(f'Simulations done in {(all_sim_end_ts - all_sim_start_ts).total_seconds():.3f}s:')
+            print(combined_hist.summary)
+
+        return combined_hist
+
+    # Move things to GPU if needed
+    xp = np
+    if use_gpu:
+        assert gpu_support, f"GPU support is not enabled, the use_gpu option is not available."
+        xp = cp
+
+        # Move instances to GPU
+        agent = agent.gpu_version
+        environment = environment.gpu_version
+        time_shift = cp.array(time_shift)
+
+        if start_points is not None:
+            start_points = cp.array(start_points)
 
     # Set start positions
     agent_position = None
