@@ -29,30 +29,74 @@ Nell'actor critic inizializzare V a -1 sembra essere o uguale o un po' peggio ch
 
 Ho rilanciato modelBased con alpha 1e-2, facendo rescaling e sottraendo, e tutte le volte arriva alla policy corretta, partendo ogni volta da policy diverse
 
+La policy corretta è MOLTO sensibile: Una differenza di 5e-3 per le azioni crosswind peggiora notevolemnte i risultati [eval/diff5.png]
+quindi anche le policy vicine non bastano.
 
-Risultati dei test Actor Critic con vari learning rate
-    test actor 0.1    critic 0.1    5000 è arrivato ad una policy vicina.
-    test actor 0.1    critic 0.01   5000 è rimasto ad una policy particamente uniforme quando non osserva
-    test actor 0.1    critic 0.005  5000 forse stava andando nella "direzione" giusta, ma gli episodi non bastavano.
-    test actor 0.01   critic 0.1    5000 verso la fine sembra che stesse andando correttamente, anche se non "dritto"
-    test actor 0.01   critic 0.01   5000 è rimasto ad una policy particamente uniforme quando non osserva
-    test actor 0.01   critic 0.005  5000 sembra stia andando nella direzione sbagliata
-    test actor 0.005  critic 0.1    5000 sembra stesse andando nella direzione giusta. Quando osserva va solo a destra*
-    test actor 0.005  critic 0.01   5000 sembra stesse andando nella direzione sbagliata. 
-    test actor 0.005  critic 0.005  5000 forse stava andando nella direzione giusta, ma  non bastavano gli episodi
+ho provato 10 run per ogni combinazione di alpha tra 0.1 0.01 e 0.005 sia per l'actor che per il critic. Quando il learning rate 
+del critic è 0.01 o 0.005, la policy rimane praticamente uniforme, mentre negli altri casi si avvicina alla policy corretta.
+è molto probabile che 0.1 sia un learning rate "abbastanza buono" anche da considerazioni teoriche, Sutton pagina 330.
 
-* Deve essere che in un episodio è arrivato nello stato affianco a sinistra della sorgente, nonostante ci fosse ~6e-8 probabilità di scegliere
-l'azione destra, ha scelto quella, che quindi lo ha portato alla sorgente. Perciò TDerror positivo e dividendo per 6e-8, ha sommato una valore 
-molto grande. Difatti, nelle iterazioni successive, stava piano piano diminuendo, ma troppo lentamente
+Sulle 90 run fatte, oneStepAC "impazzisce" solo 5 volte, e solo in una di queste non si riprende. Sembra però che con più episodi, ci
+sarebbe riuscita anche questa. (0.005 0.1 run3).
+
+Quando il learning rate dell'actor è 0.1 o 0.01, le policy hanno abbastanza varianza
+
+Quando il learning rate dell'actor è 0.005, dopo 50000 episodi le policy ottenute sono abbastanza simili tra loro e non troppo distanti
+da quella corretta. POSSIBILE che con più episodi possa "convergere" 
 
 
-Risultati dei test Actor Critic partendo da una policy molto vicina con il critic corrispondente
-    test actor 0.1    critic 0.1    5000 quando non osserva va a destra sempre. Forse stesso motivo di sopra, anche se non ha così senso
-    test actor 0.1    critic 0.01   5000 quando non osserva va sempre downwind. Ha cambiato la direzione un paio di volte
-    test actor 0.1    critic 0.005  5000 quando non osserva va a destra sempre. Ha cambiato la direzione un paio di volte
-    test actor 0.01   critic 0.1    5000 va sempre a sinistra, sia che osservi che no. Ha cambiato la direzione un paio di volte
-    test actor 0.01   critic 0.01   5000 quando non osserva va a sinistra sempre. è rimasto vicino alla policy corretta molto più degli altri
-    test actor 0.01   critic 0.005  5000 va sempre downwind, sia che osservi che no.
-    test actor 0.005  critic 0.1    5000 ha una policy diversa, ma non troppo da quella corretta. 
-    test actor 0.005  critic 0.01   5000 quando non osserva va a sinistra sempre
-    test actor 0.005  critic 0.005  5000 è rimasto vicino alla policy corretta
+50000 episodi sono decisamente troppi. IMPORTANTISSIMO decidere come fermarsi.
+
+TD lambda 0.7 0.7 attorno alle 30000, ma anche prima
+    run 7 31000 sembra carina
+    run 8 27000 è quella corretta.
+    run 9 33000 anche
+
+TD lambda 0.7 0.8 attorno alle 20000
+    run 3 18000 è quella corretta
+
+TD lambda 0.9 0.9
+    run 3 11000 
+
+sembra che TD lambda 0.8 0.7 arriva a delle policy vicine attorno ai 20000 episodi, per poi aggirarsi attorno ma peggiorare
+    TD lambda 0.8 0.7 run 2 è impazzito attorno al 14000 episodio, ma non ha raggiunto il determinismo puro, lasciando 1.7e-4 di scegliere
+    di andare comunque upwind. al 21000 episodio era tornato al 98% upwind.
+    run 5 è impazzita al 19000 episodio, arrivando al determinismo puro e quindi non si è più ripresa
+    run 6 la policy ai 20000 sembra ottima
+
+
+sembra che TD lambda 0.8 0.8 arriva alla policy corretta attorno ai 20000 episodi, per poi aggirarsi attorno ma peggiorare
+    run 3 è impazzita ai 25000 episodi, ma ai 23000 aveva una policy che sembra molto bella
+    run 7 19000 sembra lo stesso molto vicina
+
+
+TD_lambda sembra abbastanza instabile quando lambda critic è 0.9: sulle 30 run, 5 è arrivato al determinismo anche quando NON osserva
+Sulle 90 run totali, 14 sono "impazzite" quando osserva, 6 delle quali si sono riprese e 8 no. 
+di quelle che si sono riprese:
+    1 aLambda 0.8 cLambda 0.7 
+    2 aLambda 0.7 cLambda 0.9 
+    1 aLambda 0.8 cLambda 0.9 
+    2 aLambda 0.9 cLambda 0.9 
+delle altre:
+    1 aLambda 0.8 cLambda 0.7 
+    1 aLambda 0.8 cLambda 0.8 
+    1 aLambda 0.8 cLambda 0.9
+    2 aLambda 0.9 cLambda 0.8 
+    3 aLambda 0.9 cLambda 0.9 
+
+Le policy vicine con TD_Lambda (tdLambda_possibili.out) sono poche perchè ho abbassato la differenza massima per considerarle corretta,
+perchè se avessi usato la stessa usata per oneStepAC, rispettivamente 0.05 e 0.5, avrei avuto troppe policy da testare (~750)
+
+0.7 0.7 0.1 Sched 0.1 ha bisogno di più di 50000 episodi
+0.7 0.8 0.1 Sched 0.1 arriva a policy vicine dopo ~40000 episodi
+0.7 0.9 0.1 Sched 0.1 
+0.8 0.7 0.1 Sched 0.1
+0.8 0.8 0.1 Sched 0.1
+0.8 0.9 0.1 Sched 0.1
+0.9 0.7 0.1 Sched 0.1
+0.9 0.8 0.1 Sched 0.1
+0.9 0.9 0.1 Sched 0.1 
+
+
+La policy 0.7 0.7 0.2 0.2 Sched, nonostante sia parecchio diversa da quella ottimale, raggiunge la sorgente più spesso, ma in più tempo.
+La policy praticamente inverte le probabilità di crosswind con quelle up e downwind. 

@@ -99,4 +99,6 @@ if __name__ == "__main__":
     plt.hist(results, 50)
     plt.ylim(0, 5000)
     plt.savefig(f"pngs/{thetaName}.png")
-    print("Mean: ", np.mean(results)," STD: ", np.std(results))
+    finished = results[results != 10000]
+    print("Mean Reached: ", np.mean(finished)," STD Reached: ", np.std(finished), " Finished", np.count_nonzero(results != 10000))
+    print("Mean Overall: ", np.mean(results)," STD Overall: ", np.std(results), "Not finished", np.count_nonzero(results == 10000))

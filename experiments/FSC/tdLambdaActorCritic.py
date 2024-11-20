@@ -68,29 +68,44 @@ parser.add_argument("actor_lr", type=float, help="the learning rate for the acto
 parser.add_argument("critic_lr", type=float, help="the learning rate for the critic")
 parser.add_argument("lambda_actor", type=float, help="the trace decay parameter for the actor")
 parser.add_argument("lambda_critic", type=float, help="the trace decay parameter for the critic")
-parser.add_argument("episodes", type=int, help="How many episodes to run")
+parser.add_argument("episodes", type=int, help="The final episode number. If --iterationStart is specified, the number of episode ran will be episodes - iterationStart")
 parser.add_argument("-n", "--name", help="subfolder name in which to save the results")
 parser.add_argument("-t","--thetaStart", help="the path to a .npy file containing the starting values of theta")
 parser.add_argument("-v","--vStart", help="the path to a .npy file containing the starting values of V")
+parser.add_argument("--scheduleActorLR", help="wheter or not to decrease the actor learning rate", action="store_true")
+parser.add_argument("--scheduleCriticLR", help="wheter or not to decrease the critic learning rate", action="store_true")
+parser.add_argument("--iterationStart", help="if specified, is the iteration to start from, useful to continue stopped run. If any scheduling is on, it will restart from that too.", type=int)
 args = parser.parse_args()
 actor_lr = args.actor_lr
 critic_lr = args.critic_lr
 lambda_actor = args.lambda_actor
 lambda_critic = args.lambda_critic
 numberEpisodes = args.episodes
+scheduleActor = args.scheduleActorLR
+scheduleCritic = args.scheduleCriticLR
+itStart = args.iterationStart if args.iterationStart else 0
 
+
+saveDir = f"results/TD_Lambda/M1/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
+if scheduleActor:
+    saveDir += "Scheduled_"
+saveDir += f"alphaCritic_{critic_lr}"
+if scheduleCritic:
+    saveDir += "_Scheduled"
+saveDir += "/"
 if args.name is not None:
-    saveDir = os.path.join(f"results/TD_Lambda/M1/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_alphaCritic_{critic_lr}", f"{args.name}_episodes_{numberEpisodes}")
-else:
-    saveDir = os.path.join(f"results/TD_Lambda/M1/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_alphaCritic_{critic_lr}", f"episodes_{numberEpisodes}")
+    saveDir += f"{args.name}_"
+saveDir += f"episodes_{numberEpisodes}"
+
+
 critDir = os.path.join(saveDir, "Critics")
 actDir = os.path.join(saveDir, "Actors")
 if args.thetaStart is not None:
     theta = np.load(args.thetaStart)
 else:
     theta = (np.random.rand(2, 1, 4) -0.5) * 0.5
-    theta[1, :, 0] += 0.5
-    theta[1, :, 2] += 0.5
+    # theta[1, :, 0] += 0.5
+    # theta[1, :, 2] += 0.5
 
 if args.vStart is not None:
     V = np.load(args.vStart)
@@ -112,14 +127,20 @@ s = time.perf_counter()
 print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=ouput)
 print("Starting pi:", pi,file=ouput, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
-for i in range(numberEpisodes):
+t = 1
+for i in range(itStart, numberEpisodes):
     start = np.random.choice(range(SC), p = rho)
     discount = 1
     curState = start
     curStep = 0
     zCritic = np.zeros_like(V)
     zActor = np.zeros_like(theta)
+
+    cur_actor_lr = actor_lr / np.sqrt(i+1) if scheduleActor else actor_lr
+    cur_critic_lr = critic_lr / np.sqrt(i+1) if scheduleCritic else critic_lr
     while( not isEnd(curState) and curStep < maxStepsPerEpisode):
+
+
         obs = np.random.choice(2, p = dataC[:, curState])
         action = np.random.choice(4, p= pi[obs, 0])
         newState = takeAction(curState, action)
@@ -132,12 +153,13 @@ for i in range(numberEpisodes):
         zActor = gamma * lambda_actor * zActor
         zActor[obs, 0, action] += discount / pi[obs, 0, action]
 
-        theta += actor_lr * tdError * zActor  
-        V += critic_lr * tdError * zCritic 
+        theta += cur_actor_lr * tdError * zActor  
+        V += cur_critic_lr * tdError * zCritic 
         discount *= gamma
         pi = softmax(theta, axis = 2)
         curState = newState
         curStep += 1
+        t += 1
         # print(f"Step {curStep}/{maxStepsPerEpisode} of episode {i}/{numberEpisodes} took {e-s} seconds")
     if (i +1) % 1000 == 0:
         print(f"Episode {i+1} done at {time.ctime()}",file=ouput)
