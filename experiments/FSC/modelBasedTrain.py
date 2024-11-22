@@ -11,11 +11,20 @@ from itertools import repeat as itReapeat
 import time
 import sys
 import os
+import argparse as ap
 # from cupyx.scipy.special import softmax as softmax
 # from utils import get_value
 
 #Azioni sono [North, East, South, West]
 SC = 92 * 131 # Number of States
+gamma = 0.99975
+cSource = 45.5
+rSource = 91
+find_range = 1.1
+cols = 92
+rows = 131
+maxIt = 35000
+lr = 0.01
 
 def getReachable(s, M):
     r, c, m = (s % SC) // 92, s % 92 , s // SC
@@ -115,30 +124,56 @@ def calc_Q(V, R, M):
 
 def find_grad(Q, eta, pObs, M):
     grad = np.zeros((2, M, 4 *M))
-    tmp = np.tile(pObs, M)
-    for a in range(4):
-        grad[:, 0, a] = np.sum(tmp * eta * Q[:, a], axis=1)
+    # tmp = np.tile(pObs, M)
+    # for a in range(4):
+    #     grad[:, 0, a] = np.sum(tmp * eta * Q[:, a], axis=1)
+    for obs in range(2):
+        for m in range(M):
+            for am in range(4*M):
+                grad[obs, m, am] = np.sum(eta[SC*m:SC*(m+1)] * pObs[obs, :] * Q[SC*m:SC*(m+1), am])
     return grad
+
+def totalTime(end, start, file = None):
+    tot = end - start
+    seconds = int(tot % 60)
+    minutes = int((tot // 60) % 60)
+    hours = int(tot // 3600)
+    print(f"End time: {time.ctime()}", file=file)
+    if hours >= 24:
+        days = hours // 24
+        hours = hours % 24
+        print(f"Total time: {days}d {hours}:{minutes}:{seconds}", file=file)
+        return
+    if hours == 0:
+        print(f"Total time: {minutes}m:{seconds}s", file=file)
+        return
+    print(f"Total time: {hours}h:{minutes}m:{seconds}s", file=file)
 
 #Risolvere il sistema lineare con CUPY ci mette di più che un'intera iterazione di Gradient Ascent con scipy
 
 if __name__ == "__main__":
-    cSource = 45.5
-    rSource = 91
-    find_range = 1.1
-    gamma = 0.99975
-    cols = 92
-    rows = 131
-    maxIt = 35000
-    lr = 0.01
-    tol = 1e-8
-    dataFile = sys.argv[1]
-    folder = sys.argv[2]
-    M = int(sys.argv[3])
 
-    # TODO: permettere di cambiarli alla chiamata da linea di comando
-    rescale = True
-    subtract = True
+    parser = ap.ArgumentParser(formatter_class=ap.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("data_file", help="the data to use")
+    parser.add_argument("name", help="subfolder name in which to save the results")
+    parser.add_argument("learning_rate", type=float, help="the learning rate")
+    parser.add_argument("memories", type=int, help="How many memories to use")
+    parser.add_argument("-t","--thetaStart", help="the path to a .npy file containing the starting values of theta")
+    parser.add_argument("-r","--rescale", help="Wheter to rescale the gradient or not", action="store_true")
+    parser.add_argument("-s","--subtract", help="Wheter to subtract the maximum of the gradient", action="store_true")
+    parser.add_argument("-g","--gamma", type = float, help="the value of gamma", default=0.99975)
+    parser.add_argument("--tolerance", type = float, help="the minimum difference under which assume convergence", default=1e-8)
+    args = parser.parse_args()
+
+    dataFile = args.data_file
+    folder = args.name
+    lr = args.learning_rate
+    M = args.memories
+    rescale = args.rescale
+    subtract = args.subtract
+    gamma = args.gamma
+    ts = args.thetaStart
+    tol = args.tolerance
     saveDir = f"results/modelBased/M{M}/celani/{dataFile}/alpha{lr}"
     if rescale:
         saveDir += "_Rescale"
@@ -149,18 +184,20 @@ if __name__ == "__main__":
     else:
         saveDir += "_noSubtract"
     saveDir = os.path.join(saveDir, folder)
-
-    os.makedirs(saveDir, exist_ok=True)
+    os.makedirs(saveDir)
     output = open(os.path.join(saveDir, "output.out"), "w")
     print("Inizio: ", time.ctime(), flush=True, file=output)
 
     dataC = np.load(f"celaniData/{dataFile}.npy")
-    theta = (np.random.rand(2, M, 4*M) -0.5) * 0.5
-    theta[1, :, 0::4] += 0.5
-    theta[1, :, 2::4] += 0.5 # Bias on upwind and downwind directions
-    # theta = np.load("results/modelBased/M1/celani/fine5/alpha1e-3_noRescaled_noSubtract/theta_START.npy")
+    if ts is None:
+        theta = (np.random.rand(2, M, 4*M) -0.5) * 0.5
+        theta[1, :, 0::4] += 0.5
+        theta[1, :, 2::4] += 0.5 # Bias on upwind and downwind directions
+    else:
+        theta = np.load(ts)
     np.save(os.path.join(saveDir,"theta_START"), theta)
     pi = softmax(theta, axis = 2)
+    print(f"Learning Rate {lr}; Memories {M}; gamma {gamma}; tolerance {tol}", file=output)
     print("THETA_START", theta, file=output)
     print("PISTART", pi, file=output)
     print(flush=True, file=output)
@@ -176,8 +213,10 @@ if __name__ == "__main__":
     Vconv = Vold.copy()
     Q = calc_Q(Vold, R, M)
     converged = False
+    s = time.perf_counter()
+
     for i in range(maxIt):
-        s = time.perf_counter()
+        itS = time.perf_counter()
         
         grad = find_grad(Q, eta, dataC, M)
         if subtract:
@@ -187,7 +226,8 @@ if __name__ == "__main__":
         else:
             theta += lr * grad
 
-        # print(f"Grad {i}: ", grad)
+        # print(f"Grad {i}: ", grad, file = output, flush = True)
+        
         pi = softmax(theta, axis = 2)
         V, eta = sparse_T_CPU(pi, dataC, rSource, cSource, find_range, R, rho, M)
         Q = calc_Q(V, R, M)
@@ -195,6 +235,7 @@ if __name__ == "__main__":
         if (i+1) % 1000 == 0:
             delta = np.max(np.abs(V - Vconv))
             print(i+1, time.ctime(), "Delta :", delta, file=output)
+            print(f"PI {i+1}: ", pi, flush=True, file=output)
             if delta < tol:
                 print(f"Converged in {i+1} iterations", file=output)
                 np.save(os.path.join(saveDir,f"theta_Conv{i+1}"), theta)
@@ -206,9 +247,10 @@ if __name__ == "__main__":
             Vconv = V
             np.save(os.path.join(saveDir,f"theta_{i+1}"), theta)
             np.save(os.path.join(saveDir,f"V_{i+1}"), V)
-            print("last iteration took ", e-s, " seconds", flush=True, file=output)
+            print("last iteration took ", e-itS, " seconds", flush=True, file=output)
     if not converged:
         np.save(os.path.join(saveDir,f"theta_{maxIt}"), theta)
         np.save(os.path.join(saveDir,f"V_{maxIt}"), V)
         print("Theta END not conv :", theta, file=output)
         print("PI END not COnv", pi, flush = True, file=output)
+    totalTime(e, s, output)
