@@ -3,6 +3,7 @@ from modelBasedTrain import get_Transition_Matrix_sparse_CPU
 import sys
 from scipy.special import softmax
 import scipy.sparse as sparse
+import argparse as ap
 
 SC = 131*92
 gamma = 0.99975
@@ -25,9 +26,17 @@ rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols])) # Copiato dal loro
 maxKey = None
 maxValue = -10
 
+parser = ap.ArgumentParser()
+parser.add_argument("-p","--policy", help="If specified the path given on stdin should point to the actual policy instead of the theta parameter", action="store_true")
+args = parser.parse_args()
+directPolicy = args.policy
+
 for line in sys.stdin:
     th = np.load(line.rstrip())
-    pi = softmax(th, axis = 2)
+    if directPolicy:
+        pi = th
+    else:
+        pi = softmax(th, axis = 2)
     T = get_Transition_Matrix_sparse_CPU(pi, dataC, rSource, cSource, find_range, 1)
     AV = sparse.eye(SC , format="csr") - gamma * T
     V = sparse.linalg.spsolve(AV, R)
