@@ -100,3 +100,7 @@ perchè se avessi usato la stessa usata per oneStepAC, rispettivamente 0.05 e 0.
 
 La policy 0.7 0.7 0.2 0.2 Sched, nonostante sia parecchio diversa da quella ottimale, raggiunge la sorgente più spesso, ma in più tempo.
 La policy praticamente inverte le probabilità di crosswind con quelle up e downwind. 
+
+
+le run longRun sono run in cui ho schedulato solo l'actor ma non il critic
+le run longRunCont sono il continuo delle run longRun, ma ho fatto riprendere lo scheduling dell'actor da dove si era interrrotto, mentre ho fatto iniziare lo scheduling del critic come se iniziasse li. sono entrambi fatti con alhpa0/sqrt(t)

@@ -75,6 +75,8 @@ parser.add_argument("-v","--vStart", help="the path to a .npy file containing th
 parser.add_argument("--scheduleActorLR", help="wheter or not to decrease the actor learning rate", action="store_true")
 parser.add_argument("--scheduleCriticLR", help="wheter or not to decrease the critic learning rate", action="store_true")
 parser.add_argument("--iterationStart", help="if specified, is the iteration to start from, useful to continue stopped run. If any scheduling is on, it will restart from that too.", type=int)
+parser.add_argument("--subMax", help="if specified, every iteration from each row of theta will be subtracted its maximum", action="store_true")
+parser.add_argument("--toClip", help="if specified, theta's entries will be clipped in the [-20, 0] interval", action="store_true")
 args = parser.parse_args()
 actor_lr = args.actor_lr
 critic_lr = args.critic_lr
@@ -83,6 +85,8 @@ lambda_critic = args.lambda_critic
 numberEpisodes = args.episodes
 scheduleActor = args.scheduleActorLR
 scheduleCritic = args.scheduleCriticLR
+subMax = args.subMax
+toClip = args.toClip
 itStart = args.iterationStart if args.iterationStart else 0
 
 
@@ -153,7 +157,11 @@ for i in range(itStart, numberEpisodes):
         zActor = gamma * lambda_actor * zActor
         zActor[obs, 0, action] += discount / pi[obs, 0, action]
 
-        theta += cur_actor_lr * tdError * zActor  
+        theta += cur_actor_lr * tdError * zActor
+        if subMax:
+            theta -= np.max(theta, axis =2 , keepdims=True)
+        if toClip:
+            theta = np.clip(theta, -20, 0)
         V += cur_critic_lr * tdError * zCritic 
         discount *= gamma
         pi = softmax(theta, axis = 2)
@@ -166,6 +174,9 @@ for i in range(itStart, numberEpisodes):
         print(f"PI at episode {i+1}: {pi}", flush=True,file=ouput)
         np.save(os.path.join(actDir , f"theta{i+1}.npy"), theta)
         np.save(os.path.join(critDir , f"critic{i+1}.npy"), V)
+        if np.any(np.isclose(pi[0,0], 1)):
+            print("Terminated", file=ouput)
+            sys.exit()
     # if(isEnd(curState)):
     #     print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)
     #     print(f"Episode {i} has reached the source in {curStep} steps", flush=True)
