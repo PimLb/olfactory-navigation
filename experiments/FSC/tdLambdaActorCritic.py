@@ -131,7 +131,7 @@ s = time.perf_counter()
 print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=ouput)
 print("Starting pi:", pi,file=ouput, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
-t = 1
+
 for i in range(itStart, numberEpisodes):
     start = np.random.choice(range(SC), p = rho)
     discount = 1
@@ -140,10 +140,10 @@ for i in range(itStart, numberEpisodes):
     zCritic = np.zeros_like(V)
     zActor = np.zeros_like(theta)
 
-    cur_actor_lr = actor_lr / np.sqrt(i+1) if scheduleActor else actor_lr
-    cur_critic_lr = critic_lr / np.sqrt(i+1) if scheduleCritic else critic_lr
-    while( not isEnd(curState) and curStep < maxStepsPerEpisode):
+    cur_actor_lr = actor_lr * 1000 / (1000 + i) if scheduleActor else actor_lr
+    cur_critic_lr = critic_lr * 1000 / (1000 + i**(2/3)) if scheduleCritic else critic_lr
 
+    while( not isEnd(curState) and curStep < maxStepsPerEpisode):
 
         obs = np.random.choice(2, p = dataC[:, curState])
         action = np.random.choice(4, p= pi[obs, 0])
@@ -167,7 +167,6 @@ for i in range(itStart, numberEpisodes):
         pi = softmax(theta, axis = 2)
         curState = newState
         curStep += 1
-        t += 1
         # print(f"Step {curStep}/{maxStepsPerEpisode} of episode {i}/{numberEpisodes} took {e-s} seconds")
     if (i +1) % 1000 == 0:
         print(f"Episode {i+1} done at {time.ctime()}",file=ouput)

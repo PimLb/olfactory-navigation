@@ -104,3 +104,6 @@ La policy praticamente inverte le probabilità di crosswind con quelle up e down
 
 le run longRun sono run in cui ho schedulato solo l'actor ma non il critic
 le run longRunCont sono il continuo delle run longRun, ma ho fatto riprendere lo scheduling dell'actor da dove si era interrrotto, mentre ho fatto iniziare lo scheduling del critic come se iniziasse li. sono entrambi fatti con alhpa0/sqrt(t)
+
+Le run con il solo clip si "sbattono" contro il constraint perchè, credo, che diminuiscano le componenti "a rotazione", quindi in valore assoluto i theta aumentano, ma quando li clippo
+tornano attorno a -20
