@@ -437,12 +437,12 @@ class SimulationHistory:
         for step_i in range(max([len(self.actions), len(other_hist.actions)])):
             self_in_range = (step_i < len(self.actions))
             other_in_range = (step_i < len(other_hist.actions))
-            combined_actions.append(np.vstack([self.actions[step_i] if self_in_range else np.full_like(other_hist.actions[step_i], fill_value=-1),
-                                               other_hist.actions[step_i] if other_in_range else np.full_like(self.actions[step_i], fill_value=-1)]))
-            combined_positions.append(np.vstack([self.positions[step_i] if self_in_range else np.full_like(other_hist.positions[step_i], fill_value=-1),
-                                                 other_hist.positions[step_i] if other_in_range else np.full_like(self.positions[step_i], fill_value=-1)]))
-            combined_observations.append(np.hstack([self.observations[step_i] if self_in_range else np.full_like(other_hist.observations[step_i], fill_value=-1),
-                                                    other_hist.observations[step_i] if other_in_range else np.full_like(self.observations[step_i], fill_value=-1)]))
+            combined_actions.append(np.vstack([self.actions[step_i] if self_in_range else np.full_like(self.actions[0], fill_value=-1),
+                                               other_hist.actions[step_i] if other_in_range else np.full_like(other_hist.actions[0], fill_value=-1)]))
+            combined_positions.append(np.vstack([self.positions[step_i] if self_in_range else np.full_like(self.positions[0], fill_value=-1),
+                                                 other_hist.positions[step_i] if other_in_range else np.full_like(other_hist.positions[0], fill_value=-1)]))
+            combined_observations.append(np.hstack([self.observations[step_i] if self_in_range else np.full_like(self.observations[0], fill_value=-1),
+                                                    other_hist.observations[step_i] if other_in_range else np.full_like(other_hist.observations[0], fill_value=-1)]))
 
         # Creating the combined simulation history object
         combined_hist = SimulationHistory(start_points = combined_start_points,
