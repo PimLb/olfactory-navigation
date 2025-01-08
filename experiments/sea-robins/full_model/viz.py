@@ -71,7 +71,7 @@ def plot_trajectory_in_tank(h:SimulationHistory,
     # Check whether the odor detection is binary or by level
     odor_bins = h.agent_thresholds.shape[-1] - 1
     if odor_bins > 2:
-        odor_levels = np.arange(odor_bins) + 1
+        odor_levels = np.arange(odor_bins - 1) + 1
         for level in odor_levels:
             cues_at_level = (observation_ids == level)
             ax.scatter(seq[1:][cues_at_level,0], seq[1:][cues_at_level,1],
