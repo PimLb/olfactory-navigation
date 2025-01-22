@@ -900,6 +900,7 @@ def run_test(agent: Agent,
              reward_discount: float = 0.99,
              print_progress: bool = True,
              print_stats: bool = True,
+             print_warning: bool = True,
              use_gpu: bool = False,
              batches: int = -1
              ) -> SimulationHistory:
@@ -951,9 +952,11 @@ def run_test(agent: Agent,
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
     print_progress : bool, default=True
-        Wheter to show a progress bar of what step the simulations are at.
+        Whether to show a progress bar of what step the simulations are at.
     print_stats : bool, default=True
-        Wheter to print the stats at the end of the run.
+        Whether to print the stats at the end of the run.
+    print_warning : bool, default=True
+        Whether to print warnings when they occur or not.
     use_gpu : bool, default=False
         Whether to run the simulations on the GPU or not.
     batches : int, default=-1
@@ -974,7 +977,7 @@ def run_test(agent: Agent,
             n = len(start_points)
 
     # Handle the case an specific environment is given
-    if environment is not None:
+    if (environment is not None) and print_warning:
         if environment.shape != agent.environment.shape:
             print("[Warning] The provided environment's shape doesn't match the environment has been trained on...")
         print('Using the provided environment, not the agent environment.')
@@ -1005,6 +1008,7 @@ def run_test(agent: Agent,
                                 reward_discount = reward_discount,
                                 print_progress = print_progress,
                                 print_stats = print_stats,
+                                print_warning = False, # If there was any, it would have been printed already
                                 use_gpu = use_gpu,
                                 batches = try_batches)
                 return hist
@@ -1026,7 +1030,7 @@ def run_test(agent: Agent,
         all_sim_start_ts = datetime.now()
 
         # Batches loop
-        batch_iterator = tqdm(n_batches, desc='Expansions') if print_progress else n_batches
+        batch_iterator = tqdm(n_batches, desc='Batches') if print_progress else n_batches
         for b_n in batch_iterator:
             b_hist = run_test(agent = agent,
                               n = b_n,
@@ -1039,6 +1043,7 @@ def run_test(agent: Agent,
                               reward_discount = reward_discount,
                               print_progress = print_progress,
                               print_stats = False, # Forced false to not print too many things
+                              print_warning = False, # If there was any, it would have been printed already
                               use_gpu = use_gpu,
                               batches = 1)
             n_start += b_n
