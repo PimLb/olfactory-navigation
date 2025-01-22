@@ -131,56 +131,67 @@ s = time.perf_counter()
 print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=ouput)
 print("Starting pi:", pi,file=ouput, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
+try:
+    for i in range(itStart, numberEpisodes):
+        start = np.random.choice(range(SC), p = rho)
+        discount = 1
+        curState = start
+        curStep = 0
+        zCritic = np.zeros_like(V)
+        zActor = np.zeros_like(theta)
 
-for i in range(itStart, numberEpisodes):
-    start = np.random.choice(range(SC), p = rho)
-    discount = 1
-    curState = start
-    curStep = 0
-    zCritic = np.zeros_like(V)
-    zActor = np.zeros_like(theta)
+        cur_actor_lr = actor_lr * 1000 / (1000 + i) if scheduleActor else actor_lr
+        cur_critic_lr = critic_lr * 1000 / (1000 + i**(2/3)) if scheduleCritic else critic_lr
 
-    cur_actor_lr = actor_lr * 1000 / (1000 + i) if scheduleActor else actor_lr
-    cur_critic_lr = critic_lr * 1000 / (1000 + i**(2/3)) if scheduleCritic else critic_lr
+        while( not isEnd(curState) and curStep < maxStepsPerEpisode):
 
-    while( not isEnd(curState) and curStep < maxStepsPerEpisode):
+            obs = np.random.choice(2, p = dataC[:, curState])
+            action = np.random.choice(4, p= pi[obs, 0])
+            newState = takeAction(curState, action)
+            reward = -(1 - gamma) if not isEnd(newState) else 0
+            # print(curState, obs, action, newState, reward)
+            tdError = reward + gamma * V[newState] - V[curState]
+            zCritic = gamma * lambda_critic * zCritic 
+            zCritic[curState] += 1 # Caso speciale per V tabulare. Credo sia giusto
+            # Caso speciale per Natural Gradient e softmax. Credo sia giusto
+            zActor = gamma * lambda_actor * zActor
+            zActor[obs, 0, action] += discount / pi[obs, 0, action]
 
-        obs = np.random.choice(2, p = dataC[:, curState])
-        action = np.random.choice(4, p= pi[obs, 0])
-        newState = takeAction(curState, action)
-        reward = -(1 - gamma) if not isEnd(newState) else 0
-        # print(curState, obs, action, newState, reward)
-        tdError = reward + gamma * V[newState] - V[curState]
-        zCritic = gamma * lambda_critic * zCritic 
-        zCritic[curState] += 1 # Caso speciale per V tabulare. Credo sia giusto
-        # Caso speciale per Natural Gradient e softmax. Credo sia giusto
-        zActor = gamma * lambda_actor * zActor
-        zActor[obs, 0, action] += discount / pi[obs, 0, action]
+            theta += cur_actor_lr * tdError * zActor
+            if subMax:
+                theta -= np.max(theta, axis =2 , keepdims=True)
+            if toClip:
+                theta = np.clip(theta, -20, 0)
+            V += cur_critic_lr * tdError * zCritic 
+            discount *= gamma
+            pi = softmax(theta, axis = 2)
+            curState = newState
+            curStep += 1
+            # print(f"Step {curStep}/{maxStepsPerEpisode} of episode {i}/{numberEpisodes} took {e-s} seconds")
+        if (i +1) % 1000 == 0:
+            print(f"Episode {i+1} done at {time.ctime()}",file=ouput)
+            print(f"PI at episode {i+1}: {pi}", flush=True,file=ouput)
+            np.save(os.path.join(actDir , f"theta{i+1}.npy"), theta)
+            np.save(os.path.join(critDir , f"critic{i+1}.npy"), V)
+            if np.any(np.isclose(pi[0,0], 1)):
+                print("Terminated", file=ouput)
+                sys.exit()
+        # if(isEnd(curState)):
+        #     print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)
+        #     print(f"Episode {i} has reached the source in {curStep} steps", flush=True)
 
-        theta += cur_actor_lr * tdError * zActor
-        if subMax:
-            theta -= np.max(theta, axis =2 , keepdims=True)
-        if toClip:
-            theta = np.clip(theta, -20, 0)
-        V += cur_critic_lr * tdError * zCritic 
-        discount *= gamma
-        pi = softmax(theta, axis = 2)
-        curState = newState
-        curStep += 1
-        # print(f"Step {curStep}/{maxStepsPerEpisode} of episode {i}/{numberEpisodes} took {e-s} seconds")
-    if (i +1) % 1000 == 0:
-        print(f"Episode {i+1} done at {time.ctime()}",file=ouput)
-        print(f"PI at episode {i+1}: {pi}", flush=True,file=ouput)
-        np.save(os.path.join(actDir , f"theta{i+1}.npy"), theta)
-        np.save(os.path.join(critDir , f"critic{i+1}.npy"), V)
-        if np.any(np.isclose(pi[0,0], 1)):
-            print("Terminated", file=ouput)
-            sys.exit()
-    # if(isEnd(curState)):
-    #     print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)
-    #     print(f"Episode {i} has reached the source in {curStep} steps", flush=True)
-
-e = time.perf_counter()
-print("Learned pi:", pi,file=ouput)
-np.save(os.path.join(actDir,"thetaActorCriticFInale.npy"), theta)
-totalTime(e, s, ouput)
+    e = time.perf_counter()
+    print("Learned pi:", pi,file=ouput)
+    np.save(os.path.join(actDir,"thetaActorCriticFInale.npy"), theta)
+    totalTime(e, s, ouput)
+except Exception as e:
+    err = open(f"error_{args.name}_{actor_lr}_{critic_lr}_{lambda_actor}_{lambda_critic}.out", "w")
+    print("cur_actor_lr", cur_actor_lr, file = err)
+    print("cur_critic_lr", cur_critic_lr, file = err)
+    print("i", i, file = err)
+    print("zCritic", zCritic, file = err)
+    print("zActor", zActor, file = err)
+    print("tdError", tdError, file = err)
+    print("pi", pi, file = err)
+    print("obs", obs, file = err)
+    print(repr(e), str(e))
