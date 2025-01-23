@@ -223,12 +223,12 @@ class SimulationHistory:
 
 
     @property
-    def analysis_df(self) -> pd.DataFrame:
+    def runs_analysis_df(self) -> pd.DataFrame:
         '''
         A Pandas DataFrame analyzing the results of the simulations.
         It aggregates the simulations in single rows, recording:
 
-         - axis:                The starting positions at the given axis
+         - <axis>:              The starting positions at the given axis
          - optimal_steps_count: The minimal amount of steps to reach the source
          - converged:           Whether or not the simulation reached the source
          - reached_horizon:     Whether the failed simulation reached to horizon
@@ -236,8 +236,6 @@ class SimulationHistory:
          - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
          - extra_steps:         The amount of extra steps compared to the optimal trajectory
          - t_min_over_t:        Normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
-
-        For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
         '''
         # Get axes labels
         axes_labels = None
@@ -260,26 +258,36 @@ class SimulationHistory:
         runs_list = [f'run_{i}' for i in range(self.n)]
         df.index = runs_list
 
+        return df
+
+
+    @property
+    def general_analysis_df(self) -> pd.DataFrame:
+        '''
+        A Pandas DataFrame analyzing the results of the simulations.
+        Summarizing the performance of all the simulations with the following metrics:
+
+         - converged:           Whether or not the simulation reached the source
+         - reached_horizon:     Whether the failed simulation reached to horizon
+         - steps_taken:         The amount of steps the agent took to reach the source, (horizon if the simulation did not reach the source)
+         - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
+         - extra_steps:         The amount of extra steps compared to the optimal trajectory
+         - t_min_over_t:        Normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
+
+        For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
+        '''
+        df = self.runs_analysis_df
+
         # Analysis aggregations
         columns_to_analyze = ['converged', 'reached_horizon', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']
-        success_averages = df.loc[df['converged'], columns_to_analyze].mean()
-        succes_std = df.loc[df['converged'], columns_to_analyze].std()
+        general_analysis_data = {
+            'mean': df[columns_to_analyze].mean(),
+            'standard_deviation': df[columns_to_analyze].std(),
+            'success_mean': df.loc[df['converged'], columns_to_analyze].mean(),
+            'success_standard_deviation': df.loc[df['converged'], columns_to_analyze].std()
+        }
 
-        df.loc['mean', columns_to_analyze] = df[columns_to_analyze].mean()
-        df.loc['standard_deviation', columns_to_analyze] = df[columns_to_analyze].std()
-
-        df.loc['success_mean', columns_to_analyze] = success_averages
-        df.loc['success_standard_deviation', columns_to_analyze] = succes_std
-
-        # Bringing analysis rows to top
-        df = df.reindex([
-            'mean',
-            'standard_deviation',
-            'success_mean',
-            'success_standard_deviation',
-            *runs_list])
-
-        return df
+        return pd.DataFrame(data=general_analysis_data, columns=columns_to_analyze)
 
 
     @property
@@ -335,7 +343,7 @@ class SimulationHistory:
             return summary_str
 
         # Metrics
-        df = self.analysis_df
+        df = self.general_analysis_df
 
         summary_str += f"\n - {'Average step count:':<35} {df.loc['mean','steps_taken']:.3f} +- {df.loc['standard_deviation','steps_taken']:.2f} "
         summary_str += f"(Successfull only: {df.loc['success_mean','steps_taken']:.3f} +- {df.loc['success_standard_deviation','steps_taken']:.2f})"
@@ -561,10 +569,13 @@ class SimulationHistory:
         print(f'Simulations saved to: {folder + file}')
 
         if save_analysis:
-            analysis_file = file.replace('.csv', '-analysis.csv')
-            self.analysis_df.to_csv(folder + analysis_file)
+            runs_analysis_file_name = file.replace('.csv', '-runs_analysis.csv')
+            self.runs_analysis_df.to_csv(folder + runs_analysis_file_name)
+            print(f"Simulation's runs analysis saved to: {folder + runs_analysis_file_name}")
 
-            print(f"Simulation's analysis saved to: {folder + analysis_file}")
+            general_analysis_file_name = file.replace('.csv', '-general_analysis.csv')
+            self.general_analysis_df.to_csv(folder + general_analysis_file_name)
+            print(f"Simulation's runs analysis saved to: {folder + general_analysis_file_name}")
 
 
     @classmethod
