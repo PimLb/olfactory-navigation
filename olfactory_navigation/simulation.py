@@ -280,14 +280,15 @@ class SimulationHistory:
 
         # Analysis aggregations
         columns_to_analyze = ['converged', 'reached_horizon', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']
-        general_analysis_data = {
-            'mean': df[columns_to_analyze].mean(),
-            'standard_deviation': df[columns_to_analyze].std(),
-            'success_mean': df.loc[df['converged'], columns_to_analyze].mean(),
-            'success_standard_deviation': df.loc[df['converged'], columns_to_analyze].std()
-        }
+        row_names = [['mean', 'standard_deviation', 'success_mean', 'success_standard_deviation']]
+        general_analysis_data = [
+            df[columns_to_analyze].mean(),
+            df[columns_to_analyze].std(),
+            df.loc[df['converged'], columns_to_analyze].mean(),
+            df.loc[df['converged'], columns_to_analyze].std()
+        ]
 
-        return pd.DataFrame(data=general_analysis_data, columns=columns_to_analyze)
+        return pd.DataFrame(data=general_analysis_data, index=row_names, columns=columns_to_analyze)
 
 
     @property
@@ -345,17 +346,17 @@ class SimulationHistory:
         # Metrics
         df = self.general_analysis_df
 
-        summary_str += f"\n - {'Average step count:':<35} {df.loc['mean','steps_taken']:.3f} +- {df.loc['standard_deviation','steps_taken']:.2f} "
-        summary_str += f"(Successful only: {df.loc['success_mean','steps_taken']:.3f} +- {df.loc['success_standard_deviation','steps_taken']:.2f})"
+        summary_str += f"\n - {'Average step count:':<35} {df.loc['mean','steps_taken'].item():.3f} +- {df.loc['standard_deviation','steps_taken'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','steps_taken'].item():.3f} +- {df.loc['success_standard_deviation','steps_taken'].item():.2f})"
 
-        summary_str += f"\n - {'Extra steps:':<35} {df.loc['mean','extra_steps']:.3f} +- {df.loc['standard_deviation','extra_steps']:.2f} "
-        summary_str += f"(Successful only: {df.loc['success_mean','extra_steps']:.3f} +- {df.loc['success_standard_deviation','extra_steps']:.2f})"
+        summary_str += f"\n - {'Extra steps:':<35} {df.loc['mean','extra_steps'].item():.3f} +- {df.loc['standard_deviation','extra_steps'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','extra_steps'].item():.3f} +- {df.loc['success_standard_deviation','extra_steps'].item():.2f})"
 
-        summary_str += f"\n - {'Average discounted rewards (ADR):':<35} {df.loc['mean','discounted_rewards']:.3f} +- {df.loc['standard_deviation','discounted_rewards']:.2f} "
-        summary_str += f"(Successful only: {df.loc['success_mean','discounted_rewards']:.3f} +- {df.loc['success_standard_deviation','discounted_rewards']:.2f})"
+        summary_str += f"\n - {'Average discounted rewards (ADR):':<35} {df.loc['mean','discounted_rewards'].item():.3f} +- {df.loc['standard_deviation','discounted_rewards'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','discounted_rewards'].item():.3f} +- {df.loc['success_standard_deviation','discounted_rewards'].item():.2f})"
 
-        summary_str += f"\n - {'Tmin/T:':<35} {df.loc['mean','t_min_over_t']:.3f} +- {df.loc['standard_deviation','t_min_over_t']:.2f} "
-        summary_str += f"(Successful only: {df.loc['success_mean','t_min_over_t']:.3f} +- {df.loc['success_standard_deviation','t_min_over_t']:.2f})"
+        summary_str += f"\n - {'Tmin/T:':<35} {df.loc['mean','t_min_over_t'].item():.3f} +- {df.loc['standard_deviation','t_min_over_t'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','t_min_over_t'].item():.3f} +- {df.loc['success_standard_deviation','t_min_over_t'].item():.2f})"
 
         return summary_str
 
@@ -575,7 +576,7 @@ class SimulationHistory:
 
             general_analysis_file_name = file.replace('.csv', '-general_analysis.csv')
             self.general_analysis_df.to_csv(folder + general_analysis_file_name)
-            print(f"Simulation's runs analysis saved to: {folder + general_analysis_file_name}")
+            print(f"Simulation's general analysis saved to: {folder + general_analysis_file_name}")
 
 
     @classmethod
