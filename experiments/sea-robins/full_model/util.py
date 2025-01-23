@@ -274,7 +274,7 @@ def generate_results_plots(test_result_folder:str, all_hist:SimulationHistory, p
         plt.close()
 
 
-def generate_results_pdf(folder:str) -> None:
+def generate_results_pdf(folder:str, only_legs:bool=False) -> None:
     plot_sets = [
         'No filter',
         'Filtered all exitting',
@@ -291,7 +291,10 @@ def generate_results_pdf(folder:str) -> None:
         plot_folder = folder + plot_folder_name + '/'
 
         # Extracting the threshold level from the folder name
-        thresh_level = float(folder.split('thresh_')[1].split('-')[0].split('e')[1])
+        if only_legs:
+            thresh_level = 0
+        else:
+            thresh_level = float(folder.split('thresh_')[1].split('-')[0].split('e')[1])
 
         # Basic setup
         pdf_file_name = folder + 'results_pdfs/' + 'results_' + plot_folder_name + '.pdf'
@@ -309,7 +312,10 @@ def generate_results_pdf(folder:str) -> None:
 
         # Set title
         c.setFont("Helvetica-Bold", 18)
-        c.drawString(x_left, y - 15, f"Results - Threshold: 3e-{thresh_level} - {plot_sets[i]}")
+        if only_legs:
+            c.drawString(x_left, y - 15, f"Results - Only Legs - {plot_sets[i]}")
+        else:
+            c.drawString(x_left, y - 15, f"Results - Threshold: 3e-{thresh_level} - {plot_sets[i]}")
         y -= 20
 
         for png_file in png_files:
