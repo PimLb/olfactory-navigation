@@ -213,7 +213,7 @@ def analyse_shape_robustness(all_histories: list[SimulationHistory],
     rows = []
     # For each simulation history and multiplier, the analysis dataframe is extracted
     for hist, multiplier_pair in zip(all_histories, multipliers):
-        df = hist.analysis_df
+        df = hist.general_analysis_df
 
         # Then the summarized metrics are collapsed on a single row
         col_metric_dict = {'y_multiplier': multiplier_pair[0].astype(int), 'x_multiplier': multiplier_pair[1].astype(int)}
@@ -424,7 +424,7 @@ def analyse_scale_robustness(all_histories: list[SimulationHistory],
     rows = []
     # For each simulation history and multiplier, the analysis dataframe is extracted
     for hist, multiplier in zip(all_histories, multipliers):
-        df = hist.analysis_df
+        df = hist.general_analysis_df
 
         # Then the summarized metrics are collapsed on a single row
         col_metric_dict = {'multiplier': int(multiplier)}
