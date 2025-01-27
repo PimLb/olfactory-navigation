@@ -34,18 +34,22 @@ maxStepsPerEpisode = 10000
 actor_lr = 0.001
 critic_lr = 0.001
 
-def isEnd(s):
+def isEnd(sm):
+    s = sm % SC
     r, c = s // cols, s % cols
     return (r - rSource) ** 2 + (c -cSource) **2 < find_range**2
 
-def takeAction(s, a):
+def takeAction(sm, am):
+    s = sm % SC
+    a = am % 4
+    newM = am // 4
     r, c = s // cols, s % cols
     action = ActionDict[a]
     rNew = r + action[0]
     cNew = c + action[1]
     r = rNew if rNew >= 0 and rNew < 131 else r
     c = cNew if cNew >= 0 and cNew < 92 else c
-    return r * 92 + c
+    return r * 92 + c + newM * SC
 
 def totalTime(end, start, file = None):
     tot = end - start
@@ -66,6 +70,7 @@ def totalTime(end, start, file = None):
 parser = ap.ArgumentParser()
 parser.add_argument("actor_lr", type=float, help="the learning rate for the actor")
 parser.add_argument("critic_lr", type=float, help="the learning rate for the critic")
+parser.add_argument("memories", type=int, help="The memories of the FSC")
 parser.add_argument("lambda_actor", type=float, help="the trace decay parameter for the actor")
 parser.add_argument("lambda_critic", type=float, help="the trace decay parameter for the critic")
 parser.add_argument("episodes", type=int, help="The final episode number. If --iterationStart is specified, the number of episode ran will be episodes - iterationStart")
@@ -80,6 +85,8 @@ parser.add_argument("--toClip", help="if specified, theta's entries will be clip
 args = parser.parse_args()
 actor_lr = args.actor_lr
 critic_lr = args.critic_lr
+M = args.memories
+assert M >= 1
 lambda_actor = args.lambda_actor
 lambda_critic = args.lambda_critic
 numberEpisodes = args.episodes
@@ -89,8 +96,9 @@ subMax = args.subMax
 toClip = args.toClip
 itStart = args.iterationStart if args.iterationStart else 0
 
+SCM = SC * M
 
-saveDir = f"results/TD_Lambda/M1/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
+saveDir = f"results/TD_Lambda/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
 if scheduleActor:
     saveDir += "Scheduled_"
 saveDir += f"alphaCritic_{critic_lr}"
@@ -107,14 +115,14 @@ actDir = os.path.join(saveDir, "Actors")
 if args.thetaStart is not None:
     theta = np.load(args.thetaStart)
 else:
-    theta = (np.random.rand(2, 1, 4) -0.5) * 0.5
+    theta = (np.random.rand(2, M, 4*M) -0.5) * 0.5
     # theta[1, :, 0] += 0.5
     # theta[1, :, 2] += 0.5
 
 if args.vStart is not None:
     V = np.load(args.vStart)
 else:
-    V = np.zeros(SC)
+    V = np.zeros(SCM)
     # V = np.ones(SC) * -1
     # mask = np.array([isEnd(s) for s in range(SC)])
     # V[mask] = 0
@@ -133,7 +141,8 @@ print("Starting pi:", pi,file=ouput, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 try:
     for i in range(itStart, numberEpisodes):
-        start = np.random.choice(range(SC), p = rho)
+        start = np.random.choice(range(SC), p = rho) # Parto sempre dalla memoria 0
+        curMem = 0
         discount = 1
         curState = start
         curStep = 0
@@ -145,8 +154,8 @@ try:
 
         while( not isEnd(curState) and curStep < maxStepsPerEpisode):
 
-            obs = np.random.choice(2, p = dataC[:, curState])
-            action = np.random.choice(4, p= pi[obs, 0])
+            obs = np.random.choice(2, p = dataC[:, curState % SC])
+            action = np.random.choice(4 * M, p= pi[obs, curMem])
             newState = takeAction(curState, action)
             reward = -(1 - gamma) if not isEnd(newState) else 0
             # print(curState, obs, action, newState, reward)
@@ -155,7 +164,7 @@ try:
             zCritic[curState] += 1 # Caso speciale per V tabulare. Credo sia giusto
             # Caso speciale per Natural Gradient e softmax. Credo sia giusto
             zActor = gamma * lambda_actor * zActor
-            zActor[obs, 0, action] += discount / pi[obs, 0, action]
+            zActor[obs, curMem, action] += discount / pi[obs, curMem, action]
 
             theta += cur_actor_lr * tdError * zActor
             if subMax:
@@ -167,6 +176,7 @@ try:
             pi = softmax(theta, axis = 2)
             curState = newState
             curStep += 1
+            curMem = newState // SC
             # print(f"Step {curStep}/{maxStepsPerEpisode} of episode {i}/{numberEpisodes} took {e-s} seconds")
         if (i +1) % 1000 == 0:
             print(f"Episode {i+1} done at {time.ctime()}",file=ouput)
@@ -189,9 +199,10 @@ except Exception as e:
     print("cur_actor_lr", cur_actor_lr, file = err)
     print("cur_critic_lr", cur_critic_lr, file = err)
     print("i", i, file = err)
+    print("curMem", curMem, file = err)
     print("zCritic", zCritic, file = err)
     print("zActor", zActor, file = err)
-    print("tdError", tdError, file = err)
     print("pi", pi, file = err)
     print("obs", obs, file = err)
+    print("tdError", tdError, file = err)
     print(repr(e), str(e))
