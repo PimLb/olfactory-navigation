@@ -27,14 +27,14 @@ def plot_trajectory_in_tank(h:SimulationHistory,
     start_coord = sim[['x', 'y']].to_numpy()[0]
 
     # Compute shift
-    shift = start_coord - exp_agent[traj][::-1]
+    shift = start_coord - exp_agent[traj][::-1] + 1
 
     # Plot start coordinate
     start_coord -= shift
     ax.scatter(start_coord[0], start_coord[1], c='green', label='Start')
 
     # Source circle
-    goal_circle = Circle(exp_source[traj][::-1], h.environment_source_radius, color='r', fill=False, label='Source')
+    goal_circle = Circle(exp_source[traj][::-1] - 1, h.environment_source_radius, color='r', fill=False, label='Source')
     ax.add_patch(goal_circle)
 
     # Until step
@@ -88,8 +88,8 @@ def plot_trajectory_in_tank(h:SimulationHistory,
     ax.legend()
 
     # Plot tank boundaries
-    ax.hlines([-0.3,t_size[0]+0.3], xmin=-0.3, xmax=t_size[1]+0.3, linestyles='dashed')
-    ax.vlines([-0.3,t_size[1]+0.3], ymin=-0.3, ymax=t_size[0]+0.3, linestyles='dashed')
+    ax.hlines([-0.3,t_size[0]-1+0.3], xmin=-0.3, xmax=t_size[1]-1+0.3, linestyles='dashed')
+    ax.vlines([-0.3,t_size[1]-1+0.3], ymin=-0.3, ymax=t_size[0]-1+0.3, linestyles='dashed')
 
     # Limit view
     ax.set_xlim(-view_margin, t_size[1]+view_margin)
