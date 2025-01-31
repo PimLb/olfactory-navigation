@@ -152,9 +152,9 @@ class HeuristicSpiralAgent(Agent):
         self.steps_before_turnaround = xp.zeros(n, dtype=int)
         self.ignore_invalid_steps = xp.zeros(n, dtype=int)
 
-        self.action_played = xp.ones(n, dtype=int) # Start with the action 1 (right)
-        self.spiral_direction = xp.ones(n, dtype=int) # Start with the direction 1 (clockwise)
-
+        # ONLY FOR DEBUG
+        # self.action_played = xp.ones(n, dtype=int) # Start with the action 1 (right)
+        # self.spiral_direction = xp.ones(n, dtype=int) # Start with the direction 1 (clockwise)
 
 
     def choose_action(self) -> np.ndarray:
@@ -216,9 +216,10 @@ class HeuristicSpiralAgent(Agent):
         self.steps_before_turnaround[turn_around_available] = 2 * self.spiral_step
 
         # Apply cut turnaround cut short
-        self.steps_before_turnaround[turn_around_cut] = self.spiral_step
         next_action[turn_around_cut] = turn_action[turn_around_cut]
         self.spiral_width[turn_around_cut] += xp.where(~(self.clock // self.spiral_width == 0)[turn_around_cut], self.spiral_step, 0)
+        self.spiral_width[turn_around_cut] -= (self.steps_before_turnaround[turn_around_cut] - self.spiral_step)
+        self.steps_before_turnaround[turn_around_cut] = self.spiral_step
 
         # Apply the flip steps to the clock to finish the turnaround
         finished_turnaround = (turn_around_cut | (~next_action_invalid & (self.flip_step > 0) & (self.steps_before_turnaround == self.spiral_step)))
