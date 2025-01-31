@@ -62,6 +62,7 @@ class HeuristicSpiralAgent(Agent):
         self.spiral_width = None
         self.spiral_direction = None
         self.flip_step = None
+        self.steps_before_turnaround = None
         self.ignore_invalid_steps = None
 
 
@@ -148,6 +149,7 @@ class HeuristicSpiralAgent(Agent):
         self.spiral_width = xp.zeros(n, dtype=int)
         self.spiral_direction = (xp.random.randint(0, 2, n) * 2) - 1 # Randomly choose a direction (+1 = clockwise, -1 = counterclockwise)
         self.flip_step = xp.zeros(n, dtype=int)
+        self.steps_before_turnaround = xp.zeros(n, dtype=int)
         self.ignore_invalid_steps = xp.zeros(n, dtype=int)
 
         self.action_played = xp.ones(n, dtype=int) # Start with the action 1 (right)
@@ -168,12 +170,14 @@ class HeuristicSpiralAgent(Agent):
 
         next_action = self.action_played.copy() # Copy previous action
 
+        forbidden_turn = (self.steps_before_turnaround > 0) & (self.steps_before_turnaround < self.spiral_step)
+
         # If spiral width is reached, change direction along the direction
-        reached_width = (self.clock % (self.spiral_width) == 0)
+        reached_width = (self.clock % (self.spiral_width) == 0) & ~forbidden_turn
         next_action[reached_width] = (next_action[reached_width] + self.spiral_direction[reached_width]) % len(self.action_set)
 
         # If 2 widths are reached, increase the width
-        reached_double_width = (self.clock % ((self.spiral_width * 2)) == 0)
+        reached_double_width = (self.clock % ((self.spiral_width * 2)) == 0) & ~forbidden_turn
         self.spiral_width[reached_double_width] += self.spiral_step
         self.clock[reached_double_width] = 0
 
@@ -196,8 +200,12 @@ class HeuristicSpiralAgent(Agent):
         opposite_action = (next_action + (self.spiral_direction * -1)) % len(self.action_set)
         opposite_action_valid = valid_actions[opposite_action, xp.arange(len(self.belief))]
 
-        turn_around_available = next_action_invalid & opposite_action_valid
-        back_on_its_track = next_action_invalid & ~opposite_action_valid
+        turn_action = (next_action + self.spiral_direction) % len(self.action_set)
+        turn_action_valid = valid_actions[turn_action, xp.arange(len(self.belief))]
+
+        turn_around_available = next_action_invalid & opposite_action_valid & (self.flip_step == 0)
+        turn_around_cut = next_action_invalid & (self.flip_step > 0) & turn_action_valid
+        back_on_its_track = next_action_invalid & ~opposite_action_valid & ~turn_around_cut
 
         # option 1) Apply turnaround
         self.spiral_direction[turn_around_available] *= -1
@@ -205,20 +213,28 @@ class HeuristicSpiralAgent(Agent):
 
         self.flip_step[turn_around_available] = self.clock[turn_around_available] % self.spiral_width[turn_around_available]
         self.clock[turn_around_available] = xp.where(~(self.clock // self.spiral_width == 0)[turn_around_available], -self.spiral_step, (self.spiral_width[turn_around_available] - self.spiral_step))
+        self.steps_before_turnaround[turn_around_available] = 2 * self.spiral_step
+
+        # Apply cut turnaround cut short
+        self.steps_before_turnaround[turn_around_cut] = self.spiral_step
+        next_action[turn_around_cut] = turn_action[turn_around_cut]
+        self.spiral_width[turn_around_cut] += xp.where(~(self.clock // self.spiral_width == 0)[turn_around_cut], self.spiral_step, 0)
 
         # Apply the flip steps to the clock to finish the turnaround
-        self.clock[~next_action_invalid & (self.flip_step > 0)] = (self.spiral_width[~next_action_invalid & (self.flip_step > 0)] * 2) - self.flip_step[~next_action_invalid & (self.flip_step > 0)] - self.spiral_step
-        self.flip_step[~next_action_invalid & (self.flip_step > 0)] = 0
+        finished_turnaround = (turn_around_cut | (~next_action_invalid & (self.flip_step > 0) & (self.steps_before_turnaround == self.spiral_step)))
+        self.clock[finished_turnaround] = (self.spiral_width[finished_turnaround] * 2) - self.flip_step[finished_turnaround] - self.spiral_step
+        self.flip_step[finished_turnaround] = 0
 
         # option 2) Apply the back-on-its-track manoeuver
         self.spiral_direction[back_on_its_track] *= -1
         next_action[back_on_its_track] = (next_action[back_on_its_track] + 2) % len(self.action_set)
         self.clock[back_on_its_track] = (self.spiral_width[back_on_its_track] * 2) - self.clock[back_on_its_track]
         self.spiral_width[back_on_its_track] += self.spiral_step
-        self.ignore_invalid_steps[back_on_its_track] = self.clock[back_on_its_track] * 2
+        self.ignore_invalid_steps[back_on_its_track] = self.spiral_width[back_on_its_track]
 
         # Increase the clock
         self.clock += 1
+        self.steps_before_turnaround[self.steps_before_turnaround > 0] -= 1
         self.ignore_invalid_steps[self.ignore_invalid_steps > 0] -= 1
 
         # Recording the action played
@@ -288,4 +304,5 @@ class HeuristicSpiralAgent(Agent):
         self.spiral_width = self.spiral_width[~simulations_to_kill]
         self.spiral_direction = self.spiral_direction[~simulations_to_kill]
         self.flip_step = self.flip_step[~simulations_to_kill]
+        self.steps_before_turnaround = self.steps_before_turnaround[~simulations_to_kill]
         self.ignore_invalid_steps = self.ignore_invalid_steps[~simulations_to_kill]
