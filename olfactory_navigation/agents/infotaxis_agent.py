@@ -198,8 +198,6 @@ class Infotaxis_Agent(Agent):
         belief : BeliefSet, optional
             An optional set of beliefs to initialize the simulations with.
         '''
-        assert self.value_function is not None, "Agent was not trained, run the training function first..."
-
         if belief is None:
             self.belief = BeliefSet(self.model, [Belief(self.model) for _ in range(n)])
         else:
