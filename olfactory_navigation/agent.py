@@ -62,6 +62,13 @@ class Agent:
     threshold : float or list[float], default=3e-6
         The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
         If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+    space_aware : bool, default=False
+        Whether the agent is aware of it's own position in space.
+        This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
+        Note: The observation array will have a different shape when returned to the update_state function!
+    spacial_subdivisions : np.ndarray, optional
+        How many spacial compartments the agent has to internally represent the space it lives in.
+        By default, it will be as many as there are grid points in the environment.
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
@@ -75,6 +82,8 @@ class Agent:
     ----------
     environment : Environment
     threshold : float or list[float]
+    space_aware : bool
+    spacial_subdivisions : np.ndarray
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
@@ -94,16 +103,49 @@ class Agent:
     def __init__(self,
                  environment: Environment,
                  threshold: float | list[float] = 3e-6,
+                 space_aware: bool = False,
+                 spacial_subdivisions: np.ndarray | None = None,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
                  name: str | None = None,
                  seed: int = 12131415
                  ) -> None:
+        # TODO: Add spatial arguments to save/load and name
         self.environment = environment
+        self.space_aware = space_aware
         self.threshold = threshold
 
         # Ensuring thresholds are sorted (if it is a list)
         if isinstance(self.threshold, list):
             self.threshold = sorted(self.threshold)
+
+        # Spacial subdivisions
+        if spacial_subdivisions is None:
+            self.spacial_subdivisions = np.array(self.environment.shape)
+        else:
+            self.spacial_subdivisions = np.array(spacial_subdivisions)
+        assert len(self.spacial_subdivisions) == self.environment.dimensions, "The amount of spacial divisions must match the amount of dimensions of the environment."
+
+        # Mapping environment to spacial subdivisions
+        env_shape = np.array(self.environment.shape)
+
+        std_size = (env_shape / self.spacial_subdivisions).astype(int)
+        overflows = (env_shape % self.spacial_subdivisions)
+
+        cell_sizes = [(np.repeat(size, partitions) + np.array([np.floor(overflow / 2), *np.zeros(partitions-2), np.ceil(overflow / 2)])).astype(int)
+                    for partitions, size, overflow in zip(self.spacial_subdivisions, std_size, overflows)]
+
+        # Finding the edges of the cells and filling a grid with ids
+        cell_edges = [np.concatenate(([0], np.cumsum(ax_sizes))) for ax_sizes in cell_sizes]
+
+        lower_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[:-1] for bounds_arr in cell_edges], indexing='ij')]).T
+        upper_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[1 :] for bounds_arr in cell_edges], indexing='ij')]).T
+
+        self._environment_to_subdivision_mapping = np.full(self.environment.shape, -1)
+        for i, (lower_b, upper_b) in enumerate(zip(lower_bounds, upper_bounds)):
+            slices = [slice(ax_lower, ax_upper) for ax_lower, ax_upper in zip(lower_b, upper_b)]
+
+            # Grid to cell mapping
+            self._environment_to_subdivision_mapping[*slices] = i
 
         # Allowed actions
         self.action_labels = None
@@ -164,7 +206,7 @@ class Agent:
         else:
             self.action_set = np.ndarray(list(actions.values()))
             self.action_labels = list(actions.keys())
-            
+
         # Asertion that the shape of the actions set if right
         layered = 0 if not environment.has_layers else 1
         assert self.action_set.shape[1] == (layered + environment.dimensions), f"The shape of the action_set provided is not right. (Found {self.action_set.shape}; expected (., {layered + environment.dimensions}))"
@@ -173,6 +215,7 @@ class Agent:
         if name is None:
             self.name = self.class_name
             self.name += f'-tresh_' + (str(self.threshold) if not isinstance(self.threshold, list) else '_'.join(str(t) for t in self.threshold))
+            self.name += '-space_aware' if self.space_aware else ''
         else:
             self.name = name
 
@@ -241,6 +284,78 @@ class Agent:
         raise NotImplementedError('The choose_action function is not implemented, make an agent subclass to implement the method')
 
 
+    def discretize_observations(self,
+                                observation: np.ndarray,
+                                source_reached: np.ndarray
+                                ) -> np.ndarray:
+        '''
+        Function to convert a set of observations to discrete observation ids.
+        It uses the olfaction thresholds of the agent to discretize the odor concentrations.
+
+        In the case where the agent is also aware of it's own position in space, in which case the observation matrix is of size n by 1 + environment.dimensions,
+        the agent first converts the points on the grid to position ids and then multiply the id by olfactory observation id.
+
+        Parameters
+        ----------
+        observation : np.ndarray
+            The observations the agent receives, in the case the agent is space_aware, the position point is also included.
+        source_reached : np.ndarray
+            A 1D array of boolean values signifying whether each agent reached or not the source.
+
+        Returns
+        -------
+        discrete_observations: np.ndarray
+            An integer array of discrete observations
+        '''
+        # GPU support
+        xp = np if not self.on_gpu else cp
+
+        n = len(observation)
+        discrete_observations = xp.ones(n, dtype=int) * -1
+
+        # Gather olfactory observation
+        olfactory_observation = observation if not self.space_aware else observation[:,0]
+
+        # Set the thresholds as a vector
+        threshold = self.threshold
+        if not isinstance(threshold, list):
+            threshold = [threshold]
+
+        # Ensure 0.0 and 1.0 begin and end the threshold list
+        if threshold[0] != -xp.inf:
+            threshold = [-xp.inf] + threshold
+
+        if threshold[-1] != xp.inf:
+            threshold = threshold + [xp.inf]
+        threshold = xp.array(threshold)
+
+        # Compute the amount of observations available
+        observation_count = len(threshold) - 1 # |threshold| - 1 observation buckets
+
+        # Setting observation ids
+        observation_ids = xp.argwhere((olfactory_observation[:,None] >= threshold[:-1][None,:]) & (olfactory_observation[:,None] < threshold[1:][None,:]))[:,1]
+
+        # If needed, multiply observation indices by position indices
+        if not self.space_aware:
+            discrete_observations = observation_ids
+        else:
+            position_clipped = xp.clip(observation[:,1:], a_min=0, a_max=(xp.array(self.environment.shape)-1))
+            position_count = int(xp.prod(self.spacial_subdivisions))
+            position_ids = self._environment_to_subdivision_mapping[*position_clipped.astype(int).T]
+
+            # Add the amount of possible positions to the observation count
+            observation_count *= position_count
+
+            # Combine with observation ids
+            discrete_observations = (observation_ids * position_count) + position_ids
+
+        # Adding the goal observation
+        observation_count += 1
+        discrete_observations[source_reached] = observation_count
+
+        return discrete_observations
+
+
     def update_state(self,
                      observation: np.ndarray,
                      source_reached: np.ndarray
@@ -252,7 +367,7 @@ class Agent:
         Parameters
         ----------
         observation : np.ndarray
-            A 1D array of odor cues (float values) retrieved from the environment.
+            A n by 1 (or 1 + environment.dimensions if space_aware) array of odor cues (float values) retrieved from the environment.
         source_reached : np.array
             A 1D array of boolean values signifying whether each agent reached or not the source.
 
@@ -348,7 +463,7 @@ class Agent:
         ----------
         folder : str
             The folder in which the agent was saved.
-        
+
         Returns
         -------
         loaded_agent : Agent

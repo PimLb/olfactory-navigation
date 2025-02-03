@@ -13,7 +13,7 @@ def exact_converter(agent : Agent) -> Model:
 
     It supports an environment in 2D, with or without layers. It supports a variety of different action sets from the agent.
 
-    It also defines at least different observations: Nothing, Something or Goal.
+    It also defines at least 3 different observations: Nothing, Something or Goal.
     However, if multiple thresholds are provided, the more observations will be available: |threshold| + 1 (Nothing) + 1 (Goal)
 
     Note: The environment and the threshold parameters are gathered from the agent instance provided.
@@ -33,8 +33,9 @@ def exact_converter(agent : Agent) -> Model:
     threshold = agent.threshold
     action_set = agent.action_set
 
-    # Assertion
+    # Assertions
     assert environment.dimensions == 2, "This converter only works for 2D environments..." # TODO: implement for ND
+    assert not agent.space_aware, "This model is not compatible with space_aware agents as the observations would not match the expected observations of this model."
 
     # Base Model parameters
     state_count = np.prod(environment.shape)
@@ -67,7 +68,7 @@ def exact_converter(agent : Agent) -> Model:
             data_grid = environment.data[layer,:,:,:,None]
             threshs = np.array(threshold)
             data_odor_fields = np.average(((data_grid >= threshs[:-1][None,None,None,:]) & (data_grid < threshs[1:][None,None,None,:])), axis=0)
-            
+
             # Increasing it to the full environment
             field = np.zeros(environment.shape + (observation_count-1,))
             field[*data_bounds_slices, :] = data_odor_fields
@@ -147,6 +148,7 @@ def exact_converter(agent : Agent) -> Model:
 
 def minimal_converter(agent : Agent,
                       partitions: list | np.ndarray = [3,6],
+                      margin_partitions: bool = False
                       ) -> Model:
     '''
     Method to create a POMDP Model based on an olfactory environment  object.
@@ -159,7 +161,7 @@ def minimal_converter(agent : Agent,
     But, since the model contains so few spaces, the transitions between states are not deterministic:
     This means, if an agent takes a step in a direction, there is a chance the agent stays in the same state along with a lower chance the agent moves to a state in the actual direction it was meaning to go.
 
-    It also defines at least different observations: Nothing, Something or Goal.
+    It also defines at least 3 different observations: Nothing, Something or Goal.
     However, if multiple thresholds are provided, the more observations will be available: |threshold| + 1 (Nothing) + 1 (Goal)
 
     Note: The environment and the threshold parameters are gathered from the agent instance provided.
@@ -170,6 +172,8 @@ def minimal_converter(agent : Agent,
         The agent to use to get the environment and threshold parameters from.
     partitions : list or np.ndarray, default=[3,6]
         How many partitions to use in respectively the y and x directions.
+    margin_partitions : bool, default=False
+        Whether to have seperate partitions for the margins or not. In the case it is enabled, +2 partitions are added in each dimensions.
 
     Returns
     -------
@@ -183,26 +187,34 @@ def minimal_converter(agent : Agent,
 
     shape = environment.shape
 
+    # Assertions
+    assert not agent.space_aware, "This model is not compatible with space_aware agents as the observations would not match the expected observations of this model."
+
     # Getting probabilities of odor in the requested partitions and mapping grid to cells
     partitions = np.array(partitions)
 
-    cell_shape = (environment.data_shape / partitions).astype(int)
-
     # Building cell bounds
-    grid_cells = np.ones(shape) * -1
-    cell_bounds = [np.array([0, *((np.arange(ax_part+1) * cell_shape[ax_i]) + environment.margins[ax_i, 0]), shape[ax_i]]) for ax_i, ax_part in enumerate(partitions)]
+    if margin_partitions:
+        cell_shape = (environment.data_shape / partitions).astype(int)
+        cell_bounds = [np.array([0, *((np.arange(ax_part+1) * cell_shape[ax_i]) + environment.margins[ax_i, 0]), shape[ax_i]]) for ax_i, ax_part in enumerate(partitions)]
+        cell_counts = int(np.prod(partitions + 2)) # Add 2 in each dimensions
+    else:
+        cell_shape = (shape / partitions).astype(int)
+        cell_bounds = [np.array(np.arange(ax_part+1) * cell_shape[ax_i]) for ax_i, ax_part in enumerate(partitions)]
+        cell_counts = int(np.prod(partitions))
 
     lower_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[:-1] for bounds_arr in cell_bounds], indexing='xy')]).T
     upper_bounds = np.array([ax_arr.ravel() for ax_arr in np.meshgrid(*[bounds_arr[1 :] for bounds_arr in cell_bounds], indexing='xy')]).T
 
+    # Building an array mapping cell ids to the original grid
+    grid_cells = np.ones(shape) * -1
     for i, (lower_b, upper_b) in enumerate(zip(lower_bounds, upper_bounds)):
         slices = [slice(ax_lower, ax_upper) for ax_lower, ax_upper in zip(lower_b, upper_b)]
-        
+
         # Grid to cell mapping
         grid_cells[*slices] = i
 
     # Building transition probabilities
-    cell_counts = int(np.prod(partitions+2))
     points = np.array(np.unravel_index(np.arange(np.prod(shape)), shape)).T
     transition_probabilities = np.full((cell_counts+1, len(action_set), cell_counts+1), -1, dtype=float)
 
@@ -256,7 +268,7 @@ def minimal_converter(agent : Agent,
     cell_observations = []
     for lower_b, upper_b in zip(data_lower_bounds, data_upper_bounds):
         slices = [slice(ax_lower, ax_upper) for ax_lower, ax_upper in zip(lower_b, upper_b)]
-        
+
         observations_levels = []
         for min_thresh, max_thresh in zip(threshold[:-1], threshold[1:]):
             if environment.has_layers:
