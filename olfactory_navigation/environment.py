@@ -60,16 +60,16 @@ class Environment:
     From this environment, the various parameters are applied in the following order:
 
     0. The source position is set
-    1. The margins are added and the shape (total size) of the environment are set. 
+    1. The margins are added and the shape (total size) of the environment are set.
     2. The data file's x and y components are squished and streched the to fit the inter-marginal shape of the environment.
     3. The source's position is also moved to stay at the same position within the data.
     4. The multiplier is finally applied to modify the data file's x and y components a final time by growing or shrinking the margins to account for the multiplier. (The multiplication applies with the source position as a center point)
-    
-    Note: to modify the shape of the data file's x and y components the OpenCV library's resize function is used. And the interpolation method is controlled by the interpolation_method parameter. 
+
+    Note: to modify the shape of the data file's x and y components the OpenCV library's resize function is used. And the interpolation method is controlled by the interpolation_method parameter.
 
 
     Then, the starting probability map is built. Either an array can be provided directly or preset option can be chosen:
-    
+
     - 'data_zone': The agent can start at any point in the data_zone (after all the modification parameters have been applied)
     - 'odor_present': The agent can start at any point where an odor cue above the odor_present_threshold can be found at any timestep during the simulation
 
@@ -179,6 +179,10 @@ class Environment:
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
+    cpu_version : Environment
+        An instance of the environment on the CPU. If it already is, it returns itself.
+    gpu_version : Environment
+        An instance of the environment on the CPU. If it already is, it returns itself.
     '''
     def __init__(self,
                  data_file: str | np.ndarray,
@@ -229,7 +233,7 @@ class Environment:
                         self.layer_labels = [str(layer) for layer in range(len(loaded_data))]
                     else:
                         assert (len(self.layers) == len(loaded_data)), "The amount of layers provided dont match the amount in the dataset."
-                        
+
                         # Re-ordering the layers
                         loaded_data = loaded_data[self.layers]
 
@@ -298,7 +302,7 @@ class Environment:
 
             # Computing the new shape of the data
             new_data_shape: np.ndarray = (shape - np.sum(self.margins, axis=1)).astype(int)
-            
+
             # New source position
             self.data_source_position = (self.data_source_position * (new_data_shape / self.data_shape)).astype(int)
         else:
@@ -368,7 +372,7 @@ class Environment:
         # Converting the shape tuple to integer sets
         self.shape: tuple[int] = tuple([int(el) for el in self.shape])
         self.data_shape: tuple[int] = tuple([int(el) for el in self.data_shape])
-        
+
         # Building a data bounds
         self.data_bounds = np.array([self.margins[:,0], self.margins[:,0] + np.array(self.data_shape)]).T
 
@@ -565,7 +569,7 @@ class Environment:
         A set of observations can also be requested, either at a single position for multiple timestamps or with the same amoung of positions as timestamps provided.
 
         Note: The position will not be checked against boundary conditions; if a position is out-of-bounds it will simply return 0.0!
-        
+
         Parameters
         ----------
         pos : np.ndarray
@@ -587,7 +591,7 @@ class Environment:
         is_single_point = (len(pos.shape) == 1)
         if is_single_point:
             pos = pos[None,:]
-    
+
         # Counting how many position points we are dealing with
         pos_count = len(pos)
 
@@ -698,7 +702,7 @@ class Environment:
         Returns
         -------
         random_states_2d : np.ndarray
-            The n random 2d points in a n x 2 array. 
+            The n random 2d points in a n x 2 array.
         '''
         xp = cp if self.on_gpu else np
 
@@ -795,7 +799,7 @@ class Environment:
         is_single_point = (len(point.shape) == 1)
         if is_single_point:
             point = point[None,:]
-        
+
         # Computing dist
         dist = None
         if metric == 'manhattan':
@@ -1011,6 +1015,15 @@ class Environment:
         gpu_environment : Environment
             A new environment instance where the arrays are on the gpu memory.
         '''
+        # Check whether the environment is already on the gpu or not
+        if self.on_gpu:
+            return self
+
+        # Warn and overwrite alternate_version in case it already exists
+        if self._alternate_version is not None:
+            print('[warning] A GPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
         assert gpu_support, "GPU support is not enabled..."
 
         # Generating a new instance
@@ -1044,11 +1057,63 @@ class Environment:
         cpu_environment : Environment
             A new environment instance where the arrays are on the cpu memory.
         '''
-        if self.on_gpu:
-            assert self._alternate_version is not None, "Something went wrong"
-            return self._alternate_version
+        # Check whether the agent is already on the cpu or not
+        if not self.on_gpu:
+            return self
 
-        return self
+        if self._alternate_version is not None:
+            print('[warning] A CPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
+        # Generating a new instance
+        cls = self.__class__
+        cpu_environment = cls.__new__(cls)
+
+        # Copying arguments to gpu
+        for arg, val in self.__dict__.items():
+            if isinstance(val, cp.ndarray):
+                setattr(cpu_environment, arg, cp.asnumpy(val))
+            elif arg == 'rnd_state':
+                setattr(cpu_environment, arg, np.random.RandomState(self.seed))
+            else:
+                setattr(cpu_environment, arg, val)
+
+        # Self reference instances
+        self._alternate_version = cpu_environment
+        cpu_environment._alternate_version = self
+
+        cpu_environment.on_gpu = True
+        return cpu_environment
+
+
+    @property
+    def gpu_version(self) -> 'Environment':
+        '''
+        A version of the Environment on the GPU.
+        If the environment is already on the GPU it returns itself, otherwise the to_gpu function is called to generate a new one.
+        '''
+        if self.on_gpu:
+            return self
+        else:
+            if self._alternate_version is not None: # Check if an alternate version already exists
+                return self._alternate_version
+            else: # Generate an alternate version on the gpu
+                return self.to_gpu()
+
+
+    @property
+    def cpu_version(self) -> 'Environment':
+        '''
+        A version of the Environment on the CPU.
+        If the environment is already on the CPU it returns itself, otherwise the to_cpu function is called to generate a new one.
+        '''
+        if not self.on_gpu:
+            return self
+        else:
+            if self._alternate_version is not None: # Check if an alternate version already exists
+                return self._alternate_version
+            else: # Generate an alternate version on the cpu
+                return self.to_cpu()
 
 
     def modify(self,
@@ -1086,7 +1151,8 @@ class Environment:
             A copy of the environment where the modified parameters have been applied.
         '''
         if self.on_gpu:
-            return self.to_cpu().modify(
+            cpu_environment = self.cpu_version
+            new_cpu_environment = cpu_environment.modify(
                 data_source_position = data_source_position,
                 source_radius        = source_radius,
                 shape                = shape,
@@ -1095,6 +1161,7 @@ class Environment:
                 interpolation_method = interpolation_method,
                 boundary_condition   = boundary_condition
             )
+            return new_cpu_environment.to_gpu()
 
         modified_environment = Environment(
             data_file              = (self.data_file_path if (self.data_file_path is not None) else self._data),
@@ -1130,7 +1197,7 @@ class Environment:
         Returns
         -------
         modified_environment : Environment
-            The environment with the scale factor applied. 
+            The environment with the scale factor applied.
         '''
         modified_source_radius = self.source_radius * scale_factor
         modified_shape = (np.array(self.shape) * scale_factor).astype(int)

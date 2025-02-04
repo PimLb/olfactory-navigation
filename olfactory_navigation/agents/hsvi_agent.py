@@ -16,8 +16,8 @@ except:
 
 class HSVI_Agent(PBVI_Agent):
     '''
-    A flavor of the PBVI Agent. 
-    
+    A flavor of the PBVI Agent.
+
     # TODO: Do document of HSVI agent
     # TODO: FIX HSVI expand
 
@@ -25,9 +25,19 @@ class HSVI_Agent(PBVI_Agent):
     ----------
     environment : Environment
         The olfactory environment to train the agent with.
-    threshold : float or list[float], default=3e-6
-        The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
-        If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default=3e-6
+        The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
+        If a list of thresholds is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+        A dictionary of (list of) thresholds can also be provided when the environment is layered.
+        In such case, the number of layers provided must match the environment's layers and their labels must match.
+        The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
+    space_aware : bool, default=False
+        Whether the agent is aware of it's own position in space.
+        This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
+        Note: The observation array will have a different shape when returned to the update_state function!
+    spacial_subdivisions : np.ndarray, optional
+        How many spacial compartments the agent has to internally represent the space it lives in.
+        By default, it will be as many as there are grid points in the environment.
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
@@ -49,7 +59,11 @@ class HSVI_Agent(PBVI_Agent):
     Attributes
     ---------
     environment : Environment
-    threshold : float or list[float]
+    thresholds : np.ndarray
+        An array of the thresholds of detection, starting with -inf and ending with +inf.
+        In the case of a 2D array of thresholds, the rows of thresholds apply to the different layers of the environment.
+    space_aware : bool
+    spacial_subdivisions : np.ndarray
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
@@ -67,6 +81,10 @@ class HSVI_Agent(PBVI_Agent):
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
+    cpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
+    gpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -124,7 +142,7 @@ class HSVI_Agent(PBVI_Agent):
             b_prob_val = 0
             for o in model.observations:
                 b_prob_val += (b_probs[o] * upper_bound_belief_value_map.evaluate(b.update(a,o)))
-            
+
             qva = float(xp.dot(model.expected_rewards_table[:,a], b.values) + (self.gamma * b_prob_val))
 
             # qva = upper_bound_belief_value_map.qva(b, a, gamma=self.gamma)
@@ -148,7 +166,7 @@ class HSVI_Agent(PBVI_Agent):
             v_diff = (upper_v_bao - lower_v_bao)
 
             o_val = b_probs[o] * v_diff
-            
+
             if o_val > max_o_val:
                 max_o_val = o_val
                 best_v_diff = v_diff
@@ -157,7 +175,7 @@ class HSVI_Agent(PBVI_Agent):
         # if bounds_split < conv_term or max_generation <= 0:
         if best_v_diff < conv_term or max_generation <= 1:
             return BeliefSet(model, [next_b])
-        
+
         # Add the belief point and associated value to the belief-value mapping
         upper_bound_belief_value_map.add(b, max_qv)
 
@@ -168,7 +186,7 @@ class HSVI_Agent(PBVI_Agent):
                                  upper_bound_belief_value_map=upper_bound_belief_value_map,
                                  conv_term=conv_term,
                                  max_generation=max_generation-1)
-        
+
         # Append the nex belief of this iteration to the deeper beliefs
         new_belief_list = b_set.belief_list
         new_belief_list.append(next_b)

@@ -30,7 +30,7 @@ def exact_converter(agent : Agent) -> Model:
     '''
     # Agent's parameters
     environment = agent.environment
-    threshold = agent.threshold
+    thresholds = agent.thresholds
     action_set = agent.action_set
 
     # Assertions
@@ -44,20 +44,9 @@ def exact_converter(agent : Agent) -> Model:
     end_states = np.argwhere(np.fromfunction(lambda x,y: ((x-environment.source_position[0])**2 + (y-environment.source_position[1])**2) <= environment.source_radius**2,
                                                 shape=environment.shape).ravel())[:,0].tolist()
 
-    # Compute observation matrix
-    if not isinstance(threshold, list):
-        threshold = [threshold]
-
-    # Ensure 0.0 and 1.0 begin and end the threshold list
-    if threshold[0] != -np.inf:
-        threshold = [-np.inf] + threshold
-
-    if threshold[-1] != np.inf:
-        threshold = threshold + [np.inf]
-
     # Counts
     action_count = len(agent.action_set)
-    observation_count = len(threshold) # Thresholds minus 1; plus 1 for the goal.
+    observation_count = thresholds.shape[-1] # Thresholds minus 1; plus 1 for the goal.
 
     # Computing odor probabilities
     odor_fields = None
@@ -66,7 +55,7 @@ def exact_converter(agent : Agent) -> Model:
         odor_fields = []
         for layer in environment.layers:
             data_grid = environment.data[layer,:,:,:,None]
-            threshs = np.array(threshold)
+            threshs = thresholds[layer] if len(thresholds.shape) == 2 else thresholds
             data_odor_fields = np.average(((data_grid >= threshs[:-1][None,None,None,:]) & (data_grid < threshs[1:][None,None,None,:])), axis=0)
 
             # Increasing it to the full environment
@@ -77,7 +66,7 @@ def exact_converter(agent : Agent) -> Model:
 
     else:
         data_grid = environment.data[:,:,:,None]
-        threshs = np.array(threshold)
+        threshs = thresholds
         data_odor_fields = np.average(((data_grid >= threshs[:-1][None,None,None,:]) & (data_grid < threshs[1:][None,None,None,:])), axis=0)
 
         # Increasing it to the full environment
@@ -109,8 +98,8 @@ def exact_converter(agent : Agent) -> Model:
 
     # Observation labels
     observation_labels = ['nothing']
-    if len(threshold) > 3:
-        for i,_ in enumerate(threshold[1:-1]):
+    if thresholds.shape[-1] > 3:
+        for i in range(thresholds.shape[-1] - 2):
             observation_labels.append(f'something_l{i}')
     else:
         observation_labels.append('something')
@@ -182,13 +171,14 @@ def minimal_converter(agent : Agent,
     '''
     # Agent's parameters
     environment = agent.environment
-    threshold = agent.threshold
+    thresholds = agent.thresholds
     action_set = agent.action_set
 
     shape = environment.shape
 
     # Assertions
     assert not agent.space_aware, "This model is not compatible with space_aware agents as the observations would not match the expected observations of this model."
+    assert not (len(agent.thresholds.shape) == 2), "This model doesnt allow for layer specific thresholds."
 
     # Getting probabilities of odor in the requested partitions and mapping grid to cells
     partitions = np.array(partitions)
@@ -236,21 +226,10 @@ def minimal_converter(agent : Agent,
     transition_probabilities[-1,:,:] = 0.0
     transition_probabilities[-1,:,-1] = 1.0
 
-    # Compute observation matrix
-    if not isinstance(threshold, list):
-        threshold = [threshold]
-
-    # Ensure 0.0 and 1.0 begin and end the threshold list
-    if threshold[0] != -np.inf:
-        threshold = [-np.inf] + threshold
-
-    if threshold[-1] != np.inf:
-        threshold = threshold + [np.inf]
-
-    #  Observation labels
+    # Observation labels
     observation_labels = ['nothing']
-    if len(threshold) > 3:
-        for i,_ in enumerate(threshold[1:-1]):
+    if thresholds.shape[-1] > 3:
+        for i in range(thresholds.shape[-1] - 2):
             observation_labels.append(f'something_l{i}')
     else:
         observation_labels.append('something')
@@ -270,8 +249,8 @@ def minimal_converter(agent : Agent,
         slices = [slice(ax_lower, ax_upper) for ax_lower, ax_upper in zip(lower_b, upper_b)]
 
         observations_levels = []
-        for min_thresh, max_thresh in zip(threshold[:-1], threshold[1:]):
-            if environment.has_layers:
+        for min_thresh, max_thresh in zip(thresholds[:-1], thresholds[1:]):
+            if environment.has_layers: # TODO: Adapt to different layer thresholding
                 odor_within_thresh = (environment.data[:,:,*slices] > min_thresh) & (environment.data[:,:,*slices] < max_thresh)
                 observations_levels.append(np.average(odor_within_thresh, axis=tuple([a+1 for a in range(environment.dimensions + 1)])))
             else:

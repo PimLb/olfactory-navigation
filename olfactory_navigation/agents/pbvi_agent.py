@@ -256,9 +256,12 @@ class PBVI_Agent(Agent):
     ----------
     environment : Environment
         The olfactory environment to train the agent with.
-    threshold : float or list[float], default=3e-6
-        The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
-        If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default=3e-6
+        The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
+        If a list of thresholds is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+        A dictionary of (list of) thresholds can also be provided when the environment is layered.
+        In such case, the number of layers provided must match the environment's layers and their labels must match.
+        The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
     space_aware : bool, default=False
         Whether the agent is aware of it's own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
@@ -287,7 +290,11 @@ class PBVI_Agent(Agent):
     Attributes
     ---------
     environment : Environment
-    threshold : float or list[float]
+    thresholds : np.ndarray
+        An array of the thresholds of detection, starting with -inf and ending with +inf.
+        In the case of a 2D array of thresholds, the rows of thresholds apply to the different layers of the environment.
+    space_aware : bool
+    spacial_subdivisions : np.ndarray
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
@@ -305,6 +312,10 @@ class PBVI_Agent(Agent):
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
+    cpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
+    gpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -320,7 +331,7 @@ class PBVI_Agent(Agent):
     '''
     def __init__(self,
                  environment: Environment,
-                 threshold: float | list[float] = 3e-6,
+                 thresholds: float | list[float] | dict[str, float] | dict[str, list[float]] = 3e-6,
                  space_aware: bool = False,
                  spacial_subdivisions: np.ndarray | None = None,
                  actions: dict[str, np.ndarray] | np.ndarray | None = None,
@@ -332,7 +343,7 @@ class PBVI_Agent(Agent):
                  ) -> None:
         super().__init__(
             environment = environment,
-            threshold = threshold,
+            thresholds = thresholds,
             space_aware = space_aware,
             spacial_subdivisions = spacial_subdivisions,
             actions = actions,
@@ -359,16 +370,25 @@ class PBVI_Agent(Agent):
         self.action_played = None
 
 
-    def to_gpu(self) -> Agent:
+    def to_gpu(self) -> 'PBVI_Agent':
         '''
         Function to send the numpy arrays of the agent to the gpu.
-        It returns a new instance of the Agent class with the arrays on the gpu
+        It returns a new instance of the Agent class with the arrays on the gpu.
 
         Returns
         -------
         gpu_agent : Agent
             A copy of the agent with the arrays on the GPU.
         '''
+        # Check whether the agent is already on the gpu or not
+        if self.on_gpu:
+            return self
+
+        # Warn and overwrite alternate_version in case it already exists
+        if self._alternate_version is not None:
+            print('[warning] A GPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
         assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
 
         # Generating a new instance
@@ -396,6 +416,51 @@ class PBVI_Agent(Agent):
 
         gpu_agent.on_gpu = True
         return gpu_agent
+
+
+    def to_cpu(self) -> 'PBVI_Agent':
+        '''
+        Function to send the numpy arrays of the agent to the cpu.
+        It returns a new instance of the Agent class with the arrays on the cpu.
+
+        Returns
+        -------
+        cpu_agent : Agent
+            A new environment instance where the arrays are on the cpu memory.
+        '''
+        # Check whether the agent is already on the cpu or not
+        if not self.on_gpu:
+            return self
+
+        if self._alternate_version is not None:
+            print('[warning] A CPU instance already existed and is being recreated.')
+            self._alternate_version = None
+
+        # Generating a new instance
+        cls = self.__class__
+        cpu_agent = cls.__new__(cls)
+
+        # Copying arguments to gpu
+        for arg, val in self.__dict__.items():
+            if isinstance(val, cp.ndarray):
+                setattr(cpu_agent, arg, cp.asnumpy(val))
+            elif arg == 'rnd_state':
+                setattr(cpu_agent, arg, np.random.RandomState(self.seed))
+            elif isinstance(val, Model):
+                setattr(cpu_agent, arg, val.cpu_model)
+            elif isinstance(val, ValueFunction):
+                setattr(cpu_agent, arg, val.to_cpu())
+            elif isinstance(val, BeliefSet) or isinstance(val, Belief):
+                setattr(cpu_agent, arg, val.to_cpu())
+            else:
+                setattr(cpu_agent, arg, val)
+
+        # Self reference instances
+        self._alternate_version = cpu_agent
+        cpu_agent._alternate_version = self
+
+        cpu_agent.on_gpu = True
+        return cpu_agent
 
 
     def save(self,
@@ -426,7 +491,7 @@ class PBVI_Agent(Agent):
 
         # GPU support
         if self.on_gpu:
-            self.to_cpu().save(folder=folder, force=force, save_environment=save_environment)
+            self.cpu_version.save(folder=folder, force=force, save_environment=save_environment)
             return
 
         # Adding env name to folder path
@@ -449,14 +514,21 @@ class PBVI_Agent(Agent):
         if save_environment:
             self.environment.save(folder=folder)
 
-        # TODO: Add actions to save function
+        # TODO: Add MODEL to save function
         # Generating the metadata arguments dictionary
         arguments = {}
         arguments['name'] = self.name
         arguments['class'] = self.class_name
-        arguments['threshold'] = self.threshold
+        if len(self.thresholds.shape) == 2:
+            arguments['thresholds'] = {layer_lab: layer_thresholds for layer_lab, layer_thresholds in zip(self.environment.layer_labels, self.thresholds.tolist())}
+        else:
+            arguments['thresholds'] = self.thresholds.tolist()
         arguments['environment_name'] = self.environment.name
         arguments['environment_saved_at'] = self.environment.saved_at
+        arguments['space_aware'] = self.space_aware
+        arguments['spacial_subdivisions'] = self.spacial_subdivisions.tolist()
+        arguments['action_labels'] = self.action_labels
+        arguments['action_set'] = self.action_set.tolist()
         arguments['trained_at'] = self.trained_at
         arguments['seed'] = self.seed
 
@@ -507,10 +579,13 @@ class PBVI_Agent(Agent):
 
         # Build instance
         instance = cls(
-            environment=environment,
-            threshold=arguments['threshold'],
-            name=arguments['name'],
-            seed=arguments['seed']
+            environment = environment,
+            thresholds = arguments['thresholds'],
+            space_aware = arguments['space_aware'],
+            spacial_subdivisions = np.array(arguments['spacial_subdivisions']),
+            actions = {a_label: a_vector for a_label, a_vector in zip(arguments['action_labels'], arguments['action_set'])},
+            name = arguments['name'],
+            seed = arguments['seed']
         )
 
         # Load and set the value function on the instance
@@ -616,7 +691,12 @@ class PBVI_Agent(Agent):
                 print_stats=print_stats,
                 **expand_arguments
             )
+
+            # Setting parameters of CPU agent after the training
             self.value_function = gpu_agent.value_function.to_cpu()
+            self.trained_at = gpu_agent.trained_at
+            self.name = gpu_agent.name
+
             return solver_history
 
         xp = np if not self.on_gpu else cp
@@ -951,14 +1031,15 @@ class PBVI_Agent(Agent):
         modified_agent : PBVI_Agent
             A new pbvi agent with a modified environment
         '''
+        # TODO: Fix this to account for other init parameters
         # GPU support
         if self.on_gpu:
             return self.to_cpu().modify_environment(new_environment=new_environment)
 
         # Creating a new agent instance
-        modified_agent = self.__class__(environment=new_environment,
-                                        threshold=self.threshold,
-                                        name=self.name)
+        modified_agent = self.__class__(environment = new_environment,
+                                        thresholds = self.thresholds,
+                                        name = self.name)
 
         # Modifying the value function
         if self.value_function is not None:
@@ -971,7 +1052,8 @@ class PBVI_Agent(Agent):
 
 
     def initialize_state(self,
-                         n: int = 1
+                         n: int = 1,
+                         belief: BeliefSet | None = None
                          ) -> None:
         '''
         To use an agent within a simulation, the agent's state needs to be initialized.
@@ -982,10 +1064,22 @@ class PBVI_Agent(Agent):
         ----------
         n : int, default=1
             How many agents are to be used during the simulation.
+        belief : BeliefSet, optional
+            An optional set of beliefs to initialize the simulations with.
         '''
         assert self.value_function is not None, "Agent was not trained, run the training function first..."
 
-        self.belief = BeliefSet(self.model, [Belief(self.model) for _ in range(n)])
+        if belief is None:
+            self.belief = BeliefSet(self.model, [Belief(self.model) for _ in range(n)])
+        else:
+            assert len(belief) == n, f"The amount of beliefs provided ({len(belief)}) to initialize the state need to match the amount of stimulations to initialize (n={n})."
+
+            if self.on_gpu and not belief.is_on_gpu:
+                self.belief = belief.to_gpu()
+            elif not self.on_gpu and belief.is_on_gpu:
+                self.belief = belief.to_cpu()
+            else:
+                self.belief = belief
 
 
     def choose_action(self) -> np.ndarray:
@@ -1012,6 +1106,7 @@ class PBVI_Agent(Agent):
 
 
     def update_state(self,
+                     action: np.ndarray,
                      observation: np.ndarray,
                      source_reached: np.ndarray
                      ) -> None | np.ndarray:
@@ -1020,6 +1115,8 @@ class PBVI_Agent(Agent):
 
         Parameters
         ----------
+        action : np.ndarray
+            A 2D array of n movement vectors. If the environment is layered, the 1st component should be the layer.
         observation : np.ndarray
             The observation(s) the agent(s) made.
         source_reached : np.ndarray
@@ -1034,7 +1131,7 @@ class PBVI_Agent(Agent):
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
 
         # Discretizing observations
-        observation_ids = self.discretize_observations(observation, source_reached)
+        observation_ids = self.discretize_observations(observation=observation, action=action, source_reached=source_reached)
 
         # Update the set of beliefs
         self.belief = self.belief.update(actions=self.action_played, observations=observation_ids, throw_error=False)
@@ -1104,20 +1201,22 @@ class PBVI_Agent(Agent):
             if row_id == 0:
                 continue
 
+            # Check the ID of the action
+            a = np.argwhere(np.all((self.action_set == [row['dy'],row['dx']]), axis=1))[0,0]
+
             # Retrieve observations
             o = [row['o']]
             if self.space_aware:
                 o += [row['y'],row['x']]
 
             # Discretize observations
-            discrete_o = self.discretize_observations(observation=np.array([o]), source_reached=np.array([False]))[0]
+            discrete_o = self.discretize_observations(observation=np.array([o]), action=np.array([a]), source_reached=np.array([False]))[0]
 
-            # Check the ID of the action
-            a = np.argwhere(np.all((self.action_set == [row['dy'],row['dx']]), axis=1))[0,0]
-
-            # Update belief
-            belief = belief.update(a=a, o=discrete_o)
-
-            belief_sequence.append(belief)
+            try:
+                # Update belief
+                belief = belief.update(a=a, o=discrete_o)
+                belief_sequence.append(belief)
+            except:
+                print(f'[Warning] Update of belief failed at step {row_id}...')
 
         return BeliefSet(self.model, belief_sequence)

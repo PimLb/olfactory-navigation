@@ -8,7 +8,7 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib import colors
 from matplotlib.patches import Circle
-from tqdm.auto import trange
+from tqdm.auto import trange, tqdm
 
 from olfactory_navigation import Agent
 from olfactory_navigation.environment import Environment
@@ -72,8 +72,8 @@ class SimulationHistory:
         The radius of the odor source in the environment.
     environment_layer_labels : list[str] or None
         A list of the layer labels if the environment has layers.
-    agent_threshold : float or list[float]
-        The olfaction threshold of the agent.
+    agent_thresholds : np.ndarray
+        An array of the olfaction thresholds of the agent.
     n : int
         The amount of simulations.
     start_time : datetime
@@ -83,7 +83,7 @@ class SimulationHistory:
     positions : list[np.ndarray]
         A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n positions as y,x vectors.
     observations : list[np.ndarray]
-        A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n observations received by the agents.
+        A list of numpy arrays. At each step of the simulation, an array of shape n is appended to this list representing the n observations received by the agents.
     reached_source : np.ndarray
         A numpy array of booleans saying whether the simulations reached the source or not.
     done_at_step : np.ndarray
@@ -103,8 +103,8 @@ class SimulationHistory:
 
         # Fixed parameters
         self.n = len(start_points)
-        self.environment = environment.to_cpu()
-        self.agent = agent.to_cpu()
+        self.environment = environment.cpu_version
+        self.agent = agent.cpu_version
         self.time_shift = time_shift if gpu_support and cp.get_array_module(time_shift) == np else cp.asnumpy(time_shift)
         self.horizon = horizon
         self.reward_discount = reward_discount
@@ -127,7 +127,7 @@ class SimulationHistory:
         self.environment_source_position = self.environment.source_position
         self.environment_source_radius = self.environment.source_radius
         self.environment_layer_labels = self.environment.layer_labels
-        self.agent_threshold = self.agent.threshold
+        self.agent_thresholds = self.agent.thresholds
 
         # Other parameters
         self._simulation_dfs = None
@@ -162,7 +162,7 @@ class SimulationHistory:
         self.timestamps.append(datetime.now())
 
         # Check if environment if layered and/or 3D
-        layered = 0 if not self.environment.has_layers else 1
+        layered = 0 if self.environment_layer_labels is None else 1
 
         # Handle case cupy arrays are provided
         if gpu_support:
@@ -173,12 +173,12 @@ class SimulationHistory:
             interupt = interupt if cp.get_array_module(interupt) == np else cp.asnumpy(interupt)
 
         # Actions tracking
-        action_all_sims = np.full((self.n, (layered + self.environment.dimensions)), fill_value=-1)
+        action_all_sims = np.full((self.n, (layered + self.environment_dimensions)), fill_value=-1)
         action_all_sims[self._running_sims] = actions
         self.actions.append(action_all_sims)
 
         # Next states tracking
-        next_position_all_sims = np.full((self.n, self.environment.dimensions), fill_value=-1)
+        next_position_all_sims = np.full((self.n, self.environment_dimensions), fill_value=-1)
         next_position_all_sims[self._running_sims] = next_positions
         self.positions.append(next_position_all_sims)
 
@@ -195,13 +195,40 @@ class SimulationHistory:
         self._running_sims = self._running_sims[~reached_source & ~interupt]
 
 
+    def compute_distance_to_source(self) -> np.ndarray:
+        '''
+        Function to compute the optimal distance to the source of each starting point according to the optimal_distance_metric attribute.
+
+        Returns
+        -------
+        distance : np.ndarray
+            The optimal distances to the source point.
+        '''
+        point = self.start_points
+
+        # Handling the case we have a single point
+        is_single_point = (len(point.shape) == 1)
+        if is_single_point:
+            point = point[None,:]
+
+        # Computing dist
+        dist = None
+        # if self.optimal_distance_metric == 'manhattan': # TODO Allow for other metrics to be used
+        dist = np.sum(np.abs(self.environment_source_position[None,:] - point), axis=-1) - self.environment_source_radius
+
+        if dist is None: # Meaning it was not computed
+            raise NotImplementedError('This distance metric has not yet been implemented')
+
+        return float(dist[0]) if is_single_point else dist
+
+
     @property
-    def analysis_df(self) -> pd.DataFrame:
+    def runs_analysis_df(self) -> pd.DataFrame:
         '''
         A Pandas DataFrame analyzing the results of the simulations.
         It aggregates the simulations in single rows, recording:
 
-         - axis:                The starting positions at the given axis
+         - <axis>:              The starting positions at the given axis
          - optimal_steps_count: The minimal amount of steps to reach the source
          - converged:           Whether or not the simulation reached the source
          - reached_horizon:     Whether the failed simulation reached to horizon
@@ -209,19 +236,17 @@ class SimulationHistory:
          - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
          - extra_steps:         The amount of extra steps compared to the optimal trajectory
          - t_min_over_t:        Normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
-
-        For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
         '''
         # Get axes labels
         axes_labels = None
-        if self.environment.dimensions <= 3:
-            axes_labels = ['z', 'y', 'x'][-self.environment.dimensions:]
+        if self.environment_dimensions <= 3:
+            axes_labels = ['z', 'y', 'x'][-self.environment_dimensions:]
         else:
-            axes_labels = [f'x{i}' for i in range(self.environment.dimensions)]
+            axes_labels = [f'x{i}' for i in range(self.environment_dimensions)]
 
         # Dataframe creation
         df = pd.DataFrame(self.start_points, columns=axes_labels)
-        df['optimal_steps_count'] = self.environment.distance_to_source(self.start_points)
+        df['optimal_steps_count'] = self.compute_distance_to_source()
         df['converged'] = self.reached_source
         df['reached_horizon'] = np.all(self.positions[-1] != -1, axis=1) & ~self.reached_source & (len(self.positions) == self.horizon)
         df['steps_taken'] = np.where(self.done_at_step >= 0, self.done_at_step, len(self.positions))
@@ -233,26 +258,37 @@ class SimulationHistory:
         runs_list = [f'run_{i}' for i in range(self.n)]
         df.index = runs_list
 
+        return df
+
+
+    @property
+    def general_analysis_df(self) -> pd.DataFrame:
+        '''
+        A Pandas DataFrame analyzing the results of the simulations.
+        Summarizing the performance of all the simulations with the following metrics:
+
+         - converged:           Whether or not the simulation reached the source
+         - reached_horizon:     Whether the failed simulation reached to horizon
+         - steps_taken:         The amount of steps the agent took to reach the source, (horizon if the simulation did not reach the source)
+         - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
+         - extra_steps:         The amount of extra steps compared to the optimal trajectory
+         - t_min_over_t:        Normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
+
+        For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
+        '''
+        df = self.runs_analysis_df
+
         # Analysis aggregations
         columns_to_analyze = ['converged', 'reached_horizon', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']
-        success_averages = df.loc[df['converged'], columns_to_analyze].mean()
-        succes_std = df.loc[df['converged'], columns_to_analyze].std()
+        row_names = [['mean', 'standard_deviation', 'success_mean', 'success_standard_deviation']]
+        general_analysis_data = [
+            df[columns_to_analyze].mean(),
+            df[columns_to_analyze].std(),
+            df.loc[df['converged'], columns_to_analyze].mean(),
+            df.loc[df['converged'], columns_to_analyze].std()
+        ]
 
-        df.loc['mean', columns_to_analyze] = df[columns_to_analyze].mean()
-        df.loc['standard_deviation', columns_to_analyze] = df[columns_to_analyze].std()
-
-        df.loc['success_mean', columns_to_analyze] = success_averages
-        df.loc['success_standard_deviation', columns_to_analyze] = succes_std
-
-        # Bringing analysis rows to top
-        df = df.reindex([
-            'mean',
-            'standard_deviation',
-            'success_mean',
-            'success_standard_deviation',
-            *runs_list])
-
-        return df
+        return pd.DataFrame(data=general_analysis_data, index=row_names, columns=columns_to_analyze)
 
 
     @property
@@ -308,19 +344,19 @@ class SimulationHistory:
             return summary_str
 
         # Metrics
-        df = self.analysis_df
+        df = self.general_analysis_df
 
-        summary_str += f"\n - {'Average step count:':<35} {df.loc['mean','steps_taken']:.3f} +- {df.loc['standard_deviation','steps_taken']:.2f} "
-        summary_str += f"(Successfull only: {df.loc['success_mean','steps_taken']:.3f} +- {df.loc['success_standard_deviation','steps_taken']:.2f})"
+        summary_str += f"\n - {'Average step count:':<35} {df.loc['mean','steps_taken'].item():.3f} +- {df.loc['standard_deviation','steps_taken'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','steps_taken'].item():.3f} +- {df.loc['success_standard_deviation','steps_taken'].item():.2f})"
 
-        summary_str += f"\n - {'Extra steps:':<35} {df.loc['mean','extra_steps']:.3f} +- {df.loc['standard_deviation','extra_steps']:.2f} "
-        summary_str += f"(Successful only: {df.loc['success_mean','extra_steps']:.3f} +- {df.loc['success_standard_deviation','extra_steps']:.2f})"
+        summary_str += f"\n - {'Extra steps:':<35} {df.loc['mean','extra_steps'].item():.3f} +- {df.loc['standard_deviation','extra_steps'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','extra_steps'].item():.3f} +- {df.loc['success_standard_deviation','extra_steps'].item():.2f})"
 
-        summary_str += f"\n - {'Average discounted rewards (ADR):':<35} {df.loc['mean','discounted_rewards']:.3f} +- {df.loc['standard_deviation','discounted_rewards']:.2f} "
-        summary_str += f"(Successfull only: {df.loc['success_mean','discounted_rewards']:.3f} +- {df.loc['success_standard_deviation','discounted_rewards']:.2f})"
+        summary_str += f"\n - {'Average discounted rewards (ADR):':<35} {df.loc['mean','discounted_rewards'].item():.3f} +- {df.loc['standard_deviation','discounted_rewards'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','discounted_rewards'].item():.3f} +- {df.loc['success_standard_deviation','discounted_rewards'].item():.2f})"
 
-        summary_str += f"\n - {'Tmin/T:':<35} {df.loc['mean','t_min_over_t']:.3f} +- {df.loc['standard_deviation','t_min_over_t']:.2f} "
-        summary_str += f"(Successful only: {df.loc['success_mean','t_min_over_t']:.3f} +- {df.loc['success_standard_deviation','t_min_over_t']:.2f})"
+        summary_str += f"\n - {'Tmin/T:':<35} {df.loc['mean','t_min_over_t'].item():.3f} +- {df.loc['standard_deviation','t_min_over_t'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','t_min_over_t'].item():.3f} +- {df.loc['success_standard_deviation','t_min_over_t'].item():.2f})"
 
         return summary_str
 
@@ -348,10 +384,10 @@ class SimulationHistory:
 
             # Get axes labels
             axes_labels = None
-            if self.environment.dimensions <= 3:
-                axes_labels = ['z', 'y', 'x'][-self.environment.dimensions:]
+            if self.environment_dimensions <= 3:
+                axes_labels = ['z', 'y', 'x'][-self.environment_dimensions:]
             else:
-                axes_labels = [f'x{i}' for i in range(self.environment.dimensions)]
+                axes_labels = [f'x{i}' for i in range(self.environment_dimensions)]
 
             # Loop through the n simulations
             for i in range(self.n):
@@ -366,11 +402,11 @@ class SimulationHistory:
                     df[axis] = np.hstack([self.start_points[i, axis_i], states_array[:length, i, axis_i]])
 
                 # - Action variables
-                if self.environment.has_layers:
+                if self.environment_layer_labels is not None:
                     df['layer'] = np.hstack([[None], action_array[:length, i, 0]])
 
                 for axis_i, axis in enumerate(axes_labels):
-                    axis_i += (0 if not self.environment.has_layers else 1)
+                    axis_i += (0 if self.environment_layer_labels is None else 1)
                     df['d' + axis]   = np.hstack([[None], action_array[:length, i, axis_i]])
 
                 # - Other variables
@@ -381,6 +417,58 @@ class SimulationHistory:
                 self._simulation_dfs.append(pd.DataFrame(df))
 
         return self._simulation_dfs
+
+
+    def __add__(self, other_hist: 'SimulationHistory'):
+        # Asserting the SimulationHistory objects are compatible
+        assert self.horizon == other_hist.horizon, "The 'horizon' parameters must match between the two SimulationHistory objects..."
+        assert self.reward_discount == other_hist.reward_discount, "The 'reward_discount' parameters must match between the two SimulationHistory objects..."
+        assert self.environment_dimensions == other_hist.environment_dimensions, "The 'environment_dimensions' parameters must match between the two SimulationHistory objects..."
+        assert self.environment_shape == other_hist.environment_shape, "The 'environment_shape' parameters must match between the two SimulationHistory objects..."
+        assert self.environment_layer_labels == other_hist.environment_layer_labels, "The 'environment_layer_labels' parameters must match between the two SimulationHistory objects..."
+        assert all(self.environment_source_position == other_hist.environment_source_position), "The 'environment_source_position' parameters must match between the two SimulationHistory objects..."
+        assert self.environment_source_radius == other_hist.environment_source_radius, "The 'environment_source_radius' parameters must match between the two SimulationHistory objects..."
+        assert all(self.agent_thresholds == other_hist.agent_thresholds), "The 'agent_thresholds' parameters must match between the two SimulationHistory objects..."
+
+        # Combining arrays
+        combined_start_points = np.vstack([self.start_points,
+                                           other_hist.start_points])
+        combined_time_shifts = np.hstack([self.time_shift,
+                                          other_hist.time_shift])
+        combined_reached_source = np.hstack([self.reached_source,
+                                             other_hist.reached_source])
+        combined_done_at_step = np.hstack([self.done_at_step,
+                                           other_hist.done_at_step])
+
+        combined_actions = []
+        combined_positions = []
+        combined_observations = []
+        for step_i in range(max([len(self.actions), len(other_hist.actions)])):
+            self_in_range = (step_i < len(self.actions))
+            other_in_range = (step_i < len(other_hist.actions))
+            combined_actions.append(np.vstack([self.actions[step_i] if self_in_range else np.full_like(self.actions[0], fill_value=-1),
+                                               other_hist.actions[step_i] if other_in_range else np.full_like(other_hist.actions[0], fill_value=-1)]))
+            combined_positions.append(np.vstack([self.positions[step_i] if self_in_range else np.full_like(self.positions[0], fill_value=-1),
+                                                 other_hist.positions[step_i] if other_in_range else np.full_like(other_hist.positions[0], fill_value=-1)]))
+            combined_observations.append(np.hstack([self.observations[step_i] if self_in_range else np.full_like(self.observations[0], fill_value=-1),
+                                                    other_hist.observations[step_i] if other_in_range else np.full_like(other_hist.observations[0], fill_value=-1)]))
+
+        # Creating the combined simulation history object
+        combined_hist = SimulationHistory(start_points = combined_start_points,
+                                          environment = self.environment,
+                                          agent = self.agent,
+                                          time_shift = combined_time_shifts,
+                                          horizon = self.horizon,
+                                          reward_discount = self.reward_discount)
+
+        combined_hist.start_time = self.start_time
+        combined_hist.actions = combined_actions
+        combined_hist.positions = combined_positions
+        combined_hist.observations = combined_observations
+        combined_hist.reached_source = combined_reached_source
+        combined_hist.done_at_step = combined_done_at_step
+
+        return combined_hist
 
 
     def save(self,
@@ -414,7 +502,7 @@ class SimulationHistory:
 
         # Handle file name
         if file is None:
-            env_name = f's_' + '_'.join([str(axis_shape) for axis_shape in self.environment.shape])
+            env_name = f's_' + '_'.join([str(axis_shape) for axis_shape in self.environment_shape])
             file = f'Simulations-{env_name}-n_{self.n}-{self.start_time.strftime("%Y%m%d_%H%M%S")}-horizon_{len(self.positions)}.csv'
 
         if not file.endswith('.csv'):
@@ -461,11 +549,18 @@ class SimulationHistory:
         ]
         combined_df['environment'] = (environment_info + padding[:-len(environment_info)])
 
+        # Converting the thresholds array to a string to be saved
+        thresholds_string = ''
+        if len(self.agent_thresholds.shape) == 2:
+            thresholds_string = '-'.join(['_'.join([str(item) for item in row]) for row_i, row in enumerate(self.agent_thresholds[:,1:-1])])
+        else:
+            thresholds_string = '_'.join([str(item) for item in self.agent_thresholds])
+
         agent_info = [
             self.agent.name,
             self.agent.class_name,
             self.agent.saved_at,
-            (str(self.agent_threshold) if not isinstance(self.agent_threshold, list) else '_'.join(str(t) for t in self.agent_threshold))
+            thresholds_string
         ]
         combined_df['agent'] = (agent_info + padding[:-len(agent_info)])
 
@@ -475,10 +570,13 @@ class SimulationHistory:
         print(f'Simulations saved to: {folder + file}')
 
         if save_analysis:
-            analysis_file = file.replace('.csv', '-analysis.csv')
-            self.analysis_df.to_csv(folder + analysis_file)
+            runs_analysis_file_name = file.replace('.csv', '-runs_analysis.csv')
+            self.runs_analysis_df.to_csv(folder + runs_analysis_file_name)
+            print(f"Simulation's runs analysis saved to: {folder + runs_analysis_file_name}")
 
-            print(f"Simulation's analysis saved to: {folder + analysis_file}")
+            general_analysis_file_name = file.replace('.csv', '-general_analysis.csv')
+            self.general_analysis_df.to_csv(folder + general_analysis_file_name)
+            print(f"Simulation's general analysis saved to: {folder + general_analysis_file_name}")
 
 
     @classmethod
@@ -570,9 +668,17 @@ class SimulationHistory:
         layer_entery = combined_df['environment'][6]
         environment_layer_labels = (None if ((not isinstance(layer_entery, str)) or (len(layer_entery) == 0)) else layer_entery.split('&'))
 
-        agent_threshold = [float(t) for t in combined_df['agent'][3].split('_')]
-        if len(agent_threshold) == 1:
-            agent_threshold = agent_threshold[0]
+        # Processing the threshold string
+        thresholds_string = combined_df['agent'][3]
+        if '-' in thresholds_string:
+            rows_thresholds_string = thresholds_string.split('-')
+            layer_thresholds = []
+            for row in rows_thresholds_string:
+                layer_thresholds.append([float(item) for item in row.split('_')])
+            agent_thresholds = np.array(layer_thresholds)
+
+        else:
+            agent_thresholds = np.array([float(item) for item in thresholds_string.split('_')])
 
         # Columns to retrieve
         columns = [col for col in columns if col not in ['reward_discount', 'environment', 'agent']]
@@ -613,8 +719,8 @@ class SimulationHistory:
         hist = cls.__new__(cls)
 
         hist.n = len(start_points)
-        hist.environment = environment.to_cpu() if isinstance(environment, Environment) else None
-        hist.agent = agent.to_cpu() if isinstance(agent, Agent) else None
+        hist.environment = environment.cpu_version if isinstance(environment, Environment) else None
+        hist.agent = agent.cpu_version if isinstance(agent, Agent) else None
         hist.time_shift = time_shift
         hist.horizon = horizon
         hist.reward_discount = reward_discount
@@ -636,7 +742,7 @@ class SimulationHistory:
         hist.environment_source_position = environment_source_position
         hist.environment_source_radius = environment_source_radius
         hist.environment_layer_labels = environment_layer_labels
-        hist.agent_threshold = agent_threshold
+        hist.agent_thresholds = agent_thresholds
 
         # Saving simulation dfs back
         hist._simulation_dfs = simulation_dfs
@@ -703,18 +809,29 @@ class SimulationHistory:
                            zorder=2,
                            label=layer_label)
 
-        # Something sensed
-        if isinstance(self.agent_threshold, list):
-            thresholds = self.agent_threshold + [np.inf]
-            odor_cues = sim['o'][1:].to_numpy()
-            for level_i, (lower_threshold, upper_lower_threshold) in enumerate(zip(thresholds[:-1], lower_threshold[1:])):
-                cues_at_level = ((odor_cues >= lower_threshold) & (odor_cues < upper_lower_threshold))
+        # Process odor cues
+        odor_cues = sim['o'][1:].to_numpy()
+        observation_ids = None
+        if self.environment.has_layers and len(self.agent_thresholds.shape) == 2:
+            layer_ids = sim[['layer']][1:].to_numpy()
+            action_layer_thresholds = self.agent_thresholds[layer_ids]
+            observation_ids = np.argwhere((odor_cues[:,None] >= action_layer_thresholds[:,:-1]) & (odor_cues[:,None] < action_layer_thresholds[:,1:]))[:,1]
+        else:
+            # Setting observation ids
+            observation_ids = np.argwhere((odor_cues[:,None] >= self.agent_thresholds[:-1][None,:]) & (odor_cues[:,None] < self.agent_thresholds[1:][None,:]))[:,1]
+
+        # Check whether the odor detection is binary or by level
+        odor_bins = self.agent_thresholds.shape[-1] - 1
+        if odor_bins > 2:
+            odor_levels = np.arange(odor_bins - 1) + 1
+            for level in odor_levels:
+                cues_at_level = (observation_ids == level)
                 ax.scatter(seq[1:][cues_at_level,0], seq[1:][cues_at_level,1],
                            zorder=1,
-                           alpha=((1/len(thresholds)) * (1+level_i)),
-                           label=f'Sensed level {level_i}')
+                           alpha=(level / odor_bins),
+                           label=f'Sensed level {level}')
         else:
-            something_sensed = (sim['o'][1:].to_numpy() > self.agent_threshold)
+            something_sensed = (observation_ids == 1)
             ax.scatter(seq[1:][something_sensed,0], seq[1:][something_sensed,1],
                        zorder=1,
                        label='Something observed')
@@ -760,14 +877,14 @@ class SimulationHistory:
         ax : plt.Axes, optional
             The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
-        assert self.environment.dimensions == 2, "Only implemented for 2D environments..."
+        assert self.environment_dimensions == 2, "Only implemented for 2D environments..."
 
         # Generate ax is not provided
         if ax is None:
             _, ax = plt.subplots(figsize=(18,3))
 
         # Setting up an empty grid of the starting points
-        start_points_grid = np.zeros(self.environment.shape)
+        start_points_grid = np.zeros(self.environment_shape)
 
         # Compute the successful, failed and the ones that reached the horizon
         success_points = self.start_points[self.successful_simulation]
@@ -791,11 +908,13 @@ def run_test(agent: Agent,
              time_shift: int | np.ndarray = 0,
              time_loop: bool = True,
              horizon: int = 1000,
-             skip_initialization: bool = False,
+             initialization_values: dict = {},
              reward_discount: float = 0.99,
              print_progress: bool = True,
              print_stats: bool = True,
-             use_gpu: bool = False
+             print_warning: bool = True,
+             use_gpu: bool = False,
+             batches: int = -1
              ) -> SimulationHistory:
     '''
     Function to run n simulations for a given agent in its environment (or a given modified environment).
@@ -838,17 +957,24 @@ def run_test(agent: Agent,
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    skip_initialization : bool, default=False
-        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
+    initialization_values : dict, default={}
+        In the case the agent is to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
     print_progress : bool, default=True
-        Wheter to show a progress bar of what step the simulations are at.
+        Whether to show a progress bar of what step the simulations are at.
     print_stats : bool, default=True
-        Wheter to print the stats at the end of the run.
+        Whether to print the stats at the end of the run.
+    print_warning : bool, default=True
+        Whether to print warnings when they occur or not.
     use_gpu : bool, default=False
         Whether to run the simulations on the GPU or not.
+    batches : int, default=-1
+        In how many batches the simulations should be run.
+        This is useful in the case there are too many simulations and the memory can fill up.
+        The value of batches=-1 will make it that different batches amount are tried in increasing order if a MemoryError is encountered.
 
     Returns
     -------
@@ -863,7 +989,7 @@ def run_test(agent: Agent,
             n = len(start_points)
 
     # Handle the case an specific environment is given
-    if environment is not None:
+    if (environment is not None) and print_warning:
         if environment.shape != agent.environment.shape:
             print("[Warning] The provided environment's shape doesn't match the environment has been trained on...")
         print('Using the provided environment, not the agent environment.')
@@ -878,6 +1004,76 @@ def run_test(agent: Agent,
         assert time_shift.shape == (n,), f"time_shift array has a wrong shape (Given: {time_shift.shape}, expected ({n},))"
     time_shift = time_shift.astype(int)
 
+    # Auto batches selector where the amount of batches increases if a memory error is detected
+    if batches < 0:
+        all_try_batches = (2**np.arange(np.log2(11000), dtype=int))
+        for try_batches in all_try_batches:
+            try:
+                hist = run_test(agent = agent,
+                                n = n,
+                                start_points = start_points,
+                                environment = environment,
+                                time_shift = time_shift,
+                                time_loop = time_loop,
+                                horizon = horizon,
+                                initialization_values = initialization_values,
+                                reward_discount = reward_discount,
+                                print_progress = print_progress,
+                                print_stats = print_stats,
+                                print_warning = False, # If there was any, it would have been printed already
+                                use_gpu = use_gpu,
+                                batches = try_batches)
+                return hist
+            except MemoryError as e:
+                print(f'Memory full: {e}')
+                print('Increasing the amount of batches...')
+
+    # If more than one batch is selected, split the starting point arrays by the amounts of simulations in each batch
+    elif batches > 1:
+        # Computing the amount of simulations to be in each batch
+        n_batches = np.array([n / batches] * batches).astype(int)
+        n_batches[:(n%batches)] += 1
+        n_start = 0
+
+        # Full SimulationHistory object
+        combined_hist = None
+
+        # Time tracking
+        all_sim_start_ts = datetime.now()
+
+        # Batches loop
+        batch_iterator = tqdm(n_batches, desc='Batches') if print_progress else n_batches
+        for b_n in batch_iterator:
+            b_hist = run_test(agent = agent,
+                              n = b_n,
+                              start_points = start_points[n_start:n_start+b_n],
+                              environment = environment,
+                              time_shift = time_shift[n_start:n_start+b_n],
+                              time_loop = time_loop,
+                              horizon = horizon,
+                              initialization_values = initialization_values,
+                              reward_discount = reward_discount,
+                              print_progress = print_progress,
+                              print_stats = False, # Forced false to not print too many things
+                              print_warning = False, # If there was any, it would have been printed already
+                              use_gpu = use_gpu,
+                              batches = 1)
+            n_start += b_n
+
+            # Combining SimulationHistory objects
+            if combined_hist is None:
+                combined_hist = b_hist
+            else:
+                combined_hist += b_hist
+
+        # Print stats of the complete history is asked
+        if print_stats:
+            all_sim_end_ts = datetime.now()
+            print(f'Simulations done in {(all_sim_end_ts - all_sim_start_ts).total_seconds():.3f}s:')
+            print(combined_hist.summary)
+
+        return combined_hist
+
     # Move things to GPU if needed
     xp = np
     if use_gpu:
@@ -885,8 +1081,8 @@ def run_test(agent: Agent,
         xp = cp
 
         # Move instances to GPU
-        agent = agent.to_gpu()
-        environment = environment.to_gpu()
+        agent = agent.gpu_version
+        environment = environment.gpu_version
         time_shift = cp.array(time_shift)
 
         if start_points is not None:
@@ -902,8 +1098,7 @@ def run_test(agent: Agent,
         agent_position = environment.random_start_points(n)
 
     # Initialize agent's state
-    if not skip_initialization:
-        agent.initialize_state(n)
+    agent.initialize_state(n, **initialization_values)
 
     # Create simulation history tracker
     hist = SimulationHistory(
@@ -925,23 +1120,25 @@ def run_test(agent: Agent,
         action = agent.choose_action()
 
         # Updating the agent's actual position (hidden to him)
-        new_agent_position = environment.move(pos=agent_position,
-                                              movement=(action if not environment.has_layers else action[:,1:])) # Getting only the physical component of the action vector if environment has layers.
+        agent_position = environment.move(pos=agent_position,
+                                          movement=(action if not environment.has_layers else action[:,1:])) # Getting only the physical component of the action vector if environment has layers.
 
         # Get an observation based on the new position of the agent
-        observation = environment.get_observation(pos=new_agent_position,
+        observation = environment.get_observation(pos=agent_position,
                                                   time=(time_shift + i),
                                                   layer=(0 if not environment.has_layers else action[:,0])) # Getting the layer information column of the action matrix.
 
         # Check if the source is reached
-        source_reached = environment.source_reached(new_agent_position)
+        source_reached = environment.source_reached(agent_position)
 
         # Add the position to the observation if the agent is space aware
         if agent.space_aware:
             observation = xp.hstack((observation[:,None], agent_position))
 
         # Return the observation to the agent
-        update_succeeded = agent.update_state(observation, source_reached)
+        update_succeeded = agent.update_state(action=action,
+                                              observation=observation,
+                                              source_reached=source_reached)
         if update_succeeded is None:
             update_succeeded = xp.ones(len(source_reached) , dtype=bool)
 
@@ -951,19 +1148,19 @@ def run_test(agent: Agent,
         # Agents to terminate
         to_terminate = source_reached | sims_at_end | ~update_succeeded
 
-        # Interupt agents that reached the end
-        agent_position = new_agent_position[~to_terminate]
-        time_shift = time_shift[~to_terminate]
-        agent.kill(simulations_to_kill=to_terminate)
-
         # Send the values to the tracker
         hist.add_step(
             actions=action,
-            next_positions=new_agent_position,
+            next_positions=agent_position,
             observations=observation[:,0] if agent.space_aware else observation,
             reached_source=source_reached,
             interupt=to_terminate
         )
+
+        # Interupt agents that reached the end
+        agent_position = agent_position[~to_terminate]
+        time_shift = time_shift[~to_terminate]
+        agent.kill(simulations_to_kill=to_terminate)
 
         # Early stopping if all agents done
         if len(agent_position) == 0:
@@ -973,10 +1170,12 @@ def run_test(agent: Agent,
         if print_progress:
             done_count = hist.done_count
             success_count = hist.success_count
+            success_percentage = (success_count/done_count)*100 if done_count > 0 else 100
+            dead_percentage = ((done_count-success_count)/done_count)*100 if done_count > 0 else 0
             iterator.set_postfix({
                 'done ': f' {done_count}/{n} ({(done_count/n)*100:.1f}%)',
-                'success ': f' {success_count}/{done_count} ({(success_count/done_count)*100:.1f}%)',
-                'dead ': f' {done_count-success_count}/{done_count} ({((done_count-success_count)/done_count)*100:.1f}%)'
+                'success ': f' {success_count}/{done_count} ({success_percentage:.1f}%)',
+                'dead ': f' {done_count-success_count}/{done_count} ({dead_percentage:.1f}%)'
             })
 
     # If requested print the simulation start

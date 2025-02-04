@@ -10,18 +10,17 @@ from olfactory_navigation.environment import Environment
 from olfactory_navigation.simulation import run_test, SimulationHistory
 
 
-def run_all_starts_test(
-             agent: Agent,
-             environment: Environment | None = None,
-             time_shift: int | np.ndarray = 0,
-             time_loop: bool = True,
-             horizon: int = 1000,
-             skip_initialization: bool = False,
-             reward_discount: float = 0.99,
-             print_progress: bool = True,
-             print_stats: bool = True,
-             use_gpu: bool = False
-             ) -> SimulationHistory:
+def run_all_starts_test(agent: Agent,
+                        environment: Environment | None = None,
+                        time_shift: int | np.ndarray = 0,
+                        time_loop: bool = True,
+                        horizon: int = 1000,
+                        initialization_values: dict = {},
+                        reward_discount: float = 0.99,
+                        print_progress: bool = True,
+                        print_stats: bool = True,
+                        use_gpu: bool = False
+                        ) -> SimulationHistory:
     '''
     Function to run a test with all the available starting positions based on the environment provided (or the environmnent of the agent).
 
@@ -40,8 +39,9 @@ def run_all_starts_test(
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    skip_initialization : bool, default=False
-        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
+    initialization_values : dict, default={}
+        In the case the agent is to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
@@ -51,7 +51,7 @@ def run_all_starts_test(
         Wheter to print the stats at the end of the run.
     use_gpu : bool, default=False
         Whether to run the simulations on the GPU or not.
-    
+
     Returns
     -------
     hist : SimulationHistory
@@ -63,41 +63,40 @@ def run_all_starts_test(
         assert environment.shape == agent.environment.shape, "The provided environment's shape doesn't match the environment has been trained on..."
     else:
         environment = agent.environment
-    
+
     # Gathering starting points
     start_points = np.argwhere(environment.start_probabilities > 0)
     n = len(start_points)
 
     return run_test(
-        agent=agent,
-        n=n,
-        start_points=start_points,
-        environment=environment if environment_provided else None,
-        time_shift=time_shift,
-        time_loop=time_loop,
-        horizon=horizon,
-        skip_initialization=skip_initialization,
-        reward_discount=reward_discount,
-        print_progress=print_progress,
-        print_stats=print_stats,
-        use_gpu=use_gpu
+        agent = agent,
+        n = n,
+        start_points = start_points,
+        environment = environment if environment_provided else None,
+        time_shift = time_shift,
+        time_loop = time_loop,
+        horizon = horizon,
+        initialization_values = initialization_values,
+        reward_discount = reward_discount,
+        print_progress = print_progress,
+        print_stats = print_stats,
+        use_gpu = use_gpu
     )
 
 
-def run_n_by_cell_test(
-             agent: Agent,
-             cell_width: int = 10,
-             n_by_cell: int = 10,
-             environment: Environment | None = None,
-             time_shift: int | np.ndarray = 0,
-             time_loop: bool = True,
-             horizon: int = 1000,
-             skip_initialization: bool = False,
-             reward_discount: float = 0.99,
-             print_progress: bool = True,
-             print_stats: bool = True,
-             use_gpu: bool = False
-             ) -> SimulationHistory:
+def run_n_by_cell_test(agent: Agent,
+                       cell_width: int = 10,
+                       n_by_cell: int = 10,
+                       environment: Environment | None = None,
+                       time_shift: int | np.ndarray = 0,
+                       time_loop: bool = True,
+                       horizon: int = 1000,
+                       initialization_values: dict = {},
+                       reward_discount: float = 0.99,
+                       print_progress: bool = True,
+                       print_stats: bool = True,
+                       use_gpu: bool = False
+                       ) -> SimulationHistory:
     '''
     Function to run a test with simulations starting in different cells across the available starting zones.
     A number n_by_cell determines how many simulations should start within each cell (the same position can be chosen multiple times).
@@ -121,8 +120,9 @@ def run_n_by_cell_test(
         Whether to loop the time if reaching the end. (starts back at 0)
     horizon : int, default=1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    skip_initialization : bool, default=False
-        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
+    initialization_values : dict, default={}
+        In the case the agent is to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
     reward_discount : float, default=0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
@@ -132,7 +132,7 @@ def run_n_by_cell_test(
         Wheter to print the stats at the end of the run.
     use_gpu : bool, default=False
         Whether to run the simulations on the GPU or not.
-    
+
     Returns
     -------
     hist : SimulationHistory
@@ -144,7 +144,7 @@ def run_n_by_cell_test(
         assert environment.shape == agent.environment.shape, "The provided environment's shape doesn't match the environment has been trained on..."
     else:
         environment = agent.environment
-    
+
     # Gathering starting points
     cells_x = int(environment.shape[0] / cell_width)
     cells_y = int(environment.shape[1] / cell_width)
@@ -167,18 +167,18 @@ def run_n_by_cell_test(
     start_points = np.array(np.unravel_index(all_chosen_indices, environment.shape)).T
 
     return run_test(
-        agent=agent,
-        n=n,
-        start_points=start_points,
-        environment=environment if environment_provided else None,
-        time_shift=time_shift,
-        time_loop=time_loop,
-        horizon=horizon,
-        skip_initialization=skip_initialization,
-        reward_discount=reward_discount,
-        print_progress=print_progress,
-        print_stats=print_stats,
-        use_gpu=use_gpu
+        agent = agent,
+        n = n,
+        start_points = start_points,
+        environment = environment if environment_provided else None,
+        time_shift = time_shift,
+        time_loop = time_loop,
+        horizon = horizon,
+        initialization_values = initialization_values,
+        reward_discount = reward_discount,
+        print_progress = print_progress,
+        print_stats = print_stats,
+        use_gpu = use_gpu
     )
 
 
@@ -189,14 +189,14 @@ def analyse_shape_robustness(all_histories: list[SimulationHistory],
     Function to generate an analysis of a set of simulation tests with different multipliers applied in the environment.
     It returns a pandas dataframe summarizing the results for each multiplier pairs.
     The results analyzed are the following:
-    
+
     - convergence
     - steps taken
     - discounted rewards
     - extra steps taken (compared to a minimum path)
     - t min over t (a ratio of how optimal the path taken was)
 
-    For each result, the mean, standard deviation along with the mean and standard deviation of the successful trajectories are recorded. 
+    For each result, the mean, standard deviation along with the mean and standard deviation of the successful trajectories are recorded.
 
     Parameters
     ----------
@@ -213,7 +213,7 @@ def analyse_shape_robustness(all_histories: list[SimulationHistory],
     rows = []
     # For each simulation history and multiplier, the analysis dataframe is extracted
     for hist, multiplier_pair in zip(all_histories, multipliers):
-        df = hist.analysis_df
+        df = hist.general_analysis_df
 
         # Then the summarized metrics are collapsed on a single row
         col_metric_dict = {'y_multiplier': multiplier_pair[0].astype(int), 'x_multiplier': multiplier_pair[1].astype(int)}
@@ -235,9 +235,13 @@ def analyse_shape_robustness(all_histories: list[SimulationHistory],
     return df
 
 
-# TODO: Include horizon parameter and timeshifts
 def test_shape_robustness(agent: Agent,
-                          skip_initialization: bool = False,
+                          environment: Environment | None = None,
+                          time_shift: int | np.ndarray = 0,
+                          time_loop: bool = True,
+                          horizon: int = 1000,
+                          initialization_values: dict = {},
+                          reward_discount: float = 0.99,
                           step_percentage: int = 20,
                           min_percentage:int = 20,
                           max_percentage:int = 200,
@@ -261,8 +265,23 @@ def test_shape_robustness(agent: Agent,
     ----------
     agent : Agent
         The agent to run the shape robustness test on.
-    skip_initialization : bool, default=False
-        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
+    environment : Environment, optional
+        The environment to run the test in.
+        By default, the environment linked to the agent will used.
+        This parameter is intended if the environment needs to be modified compared to environment the agent was trained on.
+    time_shift : int or np.ndarray, default=0
+        The time at which to start the olfactory simulation array.
+        It can be either a single value, or n values.
+    time_loop : bool, default=True
+        Whether to loop the time if reaching the end. (starts back at 0)
+    horizon : int, default=1000
+        The amount of steps to run the simulation for before killing the remaining simulations.
+    initialization_values : dict, default={}
+        In the case the agent is to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
+    reward_discount : float, default=0.99
+        How much a given reward is discounted based on how long it took to get it.
+        It is purely used to compute the Average Discount Reward (ADR) after the simulation.
     step_percentage : int, default=20
         Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
     min_percentage : int, default=20
@@ -294,8 +313,12 @@ def test_shape_robustness(agent: Agent,
     all_histories : list[SimulationHistory]
         A list of SimulationHistory instances.
     '''
-    # Gather environment
-    environment = agent.environment
+    # Handle the case an specific environment is given
+    environment_provided = environment is not None
+    if environment_provided:
+        assert environment.shape == agent.environment.shape, "The provided environment's shape doesn't match the environment has been trained on..."
+    else:
+        environment = agent.environment
 
     # Gathering starting points
     start_points = np.argwhere(environment.start_probabilities > 0)
@@ -329,20 +352,25 @@ def test_shape_robustness(agent: Agent,
     all_histories = []
     for mults in (tqdm(mult_combinations) if print_progress else mult_combinations):
         print(f'Testing on environment with height {int(mults[0]*100)}% and width {int(mults[1] * 100)}%')
-        
+
         # Modifying environment
         modified_environment = environment.modify(multiplier=mults)
 
         # Running test
         hist = run_test(
-            agent=agent,
-            n=n,
-            start_points=start_points,
-            environment=modified_environment,
-            skip_initialization=skip_initialization,
-            print_progress=False,
-            print_stats=print_stats,
-            use_gpu=use_gpu)
+            agent = agent,
+            n = n,
+            start_points = start_points,
+            environment = modified_environment,
+            time_shift = time_shift,
+            time_loop = time_loop,
+            horizon = horizon,
+            initialization_values = initialization_values,
+            reward_discount = reward_discount,
+            print_progress = False,
+            print_stats = print_stats,
+            use_gpu = use_gpu
+        )
 
         all_histories.append(hist)
 
@@ -372,14 +400,14 @@ def analyse_scale_robustness(all_histories: list[SimulationHistory],
     Function to generate an analysis of a set of simulation tests with different multipliers applied in the environment.
     It returns a pandas dataframe summarizing the results for each multiplier pairs.
     The results analyzed are the following:
-    
+
     - convergence
     - steps taken
     - discounted rewards
     - extra steps taken (compared to a minimum path)
     - t min over t (a ratio of how optimal the path taken was)
 
-    For each result, the mean, standard deviation along with the mean and standard deviation of the successful trajectories are recorded. 
+    For each result, the mean, standard deviation along with the mean and standard deviation of the successful trajectories are recorded.
 
     Parameters
     ----------
@@ -396,7 +424,7 @@ def analyse_scale_robustness(all_histories: list[SimulationHistory],
     rows = []
     # For each simulation history and multiplier, the analysis dataframe is extracted
     for hist, multiplier in zip(all_histories, multipliers):
-        df = hist.analysis_df
+        df = hist.general_analysis_df
 
         # Then the summarized metrics are collapsed on a single row
         col_metric_dict = {'multiplier': int(multiplier)}
@@ -419,7 +447,12 @@ def analyse_scale_robustness(all_histories: list[SimulationHistory],
 
 
 def test_scale_robustness(agent: Agent,
-                          skip_initialization: bool = False,
+                          environment: Environment | None = None,
+                          time_shift: int | np.ndarray = 0,
+                          time_loop: bool = True,
+                          horizon: int = 1000,
+                          initialization_values: dict = {},
+                          reward_discount: float = 0.99,
                           step_percentage: int = 20,
                           min_percentage:int = 20,
                           max_percentage:int = 200,
@@ -443,8 +476,23 @@ def test_scale_robustness(agent: Agent,
     ----------
     agent : Agent
         The agent to run the shape robustness test on.
-    skip_initialization : bool, default=False
-        Whether to skip the initialization of the agent. This is to be used in case the agent is initialized in some custom manner beforehand.
+    environment : Environment, optional
+        The environment to run the test in.
+        By default, the environment linked to the agent will used.
+        This parameter is intended if the environment needs to be modified compared to environment the agent was trained on.
+    time_shift : int or np.ndarray, default=0
+        The time at which to start the olfactory simulation array.
+        It can be either a single value, or n values.
+    time_loop : bool, default=True
+        Whether to loop the time if reaching the end. (starts back at 0)
+    horizon : int, default=1000
+        The amount of steps to run the simulation for before killing the remaining simulations.
+    initialization_values : dict, default={}
+        In the case the agent is to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
+    reward_discount : float, default=0.99
+        How much a given reward is discounted based on how long it took to get it.
+        It is purely used to compute the Average Discount Reward (ADR) after the simulation.
     step_percentage : int, default=20
         Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
     min_percentage : int, default=20
@@ -476,8 +524,12 @@ def test_scale_robustness(agent: Agent,
     all_histories : list[SimulationHistory]
         A list of SimulationHistory instances.
     '''
-    # Gather environment
-    environment = agent.environment
+    # Handle the case an specific environment is given
+    environment_provided = environment is not None
+    if environment_provided:
+        assert environment.shape == agent.environment.shape, "The provided environment's shape doesn't match the environment has been trained on..."
+    else:
+        environment = agent.environment
 
     # Gathering starting points
     start_points = np.argwhere(environment.start_probabilities > 0)
@@ -506,17 +558,25 @@ def test_scale_robustness(agent: Agent,
     all_histories = []
     for mult in (tqdm(multipliers) if print_progress else multipliers):
         print(f'Testing on environment with scale modifier {mult}%')
-        
-        # Modifying environment and agent
+
+        # Modifying environment
         modified_environment = environment.modify_scale(scale_factor=mult/100)
-        modified_agent = agent.modify_environment(modified_environment)
 
         # Running test
-        hist = run_all_starts_test(
-            agent=modified_agent,
-            print_progress=False,
-            print_stats=print_stats,
-            use_gpu=use_gpu)
+        hist = run_test(
+            agent = agent,
+            n = n,
+            start_points = start_points,
+            environment = modified_environment,
+            time_shift = time_shift,
+            time_loop = time_loop,
+            horizon = horizon,
+            initialization_values = initialization_values,
+            reward_discount = reward_discount,
+            print_progress = False,
+            print_stats = print_stats,
+            use_gpu = use_gpu
+        )
 
         all_histories.append(hist)
 

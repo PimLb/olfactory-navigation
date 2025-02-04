@@ -19,9 +19,19 @@ class PBVI_SSGA_Agent(PBVI_Agent):
     ----------
     environment : Environment
         The olfactory environment to train the agent with.
-    threshold : float or list[float], default=3e-6
-        The olfactory threshold. If an odor cue above this threshold is detected, the agent detects it, else it does not.
-        If a list of threshold is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default=3e-6
+        The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
+        If a list of thresholds is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+        A dictionary of (list of) thresholds can also be provided when the environment is layered.
+        In such case, the number of layers provided must match the environment's layers and their labels must match.
+        The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
+    space_aware : bool, default=False
+        Whether the agent is aware of it's own position in space.
+        This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
+        Note: The observation array will have a different shape when returned to the update_state function!
+    spacial_subdivisions : np.ndarray, optional
+        How many spacial compartments the agent has to internally represent the space it lives in.
+        By default, it will be as many as there are grid points in the environment.
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
@@ -43,7 +53,11 @@ class PBVI_SSGA_Agent(PBVI_Agent):
     Attributes
     ---------
     environment : Environment
-    threshold : float or list[float]
+    thresholds : np.ndarray
+        An array of the thresholds of detection, starting with -inf and ending with +inf.
+        In the case of a 2D array of thresholds, the rows of thresholds apply to the different layers of the environment.
+    space_aware : bool
+    spacial_subdivisions : np.ndarray
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
@@ -61,6 +75,10 @@ class PBVI_SSGA_Agent(PBVI_Agent):
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
+    cpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
+    gpu_version : Agent
+        An instance of the agent on the CPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -86,7 +104,7 @@ class PBVI_SSGA_Agent(PBVI_Agent):
         The step forward is taking assuming we are in a random state s (weighted by the belief),
         then taking the best action a based on the belief with probability 'epsilon'.
         These lead to a new state s_p and a observation o.
-        From this action a and observation o we can update our belief. 
+        From this action a and observation o we can update our belief.
 
         Parameters
         ----------
@@ -119,19 +137,19 @@ class PBVI_SSGA_Agent(PBVI_Agent):
         for i, belief_vector in enumerate(belief_set.belief_array[rand_ind]):
             b = Belief(model, belief_vector)
             s = b.random_state()
-            
+
             if self.rnd_state.random() < epsilon:
                 a = self.rnd_state.choice(model.actions)
             else:
                 best_alpha_index = xp.argmax(xp.dot(value_function.alpha_vector_array, b.values))
                 a = value_function.actions[best_alpha_index]
-            
+
             s_p = model.transition(s, a)
             o = model.observe(s_p, a)
             b_new = b.update(a, o)
-            
+
             new_belief_array[i] = b_new.values
-            
+
         return BeliefSet(model, new_belief_array)
 
 
