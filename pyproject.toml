@@ -8,8 +8,7 @@ dynamic = ["version"]
 authors = [{ name = "Arnaud Ruymaekers", email = "contact.aruymaekers@gmail.com" }]
 description = "A package to simulate the process of olfactory navigation in various environment using pre-built agents or user-made agents."
 readme = "README.md"
-license = "MIT"
-license-files = ["LICEN[CS]E*"]
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = [
     "requests",  # Add your actual dependencies here
