@@ -1,9 +1,6 @@
 name: Publish to PyPI
 
 on:
-  push:
-    branches:
-      - main  # Runs when pushing to the main branch
   release:
     types: [created]  # Runs when creating a new GitHub release
 
@@ -14,6 +11,8 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -23,13 +22,8 @@ jobs:
     - name: Install Dependencies
       run: pip install -r requirements.txt
 
-    - name: Install Dependencies
-      run: pip install setuptools wheel build twine
-
-    - name: Determine Version from GitHub Tag
-      run: |
-        VERSION=$(git describe --tags --always --dirty)
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
+    - name: Install Build Dependencies
+      run: pip install build setuptools setuptools-scm wheel twine
 
     - name: Build Package
       run: python -m build

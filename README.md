@@ -1,6 +1,10 @@
 # Olfactory Navigation Framework
 
-![Olfactory cues in turbulent air](docs/img/Odor_Plume.jpg)
+![PyPI](https://img.shields.io/pypi/v/olfactory-navigation)
+![Build](https://github.com/PimLb/olfactory-navigation/actions/workflows/pypi-publish.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+
+![Olfactory cues in turbulent air](https://github.com/PimLb/olfactory-navigation/blob/cba79b98cd3a64988f0f227694ae2cb1cbb09a2e/docs/img/Odor_Plume.jpg)
 
 This site contains the repository for the `olfactory-navigation` framework.
 
