@@ -1,0 +1,41 @@
+name: Publish to PyPI
+
+on:
+  push:
+    branches:
+      - main  # Runs when pushing to the main branch
+  release:
+    types: [created]  # Runs when creating a new GitHub release
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.x"
+
+    - name: Install Dependencies
+      run: pip install -r requirements.txt
+
+    - name: Install Dependencies
+      run: pip install setuptools wheel build twine
+
+    - name: Determine Version from GitHub Tag
+      run: |
+        VERSION=$(git describe --tags --always --dirty)
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+    - name: Build Package
+      run: python -m build
+
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: twine upload dist/*

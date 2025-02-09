@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "olfactory-navigation"
+dynamic = ["version"]
+authors = [{ name = "Arnaud Ruymaekers", email = "contact.aruymaekers@gmail.com" }]
+description = "A package to simulate the process of olfactory navigation in various environment using pre-built agents or user-made agents."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+requires-python = ">=3.11"
+dependencies = [
+    "requests",  # Add your actual dependencies here
+]
+
+[project.urls]
+Homepage = "https://pimlb.github.io/olfactory-navigation"
+
+[tool.setuptools.packages.find]
+where = ["olfactory_navigation"]  # Reflects your folder structure
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"olfactory_navigation" = ["requirements.txt"]
