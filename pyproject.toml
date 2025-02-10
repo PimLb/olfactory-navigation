@@ -19,11 +19,12 @@ Homepage = "https://pimlb.github.io/olfactory-navigation"
 
 [tool.setuptools_scm]
 
-[tool.setuptools.packages.find]
-where = ["olfactory_navigation"]
-
 [tool.setuptools]
+packages = ["olfactory_navigation"]
 include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
 
 [tool.setuptools.package-data]
 "olfactory_navigation" = ["requirements.txt"]
