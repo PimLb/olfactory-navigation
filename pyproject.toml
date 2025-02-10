@@ -17,11 +17,14 @@ dependencies = [
 [project.urls]
 Homepage = "https://pimlb.github.io/olfactory-navigation"
 
-[tool.setuptools.packages.find]
-where = ["olfactory_navigation"]  # Reflects your folder structure
-
 [tool.setuptools]
 include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "olfactory_navigation.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["olfactory_navigation"]  # Reflects your folder structure
 
 [tool.setuptools.package-data]
 "olfactory_navigation" = ["requirements.txt"]
