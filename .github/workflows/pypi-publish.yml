@@ -22,13 +22,8 @@ jobs:
     - name: Install Dependencies
       run: pip install -r requirements.txt
 
-    - name: Install Dependencies
-      run: pip install setuptools wheel build twine
-
-    - name: Determine Version from GitHub Tag
-      run: |
-        VERSION=$(git describe --tags --always --dirty)
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
+    - name: Install Build Dependencies
+      run: pip install build setuptools setuptools-scm wheel twine
 
     - name: Build Package
       run: python -m build

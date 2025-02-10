@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools", "setuptools-scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,9 +17,10 @@ dependencies = [
 [project.urls]
 Homepage = "https://pimlb.github.io/olfactory-navigation"
 
+[tool.setuptools_scm]
+
 [tool.setuptools.packages.find]
 where = ["olfactory_navigation"]
-include = ["olfactory_navigation"]
 
 [tool.setuptools]
 include-package-data = true
