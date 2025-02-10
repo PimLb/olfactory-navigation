@@ -23,8 +23,5 @@ Homepage = "https://pimlb.github.io/olfactory-navigation"
 packages = ["olfactory_navigation"]
 include-package-data = true
 
-[tool.setuptools.packages.find]
-where = ["."]
-
 [tool.setuptools.package-data]
 "olfactory_navigation" = ["requirements.txt"]
