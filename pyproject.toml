@@ -26,6 +26,3 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 "olfactory_navigation" = ["requirements.txt"]
-
-[tool.setuptools.dynamic]
-version = {attr = "olfactory_navigation.__version__"}
