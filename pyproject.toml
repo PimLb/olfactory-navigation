@@ -10,9 +10,6 @@ description = "A package to simulate the process of olfactory navigation in vari
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
-dependencies = [
-    "requests",  # Add your actual dependencies here
-]
 
 [project.urls]
 Homepage = "https://pimlb.github.io/olfactory-navigation"
