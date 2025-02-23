@@ -4,6 +4,7 @@ import sys
 import time
 import multiprocessing as mp
 import matplotlib.pyplot as plt
+import argparse as ap
 
 cSource = 45.5
 rSource = 91
@@ -23,15 +24,30 @@ ActionDict = np.asarray([
 reward = -(1 -gamma)
 procNumber = 50
 
-def isEnd(s):
-    return (s[0] - rSource) ** 2 + (s[1] -cSource) **2 < find_range**2
+def isEnd(sm):
+    s = sm % SC
+    r, c = s // cols, s % cols
+    return (r - rSource) ** 2 + (c -cSource) **2 < find_range**2
 
-def get_observation(s, pObs):
-    singleD = s[0] * cols + s[1]
-    return np.random.choice(2, p=pObs[:, singleD])
 
-def choose_action(pi, o):
-    return np.random.choice(4, p = pi[o, 0])
+def get_observation(sm, pObs):
+    s = sm % SC
+    return np.random.choice(2, p=pObs[:, s])
+
+def choose_action(pi, o, M, curMem):
+    return np.random.choice(4 * M, p = pi[o, curMem])
+
+def takeAction(sm, am):
+    s = sm % SC
+    a = am % 4
+    newM = am // 4
+    r, c = s // cols, s % cols # forse usare unravel_index
+    action = ActionDict[a]
+    rNew = r + action[0]
+    cNew = c + action[1]
+    r = rNew if rNew >= 0 and rNew < 131 else r
+    c = cNew if cNew >= 0 and cNew < 92 else c
+    return r * 92 + c + newM * SC, newM
 
 def move(states, actions):
     ret = states + actions
@@ -39,56 +55,56 @@ def move(states, actions):
     ret[:, 1] = np.clip(ret[:, 1], 0, cols -1)
     return ret
 
-def getTrajectories(start, pObs, max_MC_steps, pi):
+def getTrajectories(start, pObs, max_MC_steps, pi, M):
     num = start.shape[0]
     mapObs = [pObs for i in range(num)]
     step = start.astype(int)
+    curMem = np.zeros(num,int)
     done = np.array([a for a in map(isEnd, step)])
     obs = np.array([a for a in map(get_observation, step, mapObs)])
     t = 0
-    actions = np.zeros((num, 2), dtype=int)
     stepsDone = np.zeros(num)
     while np.any(~done) and t < max_MC_steps:
         for i in range(num): # TODO: sequenziale, sarebbe da parallelizare
             if not done[i]:
-                a = choose_action(pi, obs[i])
-                actions[i] = ActionDict[a]
-            else:
-                actions[i] = np.array([0, 0])
+                a = choose_action(pi, obs[i], M, curMem[i])
+                step[i], curMem[i] = takeAction(step[i], a)
         t+= 1
-        step = move(step, actions)
         obs = np.array([a for a in map(get_observation, step, mapObs)])
         done = np.array([a for a in map(isEnd, step)])
         stepsDone[~done] += 1
     return stepsDone
 
 if __name__ == "__main__":
-    thetaPath = sys.argv[1]
-    piLoro = np.array([[[0.452, 0.052, 0.444, 0.052]], [[0, 0, 1, 0]]])
-    if thetaPath == "celaniPi":
-        pi = piLoro
-        thetaName = "celaniPolicy"
-    else:
-        theta = np.load(thetaPath)
-        thetaName = sys.argv[3]
-        pi = softmax(theta, axis = 2)
-        # pi = piLoro.copy()
-        # pi[0,0] = piLoro[0,0] + [0, 5e-3, 0, -5e-3]
-        print("Diff from optimal: ", pi - piLoro)
+    parser = ap.ArgumentParser()
+    parser.add_argument("theta_path", help="the path to the theta values")
+    parser.add_argument("obs_path",  help="the path to the obsservation probability file")
+    parser.add_argument("memories", type=int, help="The memories of the FSC")
+    parser.add_argument("name", help="the name of the file to save into")
+    args = parser.parse_args()
+    thetaPath = args.theta_path
+    dataFile = args.obs_path
+    M = args.memories
+    thetaName = args.name
+    
+    theta = np.load(thetaPath)
+    assert theta.shape == (2, M, 4 * M)
+    pi = softmax(theta, axis = 2)
+
     print("PI to be evaluated: ", pi, flush= True)
-    dataFile = sys.argv[2]
-    dataC = np.load(f"../celaniData/{dataFile}.npy")
-    rho = np.zeros(SC)
+    dataC = np.load(dataFile)
+    rho = np.zeros(SC * M)
     rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
     results = np.zeros(traj)
     print("Inizio: ", time.ctime(), flush=True)
-    tmp = np.random.choice(range(SC), size=traj, replace=True, p = rho)
-    starts = np.array(np.unravel_index(tmp, (131, 92))).T
+    starts = np.random.choice(range(SC * M), size=traj, replace=True, p = rho)
+    # starts = np.array(np.unravel_index(tmp, (131, 92))).T
     # print("Starting points at iteration 0", starts, flush=True)
 
     N = traj // procNumber
     remainder = traj % procNumber
-    args = [(starts[i * procNumber: (i+1)* procNumber], dataC, maxStep, pi) for i in range(N)]
+    print("prima: ", pi[0, 0].shape)
+    args = [(starts[i * procNumber: (i+1)* procNumber], dataC, maxStep, pi, M) for i in range(N)]
     with mp.Pool(procNumber) as p:
         rewardList = p.starmap(getTrajectories, args)
     print(time.ctime())
