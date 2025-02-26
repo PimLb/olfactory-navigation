@@ -72,6 +72,8 @@ def get_Transition_Matrix_sparse_GPU(pi, pObs, rSource, cSource, find_range, M):
         colIdx[final[i]*4*M:(final[i]+1) * 4*M] = final[i]
     return cSparse.csr_matrix((toSum, (rowIdx, colIdx)))
 
+
+# COMPLETAMENTE SBAGLIATO PER M=2, PROBABILE ANCHE PER SUPERIORI; PER M=1 DOVREBBE ESSERE GIUSTO
 def get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range, M):
     rowIdx = np.array(range(SC*M)).repeat(4*M) # Ogni riga ha 4 azioni possibili per ogni memoria
     
@@ -89,6 +91,19 @@ def get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range, M):
         toSum[int(final[i]*4*M):int(final[i]+1) * 4*M] = 0.25 / M # Le coordinate doppie vengono sommate tra loro
         colIdx[final[i]*4*M:(final[i]+1) * 4*M] = final[i] # Da uno stato finale non posso andarmene
     return sparse.csr_matrix((toSum, (rowIdx, colIdx)))
+
+def prova(pi, pObs, rSource, cSource, find_range, M):
+    T = np.zeros((SC*M, SC*M))
+    for i in range(SC * M):
+        for a, j in enumerate(getReachable(i, M)):
+            for o in range(2):
+                T[i,j] += pi[o, i // SC, a] * pObs[o, i % SC]
+    final = [s for s in range(SC) if (s // 92 - rSource) ** 2 + (s % 92 -cSource) **2 < find_range**2 ]
+    for i in final:
+        for m in range(M):
+            T[i + m *SC] = 0
+            T[i + m * SC, i + m * SC] = 1
+    return T
 
 
 def get_Transition_Matrix_vect(pi, pObs, rSource, cSource, find_range):

@@ -71,8 +71,8 @@ def getTrajectories(start, pObs, max_MC_steps, pi, M):
                 step[i], curMem[i] = takeAction(step[i], a)
         t+= 1
         obs = np.array([a for a in map(get_observation, step, mapObs)])
-        done = np.array([a for a in map(isEnd, step)])
         stepsDone[~done] += 1
+        done = np.array([a for a in map(isEnd, step)])
     return stepsDone
 
 if __name__ == "__main__":
@@ -112,9 +112,10 @@ if __name__ == "__main__":
         results[procNumber*i:procNumber*(i+1)] += rl
     # results = getTrajectories(starts, dataC, 10000, pi)
     np.save(f"results/{thetaName}", results)
-    plt.hist(results, 50)
+    print([b * 200 for b in range(51)])
+    plt.hist(results, 50, range = (0, maxStep))
     plt.ylim(0, 5000)
     plt.savefig(f"pngs/{thetaName}.png")
-    finished = results[results != 10000]
-    print("Mean Reached: ", np.mean(finished)," STD Reached: ", np.std(finished), " Finished", np.count_nonzero(results != 10000))
-    print("Mean Overall: ", np.mean(results)," STD Overall: ", np.std(results), "Not finished", np.count_nonzero(results == 10000))
+    finished = results[results != maxStep]
+    print("Mean Reached: ", np.mean(finished * -(1-gamma))," STD Reached: ", np.std(finished * -(1-gamma)), " Finished", np.count_nonzero(results != maxStep) / traj * 100, "%")
+    print("Mean Overall: ", np.mean(results * -(1-gamma))," STD Overall: ", np.std(results) * -(1-gamma), "Not finished", np.count_nonzero(results == maxStep) / traj * 100, "%")
