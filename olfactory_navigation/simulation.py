@@ -1140,7 +1140,7 @@ def run_test(agent: Agent,
                                               observation=observation,
                                               source_reached=source_reached)
         if update_succeeded is None:
-            update_succeeded = xp.ones(len(source_reached) , dtype=bool)
+            update_succeeded = xp.ones(len(source_reached), dtype=bool)
 
         # Handling the case where simulations have reached the end
         sims_at_end = ((time_shift + i + 1) >= (math.inf if time_loop else environment.timesteps))

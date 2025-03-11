@@ -40,7 +40,7 @@ def _resize_array(array: np.ndarray,
     indices = [xp.linspace(start=0, stop=(ax_shape-1), num=ax_shape) for ax_shape in shape]
 
     # Building the Interpolator
-    interp = Interpolator((*indices,), array , method=interpolation)
+    interp = Interpolator((*indices,), array, method=interpolation)
 
     # Building new indices along each axis and building all gridpoints
     new_indices = [xp.linspace(start=0, stop=(ax_shape-1), num=ax_new_shape) for ax_shape, ax_new_shape in zip(shape, new_shape)]
@@ -605,7 +605,7 @@ class Environment:
 
         # Determine unique times and reindexing them if needed
         unique_times = xp.array([time]) if isinstance(time, int) else xp.unique(time)
-        time = 0 if isinstance(time, int) else xp.where(time == unique_times[:,None])[0]
+        unique_time_indices = 0 if isinstance(time, int) else xp.where(time == unique_times[:,None])[0]
         time_count = len(unique_times)
 
         # Handling the case where the data is a sequence of slices (h5, so not numpy array)
@@ -651,10 +651,10 @@ class Environment:
         # Gathering data on layered data on not
         if self.has_layers:
             observation[data_pos_valid] = data[(layer if isinstance(layer, int) else layer[data_pos_valid]), # layer
-                                               (time if isinstance(time, int) else time[data_pos_valid]), # t
+                                               (unique_time_indices if isinstance(unique_time_indices, int) else unique_time_indices[data_pos_valid]), # t
                                                *data_pos[data_pos_valid,:].T] # physical position
         else:
-            observation[data_pos_valid] = data[(time if isinstance(time, int) else time[data_pos_valid]), # t
+            observation[data_pos_valid] = data[(unique_time_indices if isinstance(unique_time_indices, int) else unique_time_indices[data_pos_valid]), # t
                                                *data_pos[data_pos_valid,:].T] # physical position
 
         return float(observation[0]) if is_single_point else observation
