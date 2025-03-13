@@ -552,7 +552,7 @@ class SimulationHistory:
         # Converting the thresholds array to a string to be saved
         thresholds_string = ''
         if len(self.agent_thresholds.shape) == 2:
-            thresholds_string = '-'.join(['_'.join([str(item) for item in row]) for row_i, row in enumerate(self.agent_thresholds[:,1:-1])])
+            thresholds_string = '&'.join(['_'.join([str(item) for item in row]) for row_i, row in enumerate(self.agent_thresholds[:,1:-1])]) # Using '&' as layer splitter as '-' can be used for negative thresholds
         else:
             thresholds_string = '_'.join([str(item) for item in self.agent_thresholds])
 
@@ -585,9 +585,18 @@ class SimulationHistory:
                        environment: bool | Environment = False,
                        agent: bool | Agent = False
                        ) -> 'SimulationHistory':
+        return cls.load(file, environment, agent)
+
+
+    @classmethod
+    def load(cls,
+             file: str,
+             environment: bool | Environment = False,
+             agent: bool | Agent = False
+             ) -> 'SimulationHistory':
         '''
         Function to load the simulation history from a file.
-        This can be useful to use the plot functions on the simulations saved in succh file.
+        This can be useful to use the plot functions on the simulations saved in such file.
 
         The environment and agent can provided as a backup in the case they cannot be loaded from the file.
 
@@ -669,16 +678,16 @@ class SimulationHistory:
         environment_layer_labels = (None if ((not isinstance(layer_entery, str)) or (len(layer_entery) == 0)) else layer_entery.split('&'))
 
         # Processing the threshold string
-        thresholds_string = combined_df['agent'][3]
-        if '-' in thresholds_string:
-            rows_thresholds_string = thresholds_string.split('-')
+        thresholds_string = str(combined_df['agent'][3])
+        if '&' in thresholds_string:
+            rows_thresholds_string = thresholds_string.split('&')
             layer_thresholds = []
             for row in rows_thresholds_string:
-                layer_thresholds.append([float(item) for item in row.split('_')])
+                layer_thresholds.append(np.array(row.split('_')).astype(float))
             agent_thresholds = np.array(layer_thresholds)
 
         else:
-            agent_thresholds = np.array([float(item) for item in thresholds_string.split('_')])
+            agent_thresholds = np.array(np.array(thresholds_string.split('_')).astype(float))
 
         # Columns to retrieve
         columns = [col for col in columns if col not in ['reward_discount', 'environment', 'agent']]
@@ -689,7 +698,6 @@ class SimulationHistory:
 
         # Recreation of list of simulations
         sim_start_rows = np.argwhere(combined_df[['reached_source']].isnull())[1:,0].tolist()
-        n = (len(sim_start_rows) + 1)
 
         simulation_arrays = np.split(combined_df[columns].to_numpy(), sim_start_rows)
         simulation_dfs = [pd.DataFrame(sim_array, columns=columns) for sim_array in simulation_arrays]
@@ -812,7 +820,7 @@ class SimulationHistory:
         # Process odor cues
         odor_cues = sim['o'][1:].to_numpy()
         observation_ids = None
-        if self.environment.has_layers and len(self.agent_thresholds.shape) == 2:
+        if (self.environment_layer_labels is not None) and len(self.agent_thresholds.shape) == 2:
             layer_ids = sim[['layer']][1:].to_numpy()
             action_layer_thresholds = self.agent_thresholds[layer_ids]
             observation_ids = np.argwhere((odor_cues[:,None] >= action_layer_thresholds[:,:-1]) & (odor_cues[:,None] < action_layer_thresholds[:,1:]))[:,1]
