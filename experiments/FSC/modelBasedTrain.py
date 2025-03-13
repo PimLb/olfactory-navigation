@@ -72,25 +72,38 @@ def get_Transition_Matrix_sparse_GPU(pi, pObs, rSource, cSource, find_range, M):
         colIdx[final[i]*4*M:(final[i]+1) * 4*M] = final[i]
     return cSparse.csr_matrix((toSum, (rowIdx, colIdx)))
 
+def isEnd(sm, rSource, cSource, find_range):
+    s = sm % SC
+    r, c = s // cols, s % cols
+    return (r - rSource) ** 2 + (c -cSource) **2 < find_range**2
 
-# COMPLETAMENTE SBAGLIATO PER M=2, PROBABILE ANCHE PER SUPERIORI; PER M=1 DOVREBBE ESSERE GIUSTO
+
+# Dovrebbe essere giusto anche per M > 1; Quasi certo per M = 2, da provare per 3
 def get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range, M):
-    rowIdx = np.array(range(SC*M)).repeat(4*M) # Ogni riga ha 4 azioni possibili per ogni memoria
+    # Creo un array in cui ogni valore rappresenta lo stato di partenza
+    # ogni stato fisico è seguito dallo stesso stato in altre memorie
+    rowIdx = np.fromiter((i + j * SC for i in range(SC) for j in range(M)), int)
     
-    # Per ogni stato prendo gli stati raggiungibili e li metto in una lista
-    colIdx = np.array(list(chain.from_iterable(map(getReachable, range(SC*M), itReapeat(M))))) 
+    # Per ogni stato prendo gli stati raggiungibili e li metto in un array
+    colIdx = np.fromiter((chain.from_iterable(map(getReachable, rowIdx, itReapeat(M)))) , int) 
     
+    #Da ogni stato posso fare 4*M azioni, quindi replico in modo che siano coerenti con colIdx
+    rowIdx = rowIdx.repeat(4*M)
+
+    # Moltiplico la probabilità di fare l'azione data l'osservazione e moltipico per la probabilità d'osservazione
+    # e sommo le probabilità dagli stessi stati
     toSum = np.sum(pi[None, :, :, :].T * pObs[:, :], axis = 2).T.reshape(-1)
     
-    tempFinal = [s for s in range(SC) if (s // 92 - rSource) ** 2 + (s % 92 -cSource) **2 < find_range**2 ]
-    final = tempFinal.copy()
-    for i in range(1, M):
-        final += [f + i * SC for f in tempFinal]
+    final = [s for s in range(SC * M) if isEnd(s, rSource, cSource, find_range)]
+    
+    ret = sparse.csr_matrix((toSum, (rowIdx, colIdx)))
+
     # Ad ognuno degli stati finali cambio gli stati raggiungibili.
-    for i in range(len(final)):
-        toSum[int(final[i]*4*M):int(final[i]+1) * 4*M] = 0.25 / M # Le coordinate doppie vengono sommate tra loro
-        colIdx[final[i]*4*M:(final[i]+1) * 4*M] = final[i] # Da uno stato finale non posso andarmene
-    return sparse.csr_matrix((toSum, (rowIdx, colIdx)))
+    for i in final:
+        ret[i] = 0
+        ret[i, i] = 1
+    ret.eliminate_zeros()
+    return ret
 
 def prova(pi, pObs, rSource, cSource, find_range, M):
     T = np.zeros((SC*M, SC*M))

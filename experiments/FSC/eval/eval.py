@@ -112,10 +112,12 @@ if __name__ == "__main__":
         results[procNumber*i:procNumber*(i+1)] += rl
     # results = getTrajectories(starts, dataC, 10000, pi)
     np.save(f"results/{thetaName}", results)
-    print([b * 200 for b in range(51)])
+    # print([b * 200 for b in range(51)])
     plt.hist(results, 50, range = (0, maxStep))
     plt.ylim(0, 5000)
-    plt.savefig(f"pngs/{thetaName}.png")
     finished = results[results != maxStep]
-    print("Mean Reached: ", np.mean(finished * -(1-gamma))," STD Reached: ", np.std(finished * -(1-gamma)), " Finished", np.count_nonzero(results != maxStep) / traj * 100, "%")
-    print("Mean Overall: ", np.mean(results * -(1-gamma))," STD Overall: ", np.std(results) * -(1-gamma), "Not finished", np.count_nonzero(results == maxStep) / traj * 100, "%")
+    plt.yticks([i*500 for i in range(0, 11)] + [np.count_nonzero(results == maxStep)])
+    plt.title(thetaName)
+    plt.savefig(f"pngs/{thetaName}.png")
+    print("Mean Reached: ", np.mean(finished )," STD Reached: ", np.std(finished ), " Finished", np.count_nonzero(results != maxStep) / traj * 100, "%")
+    print("Mean Overall: ", np.mean(results )," STD Overall: ", np.std(results) , "Not finished", np.count_nonzero(results == maxStep) / traj * 100, "%")
