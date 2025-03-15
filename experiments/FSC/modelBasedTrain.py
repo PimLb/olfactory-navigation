@@ -96,14 +96,14 @@ def get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range, M):
     
     final = [s for s in range(SC * M) if isEnd(s, rSource, cSource, find_range)]
     
-    ret = sparse.csr_matrix((toSum, (rowIdx, colIdx)))
 
     # Ad ognuno degli stati finali cambio gli stati raggiungibili.
-    for i in final:
-        ret[i] = 0
-        ret[i, i] = 1
-    ret.eliminate_zeros()
-    return ret
+    v = 1 / (4*M)
+    for f in final:
+        idxs = rowIdx == f
+        colIdx[idxs] = f
+        toSum[idxs] = v
+    return sparse.csr_matrix((toSum, (rowIdx, colIdx)))
 
 def prova(pi, pObs, rSource, cSource, find_range, M):
     T = np.zeros((SC*M, SC*M))
