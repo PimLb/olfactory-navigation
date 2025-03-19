@@ -482,6 +482,7 @@ class SimulationHistory:
         combined_hist.environment_source_radius = self.environment_source_radius
         combined_hist.environment_layer_labels = self.environment_layer_labels
         combined_hist.agent_thresholds = self.agent_thresholds
+        combined_hist._simulation_dfs = None
 
         return combined_hist
 
@@ -518,7 +519,7 @@ class SimulationHistory:
         # Handle file name
         if file is None:
             env_name = f's_' + '_'.join([str(axis_shape) for axis_shape in self.environment_shape])
-            file = f'Simulations-{env_name}-n_{self.n}-{self.start_time.strftime("%Y%m%d_%H%M%S")}-horizon_{len(self.positions)}.csv'
+            file = f'Simulations-{env_name}-n_{self.n}-{self.timestamps[0][0].strftime("%Y%m%d_%H%M%S")}-horizon_{len(self.positions)}.csv'
 
         if not file.endswith('.csv'):
             file += '.csv'
@@ -767,7 +768,7 @@ class SimulationHistory:
 
         # Reading timestamps
         timestamp_column = combined_df['timestamps']
-        timestamp_groups = np.concatenate([np.argwhere(timestamp_column.str.contains('_') == True)[0], [len(timestamp_column)]])
+        timestamp_groups = np.concatenate([np.argwhere(timestamp_column.str.contains('_') == True)[:,0], [len(timestamp_column)]])
         timestamps = {}
 
         # Reading each group of timestamps (representing of each run)
@@ -775,7 +776,7 @@ class SimulationHistory:
             timestamp_group = timestamp_column[group_start:group_end]
 
             # Initial read of the group
-            first_timestamp = timestamp_group[0]
+            first_timestamp = timestamp_group.iloc[0]
             timestamp_day = first_timestamp[:9]
             timestamp_count = np.sum(timestamp_group.notna())
             timestamp_string_list = timestamp_group[:timestamp_count].to_list()
@@ -785,7 +786,7 @@ class SimulationHistory:
 
             # Reading each timestamp of the list
             for timestamp_string in timestamp_string_list[1:]:
-                timestamp_string = timestamp_day + timestamp_string
+                timestamp_string = timestamp_day + str(timestamp_string)
                 timestamp = datetime.strptime(timestamp_string, '%Y%m%d_%H%M%S%f') + day_delta
 
                 # If timestamp is smaller than the previous one, it means it is a new day and the day_delta has to be increased
