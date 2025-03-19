@@ -4,7 +4,7 @@ import inspect
 import pandas as pd
 import sys
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from matplotlib import pyplot as plt
 from matplotlib import colors
 from matplotlib.patches import Circle
@@ -76,14 +76,14 @@ class SimulationHistory:
         An array of the olfaction thresholds of the agent.
     n : int
         The amount of simulations.
-    start_time : datetime
-        The datetime the simulations start.
     actions : list[np.ndarray]
         A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n actions as dy,dx vectors.
     positions : list[np.ndarray]
         A list of numpy arrays. At each step of the simulation, an array of shape n by 2 is appended to this list representing the n positions as y,x vectors.
     observations : list[np.ndarray]
         A list of numpy arrays. At each step of the simulation, an array of shape n is appended to this list representing the n observations received by the agents.
+    timestamps : dict[int, list[datetime]]
+        A dictionay of the timestamps at which the simulation steps were recorded where the key is the id of the first run with these timestamps.
     reached_source : np.ndarray
         A numpy array of booleans saying whether the simulations reached the source or not.
     done_at_step : np.ndarray
@@ -108,14 +108,13 @@ class SimulationHistory:
         self.time_shift = time_shift if gpu_support and cp.get_array_module(time_shift) == np else cp.asnumpy(time_shift)
         self.horizon = horizon
         self.reward_discount = reward_discount
-        self.start_time = datetime.now()
 
         # Simulation Tracking
         self.start_points = start_points if gpu_support and cp.get_array_module(start_points) == np else cp.asnumpy(start_points)
         self.actions = []
         self.positions = []
         self.observations = []
-        self.timestamps: list[datetime] = []
+        self.timestamps = {0: [datetime.now()]}
 
         self._running_sims = np.arange(self.n)
         self.reached_source = np.zeros(self.n, dtype=bool)
@@ -159,7 +158,7 @@ class SimulationHistory:
         self._simulation_dfs = None
 
         # Time tracking
-        self.timestamps.append(datetime.now())
+        self.timestamps[0].append(datetime.now())
 
         # Check if environment if layered and/or 3D
         layered = 0 if self.environment_layer_labels is None else 1
@@ -453,20 +452,36 @@ class SimulationHistory:
             combined_observations.append(np.hstack([self.observations[step_i] if self_in_range else np.full_like(self.observations[0], fill_value=-1),
                                                     other_hist.observations[step_i] if other_in_range else np.full_like(other_hist.observations[0], fill_value=-1)]))
 
-        # Creating the combined simulation history object
-        combined_hist = SimulationHistory(start_points = combined_start_points,
-                                          environment = self.environment,
-                                          agent = self.agent,
-                                          time_shift = combined_time_shifts,
-                                          horizon = self.horizon,
-                                          reward_discount = self.reward_discount)
+        # Combining timestamps
+        combined_timestamps = self.timestamps | {k + self.n: v for k,v in other_hist.timestamps.items()}
 
-        combined_hist.start_time = self.start_time
-        combined_hist.actions = combined_actions
+        # Creating the combined simulation history object
+        combined_hist = SimulationHistory.__new__(SimulationHistory)
+
+        combined_hist.n = self.n + other_hist.n
+        combined_hist.environment = self.environment.cpu_version if self.environment is not None else (other_hist.environment.cpu_version if other_hist.environment is not None else None)
+        combined_hist.agent = self.agent.cpu_version if self.agent is not None else (other_hist.agent.cpu_version if other_hist.agent is not None else None)
+        combined_hist.time_shift = combined_time_shifts
+        combined_hist.horizon = self.horizon
+        combined_hist.reward_discount = self.reward_discount
+
+        combined_hist.start_points = combined_start_points
+        combined_hist._running_sims = None
+
         combined_hist.positions = combined_positions
+        combined_hist.actions = combined_actions
         combined_hist.observations = combined_observations
         combined_hist.reached_source = combined_reached_source
         combined_hist.done_at_step = combined_done_at_step
+        combined_hist.timestamps = combined_timestamps
+
+        # Other attributes
+        combined_hist.environment_dimensions = self.environment_dimensions
+        combined_hist.environment_shape = self.environment_shape
+        combined_hist.environment_source_position = self.environment_source_position
+        combined_hist.environment_source_radius = self.environment_source_radius
+        combined_hist.environment_layer_labels = self.environment_layer_labels
+        combined_hist.agent_thresholds = self.agent_thresholds
 
         return combined_hist
 
@@ -532,9 +547,17 @@ class SimulationHistory:
         # Create csv file
         combined_df = pd.concat(self.simulation_dfs)
 
+        # timestamps information
+        simulation_lengths = np.array([len(df) for df in self.simulation_dfs])
+        timestamps_column = [None] * len(combined_df)
+        for n_start, run_timestamps in self.timestamps.items():
+            i_start = np.sum(simulation_lengths[:n_start])
+            for ts_i, ts in enumerate(run_timestamps):
+                timestamps_column[i_start + ts_i] = (ts.strftime('%Y%m%d_%H%M%S%f') if ts_i == 0 else ts.strftime('%H%M%S%f'))
+        combined_df['timestamps'] = timestamps_column
+
         # Adding other useful info
         padding = [None] * len(combined_df)
-        combined_df['timestamps'] = [self.start_time.strftime('%Y%m%d_%H%M%S%f')] + [ts.strftime('%H%M%S%f') for ts in self.timestamps] + padding[:-(len(self.timestamps)+1)]
         combined_df['horizon'] = [self.horizon] + padding[:-1]
         combined_df['reward_discount'] = [self.reward_discount] + padding[:-1]
 
@@ -697,7 +720,7 @@ class SimulationHistory:
         dimensions = int((len(columns) - 5) / 2)
 
         # Recreation of list of simulations
-        sim_start_rows = np.argwhere(combined_df[['reached_source']].isnull())[1:,0].tolist()
+        sim_start_rows = np.argwhere(combined_df[['reached_source']].isnull())[1:,0]
 
         simulation_arrays = np.split(combined_df[columns].to_numpy(), sim_start_rows)
         simulation_dfs = [pd.DataFrame(sim_array, columns=columns) for sim_array in simulation_arrays]
@@ -732,7 +755,6 @@ class SimulationHistory:
         hist.time_shift = time_shift
         hist.horizon = horizon
         hist.reward_discount = reward_discount
-        hist.start_time = datetime.strptime(combined_df['timestamps'][0], '%Y%m%d_%H%M%S%f')
 
         hist.start_points = start_points
         hist._running_sims = None
@@ -742,7 +764,46 @@ class SimulationHistory:
         hist.observations = [*observations]
         hist.reached_source = reached_source
         hist.done_at_step = done_at_step
-        hist.timestamps = [datetime.strptime(ts, '%H%M%S%f') for ts in combined_df['timestamps'][1:max_length]]
+
+        # Reading timestamps
+        timestamp_column = combined_df['timestamps']
+        timestamp_groups = np.concatenate([np.argwhere(timestamp_column.str.contains('_') == True)[0], [len(timestamp_column)]])
+        timestamps = {}
+
+        # Reading each group of timestamps (representing of each run)
+        for group_i, (group_start, group_end) in enumerate(zip(timestamp_groups[:-1], timestamp_groups[1:])):
+            timestamp_group = timestamp_column[group_start:group_end]
+
+            # Initial read of the group
+            first_timestamp = timestamp_group[0]
+            timestamp_day = first_timestamp[:9]
+            timestamp_count = np.sum(timestamp_group.notna())
+            timestamp_string_list = timestamp_group[:timestamp_count].to_list()
+
+            day_delta = timedelta(days=0)
+            timestamp_list = [datetime.strptime(timestamp_string_list[0], '%Y%m%d_%H%M%S%f')]
+
+            # Reading each timestamp of the list
+            for timestamp_string in timestamp_string_list[1:]:
+                timestamp_string = timestamp_day + timestamp_string
+                timestamp = datetime.strptime(timestamp_string, '%Y%m%d_%H%M%S%f') + day_delta
+
+                # If timestamp is smaller than the previous one, it means it is a new day and the day_delta has to be increased
+                if timestamp < timestamp_list[-1]:
+                    day_delta += timedelta(days=1)
+                    timestamp += timedelta(days=1)
+
+                timestamp_list.append(timestamp)
+
+            # Adding the timestamps to the general dictionary
+            associate_run_i = np.argwhere(np.concatenate([[0], sim_start_rows]) == group_start)[0,0]
+            timestamps[associate_run_i] = timestamp_list
+
+        # Warn if no timestamps were found
+        if len(timestamps) == 0:
+            print('[Warning] No timestamps were found in the loaded simulation history...')
+
+        hist.timestamps = timestamps
 
         # Other attributes
         hist.environment_dimensions = environment_dimensions
@@ -863,11 +924,16 @@ class SimulationHistory:
         if ax is None:
             _, ax = plt.subplots(figsize=(18,3))
 
-        # Computing differences
-        timestamp_differences_ms = np.diff(np.array([int(ts.strftime('%H%M%S%f')) for ts in self.timestamps])) / 1000
+        # Computing differences and plotting
+        x_start = 0
+        for i, (_, consecutive_timestamps) in enumerate(self.timestamps.items()):
+            time_differences_ms = np.array([t_diff.total_seconds() for t_diff in np.diff(consecutive_timestamps)]) / 1000
+            time_differences_count = len(time_differences_ms)
+            xs = x_start + np.arange(time_differences_count)
 
-        # Actual plot
-        ax.plot(timestamp_differences_ms)
+            ax.plot(xs, time_differences_ms, label=f'Simulation {i}')
+
+            x_start += time_differences_count
 
         # Axes
         ax.set_xlabel('Iteration')
