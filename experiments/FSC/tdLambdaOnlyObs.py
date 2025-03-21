@@ -29,18 +29,15 @@ rho = np.zeros(SC)
 rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
 
 # Algo Parameters
-numberEpisodes = 100000
 maxStepsPerEpisode = 10000
 actor_lr = 0.001
 critic_lr = 0.001
 
-def isEnd(sm):
-    s = sm % SC
+def isEnd(s):
     r, c = s // cols, s % cols
     return (r - rSource) ** 2 + (c -cSource) **2 < find_range**2
 
-def takeAction(sm, am):
-    s = sm % SC
+def takeAction(s, am):
     a = am % 4
     newM = am // 4
     r, c = s // cols, s % cols
@@ -49,7 +46,7 @@ def takeAction(sm, am):
     cNew = c + action[1]
     r = rNew if rNew >= 0 and rNew < 131 else r
     c = cNew if cNew >= 0 and cNew < 92 else c
-    return r * 92 + c + newM * SC
+    return r * 92 + c, newM
 
 def totalTime(end, start, file = None):
     tot = end - start
@@ -98,7 +95,7 @@ itStart = args.iterationStart if args.iterationStart else 0
 
 SCM = SC * M
 
-saveDir = f"results/TD_Lambda/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
+saveDir = f"results/TD_Lambda_Obs/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
 if scheduleActor:
     saveDir += "Scheduled_"
 saveDir += f"alphaCritic_{critic_lr}"
@@ -122,7 +119,7 @@ else:
 if args.vStart is not None:
     V = np.load(args.vStart)
 else:
-    V = np.zeros(SCM)
+    V = np.zeros((M,2))
     # V = np.ones(SC) * -1
     # mask = np.array([isEnd(s) for s in range(SC)])
     # V[mask] = 0
@@ -142,9 +139,11 @@ np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 try:
     for i in range(itStart, numberEpisodes):
         start = np.random.choice(range(SC), p = rho) # Parto sempre dalla memoria 0
-        curMem = 0
         discount = 1
+        curMem = 0
         curState = start
+        curObs = np.random.choice(2, p = dataC[:, curState])
+        curObs = 1 # Supongo di iniziare la ricerca solo quando osservo; Dovrebbe essere giustificato dall'iniziare la ricerca della sorgente solo se so che esiste~
         curStep = 0
         zCritic = np.zeros_like(V)
         zActor = np.zeros_like(theta)
@@ -154,17 +153,17 @@ try:
 
         while( not isEnd(curState) and curStep < maxStepsPerEpisode):
 
-            obs = np.random.choice(2, p = dataC[:, curState % SC])
-            action = np.random.choice(4 * M, p= pi[obs, curMem])
-            newState = takeAction(curState, action)
+            action = np.random.choice(4 * M, p= pi[curObs, curMem])
+            newState, newMem = takeAction(curState, action)
             reward = -(1 - gamma) if not isEnd(newState) else 0
+            newObs = np.random.choice(2, p = dataC[:, newState])
             # print(curState, obs, action, newState, reward)
-            tdError = reward + gamma * V[newState] - V[curState]
+            tdError = reward + gamma * V[newMem, newObs] - V[curMem, curObs]
             zCritic = gamma * lambda_critic * zCritic 
-            zCritic[curState] += 1 # Caso speciale per V tabulare. Credo sia giusto
+            zCritic[curMem, curObs] += 1 # Caso speciale per V tabulare. Credo sia giusto
             # Caso speciale per Natural Gradient e softmax. Credo sia giusto
             zActor = gamma * lambda_actor * zActor
-            zActor[obs, curMem, action] += discount / pi[obs, curMem, action]
+            zActor[curObs, curMem, action] += discount / pi[curObs, curMem, action]
 
             theta += cur_actor_lr * tdError * zActor
             if subMax:
@@ -176,7 +175,8 @@ try:
             pi = softmax(theta, axis = 2)
             curState = newState
             curStep += 1
-            curMem = newState // SC
+            curMem = newMem
+            curObs = newObs
             # print(f"Step {curStep}/{maxStepsPerEpisode} of episode {i}/{numberEpisodes} took {e-s} seconds")
         if (i +1) % 1000 == 0:
             print(f"Episode {i+1} done at {time.ctime()}",file=ouput)
@@ -203,6 +203,5 @@ except Exception as e:
     print("zCritic", zCritic, file = err)
     print("zActor", zActor, file = err)
     print("pi", pi, file = err)
-    print("obs", obs, file = err)
     print("tdError", tdError, file = err)
     print(repr(e), str(e))
