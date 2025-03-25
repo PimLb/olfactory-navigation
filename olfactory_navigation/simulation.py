@@ -88,6 +88,24 @@ class SimulationHistory:
         A numpy array of booleans saying whether the simulations reached the source or not.
     done_at_step : np.ndarray
         A numpy array containing n elements that records when a given simulation reaches the source (-1 is not reached).
+    start_time : datetime
+        The time at which the first simulation was started.
+    simulation_dfs : list[pd.DataFrame]
+        A list of the pandas DataFrame where each dataframe is a single simulation history.
+    runs_analysis_df : pd.DataFrame
+        A Pandas DataFrame analyzing the results of the simulations.
+    general_analysis_df : pd.DataFrame
+        A Pandas DataFrame analyzing the results of the simulations.
+    done_count : int
+        How many simulations are terminated (whether they reached the source or not).
+    successful_simulation : np.ndarray
+        A boolean array of which simulations reached the source.
+    success_count : int
+        How many simulations reached the source.
+    simulations_at_horizon : np.ndarray
+        A boolean array of which simulations reached the horizon.
+    summary : str
+        A string summarizing the performances of all the simulations.
     '''
     def __init__(self,
                  start_points: np.ndarray,
@@ -358,6 +376,14 @@ class SimulationHistory:
         summary_str += f"(Successful only: {df.loc['success_mean','t_min_over_t'].item():.3f} +- {df.loc['success_standard_deviation','t_min_over_t'].item():.2f})"
 
         return summary_str
+
+
+    @property
+    def start_time(self) -> datetime:
+        '''
+        The time at which the first simulation was started.
+        '''
+        return self.timestamps[0][0]
 
 
     @property
