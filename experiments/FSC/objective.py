@@ -1,5 +1,6 @@
 import numpy as np
-from modelBasedTrain import sparse_T_CPU
+import cupy as cp
+from modelBasedTrain import ggTrasfer, sparse_T_CPU
 import sys
 from scipy.special import softmax
 import scipy.sparse as sparse
@@ -76,9 +77,11 @@ def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas
 parser = ap.ArgumentParser()
 parser.add_argument("path", help="The path of the directory with the policies to plot")
 parser.add_argument("M", help="The memories of the FSC", type = int)
+parser.add_argument("--GPU", help="Which GPU to use, if not specified will use CPU", type = int)
 args = parser.parse_args()
 parentDir = args.path
 M = args.M
+GPU = args.GPU
 
 rho = np.zeros(SC * M)
 rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
@@ -88,9 +91,15 @@ for s in range(SC):
     if (r - rSource) ** 2 + (c -cSource) **2 < find_range**2:
         R[s::SC] = 0
 thOpt = np.load(f"celaniData/thetaLoroM{M}.npy")
-s = time.perf_counter()
-Vopt, _ = sparse_T_CPU(softmax(thOpt, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
-e = time.perf_counter()
+calc_V_eta = sparse_T_CPU
+if GPU is not None:
+    cp.cuda.Device(GPU).use()
+    R = cp.asarray(R)
+    rho = cp.asarray(rho)
+    calc_V_eta = ggTrasfer
+    xp = cp
+
+Vopt, _ = calc_V_eta(softmax(thOpt, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
 
 ls = glob.glob(parentDir+"Actors/theta*")
 totIter = len(ls) - (2 if parentDir + "Actors/thetaActorCriticFInale.npy" in ls else 1)
@@ -113,13 +122,13 @@ for i in range(0, totIter):
     # T = mb.prova(softmax(th, axis = 2), dataC, rSource, cSource, find_range, M)
     # AV = sparse.eye(SC * M, format="csr") - gamma * T
     # trueV = sparse.linalg.spsolve(AV, R)
-    trueV, _ = sparse_T_CPU(softmax(th, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
-    lambdaV = np.load(parentDir + f"Critics/critic{minTh + i*1000}.npy")
-    obj[i] = np.dot(trueV, rho)
-    normDiff[i] = np.linalg.norm(trueV - lambdaV, 2)
-    diffFromOpt[i] = np.linalg.norm(lambdaV - Vopt, 2)
+    trueV, _ = calc_V_eta(softmax(th, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
+    lambdaV = xp.load(parentDir + f"Critics/critic{minTh + i*1000}.npy")
+    obj[i] = xp.dot(trueV, rho)
+    normDiff[i] = xp.linalg.norm(trueV - lambdaV, 2)
+    diffFromOpt[i] = xp.linalg.norm(lambdaV - Vopt, 2)
     if i > 0:
-        diffPrev[i] = np.linalg.norm(lambdaV - prev)
+        diffPrev[i] = xp.linalg.norm(lambdaV - prev)
     prev = lambdaV
     if i % 10 == 0:
         t = time.perf_counter()
