@@ -64,6 +64,13 @@ def totalTime(end, start, file = None):
         return
     print(f"Total time: {hours}h:{minutes}m:{seconds}s", file=file)
 
+def manhattan(s):
+    pos = np.array([s // cols, s % cols])
+    source = np.array([91, 45.5])
+    manhattan_distance = np.sum(np.abs( pos - source))    
+    distance_to_border = max(0, manhattan_distance - 1.1)
+    return np.ceil(distance_to_border)
+
 parser = ap.ArgumentParser()
 parser.add_argument("actor_lr", type=float, help="the learning rate for the actor")
 parser.add_argument("critic_lr", type=float, help="the learning rate for the critic")
@@ -119,7 +126,7 @@ else:
 if args.vStart is not None:
     V = np.load(args.vStart)
 else:
-    V = np.zeros((M,2))
+    V = np.zeros((M,3))
     # V = np.ones(SC) * -1
     # mask = np.array([isEnd(s) for s in range(SC)])
     # V[mask] = 0
@@ -139,6 +146,7 @@ np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 try:
     for i in range(itStart, numberEpisodes):
         start = np.random.choice(range(SC), p = rho) # Parto sempre dalla memoria 0
+        d0 = manhattan(start)
         discount = 1
         curMem = 0
         curState = start
@@ -153,10 +161,14 @@ try:
 
         while( not isEnd(curState) and curStep < maxStepsPerEpisode):
 
+            curD = -manhattan(curState) / d0
             action = np.random.choice(4 * M, p= pi[curObs, curMem])
             newState, newMem = takeAction(curState, action)
-            reward = -(1 - gamma) if not isEnd(newState) else 0
-            newObs = np.random.choice(2, p = dataC[:, newState])
+            nextD = -manhattan(newState) / d0
+            end = isEnd(newState)
+            reward = -(1 - gamma) if not end else 0
+            reward += gamma * nextD - curD
+            newObs = np.random.choice(2, p = dataC[:, newState]) if not end else 2
             # print(curState, obs, action, newState, reward)
             tdError = reward + gamma * V[newMem, newObs] - V[curMem, curObs]
             zCritic = gamma * lambda_critic * zCritic 
