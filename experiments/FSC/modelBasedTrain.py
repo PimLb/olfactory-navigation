@@ -38,6 +38,22 @@ def getReachable(s, M):
     return ret
 
 
+#Dovrebbe essere meglio che farlo solo su GPU o solo su CPU
+def ggTrasfer(pi, pObs, rSource, cSource, find_range, RGPU, rhoGPU, M):
+    toSum, rowIdx, colIdx = get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range, M, create_matrix = False)
+    toSumGPU = cp.asarray(toSum)
+    rowIdxGPU = cp.asarray(rowIdx)
+    colIdxGPU = cp.asarray(colIdx)
+    T = cSparse.csr_matrix((toSumGPU, (rowIdxGPU, colIdxGPU)))
+    AV = cSparse.eye(SC *M, format="csr") - gamma * T
+    Aeta = cSparse.eye(SC *M, format="csr") - gamma * T.T
+    V = cSparseLA.spsolve(AV, RGPU)
+    eta = cSparseLA.spsolve(Aeta, rhoGPU)
+    # T = cSparse.csr_matrix((toSumGPU, (rowIdxGPU, colIdxGPU))).todense()
+    # Tinv = cp.linalg.inv(cp.eye(SC *M) - gamma * T)
+    # V = Tinv @ RGPU
+    return V, eta
+
 def sparse_T_GPU(pi, dataC, rSource, cSource, find_range, R, rho, M):
     T = get_Transition_Matrix_sparse_GPU(pi, dataC, rSource, cSource, find_range, M)
     # Da qui alla fine della funzione ci mette di più che tutta un iterazione sulla CPU
@@ -49,11 +65,14 @@ def sparse_T_GPU(pi, dataC, rSource, cSource, find_range, R, rho, M):
 
 # Se ho fatto bene i test, questo dovrebbe essere il più veloce di tutti.
 def sparse_T_CPU(pi, dataC, rSource, cSource, find_range, R, rho, M):
+    s = time.perf_counter()
     T = get_Transition_Matrix_sparse_CPU(pi, dataC, rSource, cSource, find_range, M)
     AV = sparse.eye(SC * M, format="csr") - gamma * T
     Aeta = sparse.eye(SC * M, format="csr") - gamma * T.T
     V = sparse.linalg.spsolve(AV, R)
     eta = sparse.linalg.spsolve(Aeta, rho)
+    e = time.perf_counter()
+    print("TOT", e-s)
     return V, eta
 
 def get_Transition_Matrix_sparse_GPU(pi, pObs, rSource, cSource, find_range, M):
@@ -79,7 +98,7 @@ def isEnd(sm, rSource, cSource, find_range):
 
 
 # Dovrebbe essere giusto anche per M > 1; Quasi certo per M = 2, da provare per 3
-def get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range, M):
+def get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range, M, create_matrix = True):
     # Creo un array in cui ogni valore rappresenta lo stato di partenza
     # ogni stato fisico è seguito dallo stesso stato in altre memorie
     rowIdx = np.fromiter((i + j * SC for i in range(SC) for j in range(M)), int)
@@ -93,7 +112,7 @@ def get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range, M):
     # Moltiplico la probabilità di fare l'azione data l'osservazione e moltipico per la probabilità d'osservazione
     # e sommo le probabilità dagli stessi stati
     toSum = np.sum(pi[None, :, :, :].T * pObs[:, :], axis = 2).T.reshape(-1)
-    
+
     final = [s for s in range(SC * M) if isEnd(s, rSource, cSource, find_range)]
     
 
@@ -103,7 +122,9 @@ def get_Transition_Matrix_sparse_CPU(pi, pObs, rSource, cSource, find_range, M):
         idxs = rowIdx == f
         colIdx[idxs] = f
         toSum[idxs] = v
-    return sparse.csr_matrix((toSum, (rowIdx, colIdx)))
+    if create_matrix:
+        return sparse.csr_matrix((toSum, (rowIdx, colIdx)))
+    return toSum, rowIdx, colIdx # Se usato con ggTransfer
 
 def prova(pi, pObs, rSource, cSource, find_range, M):
     T = np.zeros((SC*M, SC*M))
@@ -140,9 +161,20 @@ def get_Transition_Matrix_vect(pi, pObs, rSource, cSource, find_range):
     return T 
 
 
+def calc_Q_GPU(V, R, M):
+    Q = cp.zeros((SC * M, 4*M))
+    RV = R + gamma * V
+    toSum = cp.array([RV[getReachable(s, M)] for s in range(SC*M)])
+    for a in range(4*M):
+        cp.add.at(Q, (cp.arange(SC * M, dtype=int), a), toSum[:, a])
+    mask = cp.array([((s % SC) // 92 - rSource) ** 2 + (s % 92 -cSource) **2 < find_range**2 for s in range(SC * M)])
+    Q[mask] = 0
+    return Q.get()
+
 def calc_Q(V, R, M):
     Q = np.zeros((SC * M, 4*M))
-    RV = R + gamma * V
+    RV = (R + gamma * V).get()
+    # print(type(Q), type(V), type(R))
     toSum = np.array([RV[getReachable(s, M)] for s in range(SC*M)])
     for a in range(4*M):
         np.add.at(Q, (np.arange(SC * M, dtype=int), a), toSum[:, a])
@@ -155,6 +187,7 @@ def find_grad(Q, eta, pObs, M):
     # tmp = np.tile(pObs, M)
     # for a in range(4):
     #     grad[:, 0, a] = np.sum(tmp * eta * Q[:, a], axis=1)
+    # print(type(Q), type(eta), type(pObs), type(M))
     for obs in range(2):
         for m in range(M):
             for am in range(4*M):
@@ -191,6 +224,7 @@ if __name__ == "__main__":
     parser.add_argument("-s","--subtract", help="Wheter to subtract the maximum of the gradient", action="store_true")
     parser.add_argument("-g","--gamma", type = float, help="the value of gamma", default=0.99975)
     parser.add_argument("--tolerance", type = float, help="the minimum difference under which assume convergence", default=1e-8)
+    parser.add_argument("--GPU", help="Which GPU to use, if not specified will use CPU", type = int)
     args = parser.parse_args()
 
     dataFile = args.data_file
@@ -202,6 +236,7 @@ if __name__ == "__main__":
     gamma = args.gamma
     ts = args.thetaStart
     tol = args.tolerance
+    GPU = args.GPU
     saveDir = f"results/modelBased/M{M}/celani/{dataFile}/alpha{lr}"
     if rescale:
         saveDir += "_Rescale"
@@ -237,16 +272,25 @@ if __name__ == "__main__":
             R[s::SC] = 0
     rho = np.zeros(SC*M)
     rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols])) # Copiato dal loro
-    Vold, eta = sparse_T_CPU(pi, dataC, rSource, cSource, find_range, R, rho, M)
+    calc_V_Eta = sparse_T_CPU
+    if GPU is not None:
+        cp.cuda.Device(GPU).use()
+        R = cp.asarray(R)
+        rho = cp.asarray(rho)
+        calc_V_Eta = ggTrasfer
+        # calc_Q = calc_Q_GPU
+
+    Vold, eta = calc_V_Eta(pi, dataC, rSource, cSource, find_range, R, rho, M)
     Vconv = Vold.copy()
     Q = calc_Q(Vold, R, M)
     converged = False
     s = time.perf_counter()
-
+    objs = [(Vconv @ rho).get()] if GPU is not None else [Vconv @ rho]
     for i in range(maxIt):
+        # print(i, flush = True)
         itS = time.perf_counter()
         
-        grad = find_grad(Q, eta, dataC, M)
+        grad = find_grad(Q, eta.get(), dataC, M)
         if subtract:
             grad -= np.max(grad, axis = 2, keepdims=True)
         if rescale:  
@@ -257,12 +301,13 @@ if __name__ == "__main__":
         # print(f"Grad {i}: ", grad, file = output, flush = True)
         
         pi = softmax(theta, axis = 2)
-        V, eta = sparse_T_CPU(pi, dataC, rSource, cSource, find_range, R, rho, M)
+        V, eta = calc_V_Eta(pi, dataC, rSource, cSource, find_range, R, rho, M)
         Q = calc_Q(V, R, M)
         e = time.perf_counter()
         if (i+1) % 1000 == 0:
-            delta = np.max(np.abs(V - Vconv))
-            print(i+1, time.ctime(), "Delta :", delta, file=output)
+            delta = np.max(np.abs(V - Vconv)) # Use difference between objectives instead?
+            print(i+1, time.ctime(), "Delta :", delta, "\tObj: ", V @ rho, file=output)
+            objs.append(V @ rho if GPU is None else (V @ rho).get())
             print(f"PI {i+1}: ", pi, flush=True, file=output)
             if delta < tol:
                 print(f"Converged in {i+1} iterations", file=output)
@@ -282,3 +327,23 @@ if __name__ == "__main__":
         print("Theta END not conv :", theta, file=output)
         print("PI END not COnv", pi, flush = True, file=output)
     totalTime(e, s, output)
+    ticks = [0, -0.1, -0.3, -0.4,-0.485, -0.6, -0.7, -0.8, -0.9, -1]
+    if M == 3:
+        plt.hlines(-0.138, 0,maxIt, "r", label = f"Optimal M3")
+        ticks += [-0.138]
+    if M >= 2:
+        ticks += [-0.197]
+        plt.hlines(-0.197, 0,maxIt, "y", label = f"Optimal M2")
+    else:
+        ticks += [-0.2]
+    plt.hlines(-0.485, 0,maxIt, "g", label = f"Optimal M1")
+    plt.yticks(ticks)
+    plt.plot(range(0, maxIt+1, 1000), objs, label = "Objective")
+    plt.grid()
+    plt.legend()
+    imgName = folder + f"_{lr}"
+    if rescale:
+        imgName += "_r"
+    if subtract:
+        imgName += "_s"
+    plt.savefig(f"objOut/png/modelBased/{imgName}.png")
