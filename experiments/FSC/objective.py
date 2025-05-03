@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import re
 import glob
 import time
+import os
 
 SC = 131*92
 gamma = 0.99975
@@ -37,7 +38,7 @@ def totalTime(end, start, file = None):
         return
     print(f"Total time: {hours}h:{minutes}m:{seconds}s", file=file)
 
-def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas, name, M, close = False):
+def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas, name, M, sb, close = False):
     color = "orange"
     style = "--"
     plt.figure(figsize=(15, 10))
@@ -70,18 +71,24 @@ def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas
     plt.plot(range(1, totIter), diffPrev[1:], label = "Diff from Prev")
     plt.hlines(0, 0,totIter, "k", label= "0")
     plt.legend()
-    plt.savefig(f"objOut/png/{name}_{paramas}.png")
+    if sb is not None:
+        os.makedirs(f"objOut/png/{sb}", exist_ok=True)
+        plt.savefig(f"objOut/png/{sb}/{name}_{paramas}.png")
+    else:
+        plt.savefig(f"objOut/png/{name}_{paramas}.png")
     if not close:
         plt.close()
 
 parser = ap.ArgumentParser()
 parser.add_argument("path", help="The path of the directory with the policies to plot")
 parser.add_argument("M", help="The memories of the FSC", type = int)
+parser.add_argument("--subFolder")
 parser.add_argument("--GPU", help="Which GPU to use, if not specified will use CPU", type = int)
 args = parser.parse_args()
 parentDir = args.path
 M = args.M
 GPU = args.GPU
+subFolder = args.subFolder
 
 rho = np.zeros(SC * M)
 rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
@@ -136,4 +143,4 @@ for i in range(0, totIter):
         prevTime = t
 e = time.perf_counter()
 totalTime(e, s)
-plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt,diffPrev, gr[:5],gr[5],M, close=True )    
+plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt,diffPrev, gr[:5],gr[5],M, subFolder, close=True )    
