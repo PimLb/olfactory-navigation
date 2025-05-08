@@ -1,0 +1,40 @@
+name: Publish to Conda
+
+on:
+  release:
+    types: [created]  # Triggers on new GitHub release
+
+jobs:
+  build-and-upload-conda:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          activate-environment: base
+
+      - name: Set GitHub tag as GIT_TAG_NAME
+        run: |
+          echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
+      - name: Inject dynamic version into conda_build_config.yaml
+        run: |
+          echo "GIT_TAG_NAME: [${{ env.TAG_NAME }}]" > conda-recipe/conda_build_config.yaml
+
+      - name: Install Conda Build Tools
+        run: conda install -y conda-build anaconda
+
+      - name: Build Conda Package
+        run: conda build conda-recipe
+
+      - name: Upload to Anaconda
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+        run: |
+          anaconda login --token $ANACONDA_API_TOKEN
+          anaconda upload /home/runner/miniconda3/conda-bld/**/olfactory-navigation-*.tar.bz2 --label main

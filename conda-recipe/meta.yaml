@@ -1,5 +1,5 @@
 {% set name = "olfactory-navigation" %}
-{% set version = GIT_TAG_NAME %}  # Inject version from the GitHub release tag
+{% set version = GIT_TAG_NAME %}
 
 package:
   name: {{ name|lower }}
