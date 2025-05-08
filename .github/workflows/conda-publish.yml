@@ -16,7 +16,8 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
-          activate-environment: base
+          auto-activate-base: true
+          activate-environment: ""
 
       - name: Set GitHub tag as GIT_TAG_NAME
         run: |
