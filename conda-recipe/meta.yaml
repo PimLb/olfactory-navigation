@@ -1,0 +1,42 @@
+{% set name = "olfactory-navigation" %}
+{% set version = GIT_TAG_NAME %}  # Inject version from the GitHub release tag
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  git_url: https://github.com/pimlb/olfactory-navigation.git
+  git_tag: {{ version }}
+
+build:
+  noarch: python
+  script: python -m pip install . --no-deps --ignore-installed -vv
+
+requirements:
+  host:
+    - python >=3.11
+    - pip
+    - setuptools
+    - setuptools-scm
+    - wheel
+  run:
+    - python >=3.11
+    - tqdm >=4.65.0
+    - numpy >=1.26.4
+    - matplotlib >=3.7.2
+    - pandas >=2.0.3
+    - scipy >=1.14.0
+    - h5py >=3.11.0
+
+about:
+  home: https://pimlb.github.io/olfactory-navigation
+  license: MIT
+  license_file: LICENSE
+  summary: "A package to simulate the process of olfactory navigation in various environments using pre-built agents or user-made agents."
+  description: |
+    A package to simulate the process of olfactory navigation in various environments using pre-built agents or user-made agents.
+
+extra:
+  recipe-maintainers:
+    - thebot002

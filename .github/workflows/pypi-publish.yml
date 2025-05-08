@@ -33,3 +33,26 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: twine upload dist/*
+
+
+    - name: Set up Miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: "3.10"
+        channels: conda-forge,defaults
+        activate-environment: build-env
+
+    - name: Install conda-build and anaconda-client
+      run: |
+        conda install conda-build anaconda-client
+
+    - name: Build Conda Package
+      run: conda build conda-recipe
+
+    - name: Upload to Anaconda
+      env:
+        ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+      run: |
+        anaconda login --token $ANACONDA_API_TOKEN
+        anaconda upload /home/runner/miniconda3/conda-bld/**/olfactory-navigation-*.tar.bz2 --label main
