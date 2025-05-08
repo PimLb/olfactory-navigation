@@ -31,7 +31,7 @@ jobs:
         run: conda install -y conda-build anaconda
 
       - name: Build Conda Package
-        run: conda build conda-recipe
+        run: conda build conda-recipe --variant-config-files conda-recipe/conda_build_config.yaml
 
       - name: Upload to Anaconda
         env:
