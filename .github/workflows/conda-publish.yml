@@ -19,15 +19,13 @@ jobs:
           auto-activate-base: true
           activate-environment: ""
 
-      - name: Set GitHub tag as GIT_TAG_NAME
-        run: |
-          echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
-
       - name: Install Conda Build Tools
         run: conda install -y conda-build anaconda
 
       - name: Build Conda Package
-        run: conda build conda-recipe --set-version ${TAG_NAME}
+        run: |
+          export PKG_VERSION=${GITHUB_REF##*/}
+          conda build conda-recipe
 
       - name: Upload to Anaconda
         env:
