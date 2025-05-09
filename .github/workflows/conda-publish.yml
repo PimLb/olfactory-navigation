@@ -23,15 +23,11 @@ jobs:
         run: |
           echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-      - name: Inject dynamic version into conda_build_config.yaml
-        run: |
-          echo "GIT_TAG_NAME: [\"${{ env.TAG_NAME }}\"]" > conda-recipe/conda_build_config.yaml
-
       - name: Install Conda Build Tools
         run: conda install -y conda-build anaconda
 
       - name: Build Conda Package
-        run: conda build conda-recipe --variant-config-files conda-recipe/conda_build_config.yaml
+        run: conda build conda-recipe --set-version ${TAG_NAME}
 
       - name: Upload to Anaconda
         env:

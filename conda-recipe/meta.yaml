@@ -1,5 +1,5 @@
 {% set name = "olfactory-navigation" %}
-{% set version = GIT_TAG_NAME %}
+{% set version = environ.get('PKG_VERSION', '0.0.0') %}
 
 package:
   name: {{ name|lower }}
