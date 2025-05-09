@@ -23,9 +23,9 @@ jobs:
         run: conda install -y conda-build anaconda
 
       - name: Build Conda Package
-        run: |
-          export PKG_VERSION=${GITHUB_REF##*/}
-          conda build conda-recipe
+        env:
+          PKG_VERSION: ${{ github.ref_name }}
+        run: conda build conda-recipe
 
       - name: Upload to Anaconda
         env:
