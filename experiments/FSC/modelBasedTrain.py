@@ -54,6 +54,61 @@ def ggTrasfer(pi, pObs, rSource, cSource, find_range, RGPU, rhoGPU, M):
     # V = Tinv @ RGPU
     return V, eta
 
+def getIndexes(GPU, rSource, cSource, find_range, M):
+    rowIdx = np.fromiter((i + j * SC for i in range(SC) for j in range(M)), int)
+    
+    # Per ogni stato prendo gli stati raggiungibili e li metto in un array
+    colIdx = np.fromiter((chain.from_iterable(map(getReachable, rowIdx, itReapeat(M)))) , int) 
+    
+    #Da ogni stato posso fare 4*M azioni, quindi replico in modo che siano coerenti con colIdx
+    rowIdx = rowIdx.repeat(4*M)
+    # Ad ognuno degli stati finali cambio gli stati raggiungibili.
+    v = 1 / (4*M)
+
+    final = [s for s in range(SC * M) if isEnd(s, rSource, cSource, find_range)]
+    for f in final:
+        idxs = rowIdx == f
+        colIdx[idxs] = f
+    if GPU:
+        rowIdx = cp.asarray(rowIdx)
+        colIdx = cp.asarray(colIdx)
+    return (rowIdx, colIdx), final
+
+def scemo(toSum, final, indexes):
+    a = toSum.copy()
+    b = toSum.copy()
+    v = 1 / (4*M)
+    s = time.perf_counter()
+    for f in final:
+        idxs = indexes[0] == f
+        a[idxs] = v
+    e = time.perf_counter()
+    b[8417*4*M*M:8419*4*M*M] = v
+    e2 = time.perf_counter()
+    print("a", e-s, "b", e2-e)
+
+#Dovrebbe essere meglio che farlo solo su GPU o solo su CPU
+def prova2(indexes, finalS, piGPU, pObsGPU, RGPU, rhoGPU, M):
+    s = time.perf_counter()
+    toSumGPU = cp.sum(piGPU[None, :, :, :].T * pObsGPU[:, :], axis = 2).T.reshape(-1)
+    # scemo(toSumGPU, finalS, indexes)
+    v = 1 / (4*M)
+    # for f in finalS:
+    #     idxs = indexes[0] == f
+    #     toSumGPU[idxs] = v
+    toSumGPU[8417*4*M*M:8419*4*M*M] = v
+    T = cSparse.csr_matrix((toSumGPU, indexes))
+    AV = cSparse.eye(SC *M, format="csr") - gamma * T
+    Aeta = cSparse.eye(SC *M, format="csr") - gamma * T.T
+    V = cSparseLA.spsolve(AV, RGPU)
+    eta = cSparseLA.spsolve(Aeta, rhoGPU)
+    # T = cSparse.csr_matrix((toSumGPU, (rowIdxGPU, colIdxGPU))).todense()
+    # Tinv = cp.linalg.inv(cp.eye(SC *M) - gamma * T)
+    # V = Tinv @ RGPU
+    e = time.perf_counter()
+    print("prova", e-s)
+    return V, eta
+
 def sparse_T_GPU(pi, dataC, rSource, cSource, find_range, R, rho, M):
     T = get_Transition_Matrix_sparse_GPU(pi, dataC, rSource, cSource, find_range, M)
     # Da qui alla fine della funzione ci mette di più che tutta un iterazione sulla CPU
@@ -277,10 +332,15 @@ if __name__ == "__main__":
         cp.cuda.Device(GPU).use()
         R = cp.asarray(R)
         rho = cp.asarray(rho)
+        piG = cp.asarray(pi)
+        dataG = cp.asarray(dataC)
         calc_V_Eta = ggTrasfer
         # calc_Q = calc_Q_GPU
 
-    Vold, eta = calc_V_Eta(pi, dataC, rSource, cSource, find_range, R, rho, M)
+    idx, final = getIndexes(True, rSource, cSource, find_range, M)
+
+    # Vold, eta = calc_V_Eta(pi, dataC, rSource, cSource, find_range, R, rho, M)
+    Vold, eta = prova2(idx, final, piG, dataG, R, rho, M)
     Vconv = Vold.copy()
     Q = calc_Q(Vold, R, M)
     converged = False
@@ -301,7 +361,9 @@ if __name__ == "__main__":
         # print(f"Grad {i}: ", grad, file = output, flush = True)
         
         pi = softmax(theta, axis = 2)
-        V, eta = calc_V_Eta(pi, dataC, rSource, cSource, find_range, R, rho, M)
+        piG = cp.asarray(pi)
+        # V, eta = calc_V_Eta(pi, dataC, rSource, cSource, find_range, R, rho, M)
+        V, eta = prova2(idx, final, piG, dataG, R, rho, M)
         Q = calc_Q(V, R, M)
         e = time.perf_counter()
         if (i+1) % 1000 == 0:
