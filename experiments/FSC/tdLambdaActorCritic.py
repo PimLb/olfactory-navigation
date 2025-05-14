@@ -139,8 +139,12 @@ s = time.perf_counter()
 print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=ouput)
 print("Starting pi:", pi,file=ouput, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
+thPrev = theta.copy()
+Vprev = V.copy()
+errors = []
+i = itStart
 try:
-    for i in range(itStart, numberEpisodes):
+    while i < numberEpisodes:
         start = np.random.choice(range(SC), p = rho) # Parto sempre dalla memoria 0
         curMem = 0
         discount = 1
@@ -184,8 +188,16 @@ try:
             np.save(os.path.join(actDir , f"theta{i+1}.npy"), theta)
             np.save(os.path.join(critDir , f"critic{i+1}.npy"), V)
             if np.any(np.isclose(pi[0], 1)):
-                print("Terminated", file=ouput)
-                sys.exit()
+                errors.append(i)
+                print(f"Error {len(errors)}", file=ouput)
+                theta = thPrev.copy()
+                V = Vprev.copy()
+                i -= 1000
+                if len(errors) == 3:
+                    print("Terminated", file=ouput)
+                    sys.exit()
+            thPrev = theta.copy()
+            V = Vprev.copy()
         # if(isEnd(curState)):
         #     print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)
         #     print(f"Episode {i} has reached the source in {curStep} steps", flush=True)
