@@ -12,7 +12,7 @@ experiments/FSC/utils.py
 experiments/FSC/results/modelBased/M1/celani/fine5/scemo.py
 experiments/FSC/celaniData/thetaLoroM2.txt
 experiments/FSC/piClose.sh
-experiments/FSC/run.sh
+experiments/FSC/runFree.sh
 experiments/FSC/runTDLambda.sh
 experiments/FSC/scemo.sh
 experiments/FSC/RICORDA

@@ -13,7 +13,7 @@ rSource = 91
 cols = 92
 rows = 131
 find_range = 1.1 # Source radius
-maxIt = 10000
+maxIt = 50000
 gamma = 0.99975
 lr = 0.01
 tol = 1e-8
@@ -88,16 +88,18 @@ if __name__ == "__main__":
         startingRow = int(sys.argv[3])
     except IndexError:
         startingRow = 0
-    print("Inizio: ", time.ctime(), flush=True)
+    baseDir = f"results/modelFree/M1/row{startingRow}/maxIt_{maxIt}/{MC_max_steps}/{sys.argv[1]}"
+    os.makedirs(baseDir, exist_ok=True)
+    output = open(os.path.join(baseDir, "output.out"), "w")
+    print("Inizio: ", time.ctime(), flush=True, file=output)
     dataC = np.load("celaniData/fine5.npy")
-    os.makedirs(f"results/modelFree/M1/row{startingRow}/maxIt_{maxIt}/{MC_max_steps}/{sys.argv[1]}", exist_ok=True)
     theta = (np.random.rand(2, 1, 4) -0.5) * 0.5
     theta[1, :, 0] += 0.5
     theta[1, :, 2] += 0.5 # Bias on upwind and downwind directions
     theta -= np.max(theta, axis=2, keepdims=True)
     # theta = np.ones((2,1,4))
     # theta[:, :, 2] = 10
-    print("PI iniziale: ", softmax(theta, axis = 2))
+    print("PI iniziale: ", softmax(theta, axis = 2), file=output)
     grad = np.ones_like(theta)
     rho = np.zeros(SC)
     rho[startingRow * cols:cols *(startingRow+1)] = (1-dataC[0,startingRow * cols:cols *(startingRow+1)])/np.sum((1-dataC[0,startingRow * cols:cols *(startingRow+1)])) # Copiato dal loro
@@ -111,7 +113,7 @@ if __name__ == "__main__":
         # tmp[0] = 45
         starts = np.array(np.unravel_index(tmp, (131, 92))).T
         if i == 0:
-            print("Starting point at iteration 0", starts, flush=True)
+            print("Starting point at iteration 0", starts, flush=True, file=output)
         grad = np.zeros_like(theta)
         piCopies = [pi]
         for o in range(2):
@@ -131,10 +133,11 @@ if __name__ == "__main__":
         pi = softmax(theta, axis = 2)
 
         # if np.any(grad != 0):
-        #     print("Grad not zero at iteration ", i, flush=True)
+        #     print("Grad not zero at iteration ", i, flush=True, file=output)
         i+=1
         if (i +1) % 1000 == 0:
+            print(f"Episode {i+1}:", pi, file=output)
             np.save(f"results/modelFree/M1/row{startingRow}/maxIt_{maxIt}/{MC_max_steps}/{sys.argv[1]}/theta_{i+1}", theta)
-    print(pi)
-    print("Fine: ", time.ctime())
+    print(pi, file=output)
+    print("Fine: ", time.ctime(), file=output)
         
