@@ -106,7 +106,7 @@ def prova2(indexes, finalS, piGPU, pObsGPU, RGPU, rhoGPU, M):
     # Tinv = cp.linalg.inv(cp.eye(SC *M) - gamma * T)
     # V = Tinv @ RGPU
     e = time.perf_counter()
-    print("prova", e-s)
+    # print("prova", e-s)
     return V, eta
 
 def sparse_T_GPU(pi, dataC, rSource, cSource, find_range, R, rho, M):
@@ -403,7 +403,7 @@ if __name__ == "__main__":
     plt.plot(range(0, maxIt+1, 1000), objs, label = "Objective")
     plt.grid()
     plt.legend()
-    imgName = folder + f"_{lr}"
+    imgName = folder + f"M{M}_{lr}"
     if rescale:
         imgName += "_r"
     if subtract:
