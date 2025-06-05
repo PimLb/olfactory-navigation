@@ -390,17 +390,18 @@ if __name__ == "__main__":
         print("PI END not COnv", pi, flush = True, file=output)
     totalTime(e, s, output)
     ticks = [0, -0.1, -0.3, -0.4,-0.485, -0.6, -0.7, -0.8, -0.9, -1]
+    final = i+1 if converged else maxIt
     if M == 3:
-        plt.hlines(-0.138, 0,maxIt, "r", label = f"Optimal M3")
+        plt.hlines(-0.138, 0,final, "r", label = f"Optimal M3")
         ticks += [-0.138]
     if M >= 2:
         ticks += [-0.197]
-        plt.hlines(-0.197, 0,maxIt, "y", label = f"Optimal M2")
+        plt.hlines(-0.197, 0,final, "y", label = f"Optimal M2")
     else:
         ticks += [-0.2]
-    plt.hlines(-0.485, 0,maxIt, "g", label = f"Optimal M1")
+    plt.hlines(-0.485, 0,final, "g", label = f"Optimal M1")
     plt.yticks(ticks)
-    plt.plot(range(0, maxIt+1, 1000), objs, label = "Objective")
+    plt.plot(range(0, final+1, 1000), objs, label = "Objective")
     plt.grid()
     plt.legend()
     imgName = folder + f"M{M}_{lr}"

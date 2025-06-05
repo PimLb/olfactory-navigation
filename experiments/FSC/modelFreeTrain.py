@@ -18,7 +18,7 @@ gamma = 0.99975
 lr = 0.01
 tol = 1e-8
 reward = -(1 -gamma)
-MC_samples = 10
+MC_samples = 50
 h = 1e-3
 ActionDict = np.asarray([
             [-1,  0], # North
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     except IndexError:
         startingRow = 0
     baseDir = f"results/modelFree/M1/row{startingRow}/maxIt_{maxIt}/{MC_max_steps}/{sys.argv[1]}"
-    os.makedirs(baseDir, exist_ok=True)
+    os.makedirs(baseDir)
     output = open(os.path.join(baseDir, "output.out"), "w")
     print("Inizio: ", time.ctime(), flush=True, file=output)
     dataC = np.load("celaniData/fine5.npy")
@@ -134,9 +134,11 @@ if __name__ == "__main__":
 
         # if np.any(grad != 0):
         #     print("Grad not zero at iteration ", i, flush=True, file=output)
+        e = time.perf_counter()
         i+=1
         if (i +1) % 1000 == 0:
             print(f"Episode {i+1}:", pi, file=output)
+            print("Last iteration took ", e-s, file=output, flush=True)
             np.save(f"results/modelFree/M1/row{startingRow}/maxIt_{maxIt}/{MC_max_steps}/{sys.argv[1]}/theta_{i+1}", theta)
     print(pi, file=output)
     print("Fine: ", time.ctime(), file=output)
