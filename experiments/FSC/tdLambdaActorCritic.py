@@ -198,6 +198,7 @@ try:
                     sys.exit()
             thPrev = theta.copy()
             V = Vprev.copy()
+        i += 1
         # if(isEnd(curState)):
         #     print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)
         #     print(f"Episode {i} has reached the source in {curStep} steps", flush=True)
