@@ -58,7 +58,7 @@ def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas
         ticks += [-0.2]
     plt.hlines(-0.485, 0,totIter, "g", label = f"Optimal M1")
     plt.yticks(ticks)
-    plt.plot(range(totIter), obj, label = "Objective")
+    plt.plot(range(totIter), obj,marker=None if obj.shape[0] > 5 else "x",markersize = 8, label = "Objective")
     plt.grid()
     # plt.ylim(-1, -0.475)
     plt.legend()
@@ -97,7 +97,6 @@ for s in range(SC):
     r, c = s // 92, s % 92 
     if (r - rSource) ** 2 + (c -cSource) **2 < find_range**2:
         R[s::SC] = 0
-thOpt = np.load(f"celaniData/thetaLoroM{M}.npy")
 calc_V_eta = sparse_T_CPU
 if GPU is not None:
     cp.cuda.Device(GPU).use()
@@ -106,24 +105,40 @@ if GPU is not None:
     calc_V_eta = ggTrasfer
     xp = cp
 
-Vopt, _ = calc_V_eta(softmax(thOpt, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
+Vopt = xp.load(f"celaniData/V{M}_opt.npy")
 
 ls = glob.glob(parentDir+"Actors/theta*")
 totIter = len(ls) - (2 if parentDir + "Actors/thetaActorCriticFInale.npy" in ls else 1)
-print(totIter)
 minTh = int(re.search("theta([0-9]+).npy", min(ls)).group(1))
 reg = re.compile("results/TD_Lambda/M([0-9])/lambda_actor([01]\\.[0-9]*)/lambda_critic([01]\\.[0-9]*)/alphaActor_([0-9]+\\.[0-9]*)(?:_Scheduled)?_alphaCritic_([0-9]+\\.[0-9]*)(?:_Scheduled)?/(.*)/")
 gr = reg.match(parentDir).groups()
 # print(f"{gr}")
 print(f"Actor Lambda {gr[1]}; M {gr[0]}; Lr {gr[3]}\nCritic Lambda {gr[2]}; Lr {gr[4]}; {gr[5]}")
-normDiff = np.zeros(totIter)
-diffFromOpt = np.zeros(totIter)
-obj = np.zeros(totIter)
-thetas = np.zeros(totIter)
-diffPrev = np.zeros(totIter)
+
+start = 0
+if os.path.exists(parentDir + "Obj"):
+    obj = np.load(parentDir + "Obj/obj.npy")
+    start = obj.shape[0]
+    obj.resize(totIter)
+    thetas = np.load(parentDir + "Obj/thetas.npy")
+    thetas.resize(totIter)
+    normDiff = np.load(parentDir + "Obj/normDiff.npy")
+    normDiff.resize(totIter)
+    diffFromOpt = np.load(parentDir + "Obj/diffFromOpt.npy")
+    diffFromOpt.resize(totIter)
+    diffPrev = np.load(parentDir + "Obj/diffPrev.npy")
+    diffPrev.resize(totIter)
+else:
+    thetas = np.zeros(totIter)
+    normDiff = np.zeros(totIter)
+    diffFromOpt = np.zeros(totIter)
+    obj = np.zeros(totIter)
+    diffPrev = np.zeros(totIter)
+
+print(f"Starting from {start} To do {totIter - start}")
 s = time.perf_counter()
 prevTime = s
-for i in range(0, totIter):
+for i in range(start, totIter):
     th = np.load(parentDir + f"Actors/theta{minTh + i*1000}.npy")
     thetas[i] = np.linalg.norm(th)
     # T = mb.prova(softmax(th, axis = 2), dataC, rSource, cSource, find_range, M)
@@ -134,8 +149,11 @@ for i in range(0, totIter):
     obj[i] = xp.dot(trueV, rho)
     normDiff[i] = xp.linalg.norm(trueV - lambdaV, 2)
     diffFromOpt[i] = xp.linalg.norm(lambdaV - Vopt, 2)
-    if i > 0:
+    if i > start:
         diffPrev[i] = xp.linalg.norm(lambdaV - prev)
+    elif start > 0:
+        diffPrev[i] = xp.linalg.norm(lambdaV - xp.load(parentDir + f"Critics/critic{minTh + (i-1)*1000}.npy"))
+
     prev = lambdaV
     if i % 10 == 0:
         t = time.perf_counter()
@@ -144,3 +162,10 @@ for i in range(0, totIter):
 e = time.perf_counter()
 totalTime(e, s)
 plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt,diffPrev, gr[:5],gr[5],M, subFolder, close=True )    
+
+os.makedirs(parentDir +"Obj", exist_ok=True)
+np.save(parentDir+"Obj/obj.npy",obj)
+np.save(parentDir+"Obj/normDiff.npy",normDiff)
+np.save(parentDir+"Obj/diffFromOpt.npy",diffFromOpt)
+np.save(parentDir+"Obj/diffPrev.npy",diffPrev)
+np.save(parentDir+"Obj/thetas.npy",thetas)
