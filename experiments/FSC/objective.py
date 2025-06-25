@@ -98,6 +98,7 @@ for s in range(SC):
     if (r - rSource) ** 2 + (c -cSource) **2 < find_range**2:
         R[s::SC] = 0
 calc_V_eta = sparse_T_CPU
+xp = np
 if GPU is not None:
     cp.cuda.Device(GPU).use()
     R = cp.asarray(R)
