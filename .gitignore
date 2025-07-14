@@ -18,3 +18,6 @@ experiments/FSC/scemo.sh
 experiments/FSC/RICORDA
 experiments/FSC/toCheck
 experiments/FSC/robe.ipynb
+experiments/FSC/grid.sh
+experiments/FSC/gridPlots.sh
+experiments/FSC/celaniData/mdpV.py
