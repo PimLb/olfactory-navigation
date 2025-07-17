@@ -34,6 +34,17 @@ maxStepsPerEpisode = 10000
 actor_lr = 0.001
 critic_lr = 0.001
 
+def natGrad(pi, obs, curMem, action):
+    return 1 / pi[obs, curMem, action]
+
+def vanillaGrad(pi, obs, curMem, action):
+    ret = np.zeros_like(pi)
+    ret[obs, curMem, action] = 1
+    for b in range(pi.shape[2]):
+        ret[obs,curMem, b] -= pi[obs, curMem, b]
+    return ret
+
+
 def isEnd(sm):
     s = sm % SC
     r, c = s // cols, s % cols
@@ -82,6 +93,7 @@ parser.add_argument("--scheduleCriticLR", help="wheter or not to decrease the cr
 parser.add_argument("--iterationStart", help="if specified, is the iteration to start from, useful to continue stopped run. If any scheduling is on, it will restart from that too.", type=int)
 parser.add_argument("--subMax", help="if specified, every iteration from each row of theta will be subtracted its maximum", action="store_true")
 parser.add_argument("--toClip", help="if specified, theta's entries will be clipped in the [-20, 0] interval", action="store_true")
+parser.add_argument("--vanilla", help="whether to use vanilla gradient instead on the natural", action="store_true")
 args = parser.parse_args()
 actor_lr = args.actor_lr
 critic_lr = args.critic_lr
@@ -95,10 +107,14 @@ scheduleCritic = args.scheduleCriticLR
 subMax = args.subMax
 toClip = args.toClip
 itStart = args.iterationStart if args.iterationStart else 0
+vanilla = args.vanilla
 
 SCM = SC * M
 
-saveDir = f"results/TD_Lambda/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
+if vanilla:
+    saveDir = f"results/TD_Lambda_Vanilla/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
+else:
+    saveDir = f"results/TD_Lambda/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
 if scheduleActor:
     saveDir += "Scheduled_"
 saveDir += f"alphaCritic_{critic_lr}"
@@ -168,7 +184,10 @@ try:
             zCritic[curState] += 1 # Caso speciale per V tabulare. Credo sia giusto
             # Caso speciale per Natural Gradient e softmax. Credo sia giusto
             zActor = gamma * lambda_actor * zActor
-            zActor[obs, curMem, action] += discount / pi[obs, curMem, action]
+            if vanilla:
+                zActor += discount * vanillaGrad(pi, obs, curMem, action)
+            else:
+                zActor[obs, curMem, action] += discount / pi[obs, curMem, action]
 
             theta += cur_actor_lr * tdError * zActor
             if subMax:
@@ -197,7 +216,7 @@ try:
                     print("Terminated", file=ouput)
                     sys.exit()
             thPrev = theta.copy()
-            V = Vprev.copy()
+            Vprev = V.copy()
         i += 1
         # if(isEnd(curState)):
         #     print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)

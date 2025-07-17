@@ -38,11 +38,13 @@ def totalTime(end, start, file = None):
         return
     print(f"Total time: {hours}h:{minutes}m:{seconds}s", file=file)
 
-def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas, name, M, sb, close = False):
+def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas, name, M, sb, vanilla, close = False):
     color = "orange"
     style = "--"
     plt.figure(figsize=(15, 10))
-    plt.suptitle(f"{name}\n Actor Lambda {paramas[1]}; Lr {paramas[3]}\nCritic Lambda {paramas[2]}; Lr {paramas[4]}; M {paramas[0]}")
+    plt.suptitle(f"{name}\n Actor Lambda {paramas[1]}; Lr {paramas[3]}\nCritic Lambda {paramas[2]}; Lr {paramas[4]}; M {paramas[0]}" + ("\n Vanilla" if vanilla else ""))
+    if vanilla:
+        name += "_vanilla"
     plt.subplot(2,2, 1)
     plt.plot(range(totIter), thetas, label = "Theta Norm")
     plt.legend()
@@ -81,14 +83,15 @@ def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas
 
 parser = ap.ArgumentParser()
 parser.add_argument("path", help="The path of the directory with the policies to plot")
-parser.add_argument("M", help="The memories of the FSC", type = int)
 parser.add_argument("--subFolder")
 parser.add_argument("--GPU", help="Which GPU to use, if not specified will use CPU", type = int)
 args = parser.parse_args()
 parentDir = args.path
-M = args.M
 GPU = args.GPU
 subFolder = args.subFolder
+reg = re.compile("results/TD_Lambda(_Vanilla)?/M([0-9])/lambda_actor([01]\\.[0-9]*)/lambda_critic([01]\\.[0-9]*)/alphaActor_([0-9]+\\.[0-9]*)(?:_Scheduled)?_alphaCritic_([0-9]+\\.[0-9]*)(?:_Scheduled)?/(.*)/")
+gr = reg.match(parentDir).groups()
+M = int(gr[1])
 
 rho = np.zeros(SC * M)
 rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
@@ -111,10 +114,9 @@ Vopt = xp.load(f"celaniData/V{M}_opt.npy")
 ls = glob.glob(parentDir+"Actors/theta*")
 totIter = len(ls) - (2 if parentDir + "Actors/thetaActorCriticFInale.npy" in ls else 1)
 minTh = int(re.search("theta([0-9]+).npy", min(ls)).group(1))
-reg = re.compile("results/TD_Lambda/M([0-9])/lambda_actor([01]\\.[0-9]*)/lambda_critic([01]\\.[0-9]*)/alphaActor_([0-9]+\\.[0-9]*)(?:_Scheduled)?_alphaCritic_([0-9]+\\.[0-9]*)(?:_Scheduled)?/(.*)/")
-gr = reg.match(parentDir).groups()
 # print(f"{gr}")
-print(f"Actor Lambda {gr[1]}; M {gr[0]}; Lr {gr[3]}\nCritic Lambda {gr[2]}; Lr {gr[4]}; {gr[5]}")
+vanilla = gr[0] is not None
+print(f"Actor Lambda {gr[2]}; M {gr[1]}; Lr {gr[4]}\nCritic Lambda {gr[3]}; Lr {gr[5]}; {gr[6]}\nVanilla: {vanilla}")
 
 start = 0
 if os.path.exists(parentDir + "Obj"):
@@ -162,7 +164,7 @@ for i in range(start, totIter):
         prevTime = t
 e = time.perf_counter()
 totalTime(e, s)
-plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt,diffPrev, gr[:5],gr[5],M, subFolder, close=True )    
+plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt,diffPrev, gr[1:6],gr[6],M, subFolder,vanilla, close=True )    
 
 os.makedirs(parentDir +"Obj", exist_ok=True)
 np.save(parentDir+"Obj/obj.npy",obj)
