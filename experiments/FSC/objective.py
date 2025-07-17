@@ -46,7 +46,7 @@ def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas
     if vanilla:
         name += "_vanilla"
     plt.subplot(2,2, 1)
-    plt.plot(range(totIter), thetas, label = "Theta Norm")
+    plt.plot(range(totIter +1), thetas, label = "Theta Norm")
     plt.legend()
     plt.subplot(2,2,2)
     ticks = [0, -0.1, -0.3, -0.4,-0.485, -0.6, -0.7, -0.8, -0.9, -1]
@@ -60,13 +60,13 @@ def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas
         ticks += [-0.2]
     plt.hlines(-0.485, 0,totIter, "g", label = f"Optimal M1")
     plt.yticks(ticks)
-    plt.plot(range(totIter), obj,marker=None if obj.shape[0] > 5 else "x",markersize = 8, label = "Objective")
+    plt.plot(range(totIter+1), obj,marker=None if obj.shape[0] > 5 else "x",markersize = 8, label = "Objective")
     plt.grid()
     # plt.ylim(-1, -0.475)
     plt.legend()
     plt.subplot(2,2,3)
-    plt.plot(range(totIter), normDiff, label = "Diff from True")
-    plt.plot(range(totIter), diffFromOpt, label = "Diff from Optimal")
+    plt.plot(range(1,totIter+1), normDiff, label = "Diff from True")
+    plt.plot(range(1,totIter+1), diffFromOpt, label = "Diff from Optimal")
     plt.hlines(0, 0,totIter, "k", label= "0")
     plt.legend()
     plt.subplot(2,2,4)
@@ -120,36 +120,44 @@ print(f"Actor Lambda {gr[2]}; M {gr[1]}; Lr {gr[4]}\nCritic Lambda {gr[3]}; Lr {
 
 start = 0
 if os.path.exists(parentDir + "Obj"):
-    obj = np.load(parentDir + "Obj/obj.npy")
-    start = obj.shape[0]
-    obj.resize(totIter)
-    thetas = np.load(parentDir + "Obj/thetas.npy")
-    thetas.resize(totIter)
     normDiff = np.load(parentDir + "Obj/normDiff.npy")
+    start = normDiff.shape[0]
+    obj = np.load(parentDir + "Obj/obj.npy")
+    obj.resize(totIter+1)
+    thetas = np.load(parentDir + "Obj/thetas.npy")
+    thetas.resize(totIter+1)
     normDiff.resize(totIter)
     diffFromOpt = np.load(parentDir + "Obj/diffFromOpt.npy")
     diffFromOpt.resize(totIter)
     diffPrev = np.load(parentDir + "Obj/diffPrev.npy")
     diffPrev.resize(totIter)
 else:
-    thetas = np.zeros(totIter)
+    thetas = np.zeros(totIter+1)
     normDiff = np.zeros(totIter)
     diffFromOpt = np.zeros(totIter)
-    obj = np.zeros(totIter)
+    obj = np.zeros(totIter +1)
     diffPrev = np.zeros(totIter)
+    th = np.load(parentDir + f"Actors/thetaSTART.npy")
+    thetas[0] = np.linalg.norm(th)
+    # T = mb.prova(softmax(th, axis = 2), dataC, rSource, cSource, find_range, M)
+    # AV = sparse.eye(SC * M, format="csr") - gamma * T
+    # trueV = sparse.linalg.spsolve(AV, R)
+    trueV, _ = calc_V_eta(softmax(th, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
+    obj[0] = xp.dot(trueV, rho)
 
 print(f"Starting from {start} To do {totIter - start}")
 s = time.perf_counter()
 prevTime = s
+
 for i in range(start, totIter):
     th = np.load(parentDir + f"Actors/theta{minTh + i*1000}.npy")
-    thetas[i] = np.linalg.norm(th)
+    thetas[i+1] = np.linalg.norm(th)
     # T = mb.prova(softmax(th, axis = 2), dataC, rSource, cSource, find_range, M)
     # AV = sparse.eye(SC * M, format="csr") - gamma * T
     # trueV = sparse.linalg.spsolve(AV, R)
     trueV, _ = calc_V_eta(softmax(th, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
     lambdaV = xp.load(parentDir + f"Critics/critic{minTh + i*1000}.npy")
-    obj[i] = xp.dot(trueV, rho)
+    obj[i+1] = xp.dot(trueV, rho)
     normDiff[i] = xp.linalg.norm(trueV - lambdaV, 2)
     diffFromOpt[i] = xp.linalg.norm(lambdaV - Vopt, 2)
     if i > start:
