@@ -22,6 +22,113 @@ rows = 131
 
 reward = -(1 -gamma)
 
+def manhattan(pos):
+    source = np.array([91, 45.5])
+    manhattan_distance = np.sum(np.abs( pos - source))    
+    distance_to_border = max(0, manhattan_distance - 1.1)
+    return np.ceil(distance_to_border)
+
+
+def phi(s):
+    r,c = np.unravel_index(s % SC, (131,92))
+    ret = 1 -manhattan([r,c])/136
+    return  ret
+
+def F(s, sNext, d0 = None):
+    return gamma *phi(sNext) - phi(s)
+
+def getReachable(s, M):
+    r, c, m = (s % SC) // 92, s % 92 , s // SC
+    stateInMem0 = r * 92 + c
+    ret = np.zeros(4 * M, dtype = int)
+    for i in range(M):
+        ret[0 + i *4] = stateInMem0 - 92 + SC * i if r - 1 >= 0 else  stateInMem0 + SC * i
+        ret[1 + i *4] = stateInMem0 + 1  + SC * i if c + 1 < 92 else  stateInMem0 + SC * i
+        ret[2 + i *4] = stateInMem0 + 92 + SC * i if r + 1 < 131 else stateInMem0 + SC * i
+        ret[3 + i *4] = stateInMem0  -1  + SC * i if c - 1 >= 0 else  stateInMem0 + SC * i
+    return ret
+
+def isEnd(sm):
+    s = sm % SC
+    r, c = s // cols, s % cols
+    return (r - rSource) ** 2 + (c -cSource) **2 < find_range**2
+
+
+def get_observation(sm, pObs):
+    s = sm % SC
+    return np.random.choice(2, p=pObs[:, s])
+
+def choose_action(pi, o, M, curMem):
+    return np.random.choice(4 * M, p = pi[o, curMem])
+
+def takeAction(sm, am):
+    s = sm % SC
+    a = am % 4
+    newM = am // 4
+    r, c = s // cols, s % cols # forse usare unravel_index
+    action = ActionDict[a]
+    rNew = r + action[0]
+    cNew = c + action[1]
+    r = rNew if rNew >= 0 and rNew < 131 else r
+    c = cNew if cNew >= 0 and cNew < 92 else c
+    return r * 92 + c + newM * SC, newM
+
+def getTraj(pi, pObs, rho):
+    start = np.random.choice(range(131*92), size=1, p = rho[:SC]).astype(int)[0]
+    d0 = manhattan(np.unravel_index(start, (131,92)))
+    dBox = 131 + 92 -2
+    obs = get_observation(start, pObs)
+    curState = start
+    curM = 0
+    Rewards = np.zeros((4, 10000))
+    history = np.zeros((3, 10001)).astype(int)
+    history[0, 0] = start
+    history[1, 0] = obs
+    t = 0
+    while not isEnd(curState) and t < 10000:
+        if curState == 8417 or curState == 8418 or curState == 20469 or curState == 20470:
+            print("AAAAAA")
+        curD = -manhattan(np.unravel_index(curState % SC, (131,92)))
+        action = choose_action(pi, obs, M, curM)
+        history[2, t] = action
+        newState, curM = takeAction(curState, action)
+        nextD = -manhattan(np.unravel_index(newState % SC, (131,92)))
+        Rewards[0, t] = gamma**t * (reward +gamma * nextD/d0 -curD/d0)
+        Rewards[1, t] = gamma**t * (reward +gamma * nextD/dBox -curD/dBox)
+        Rewards[2, t] = gamma**t * (reward + gamma * phi(newState) - phi(curState))
+        Rewards[3, t] = gamma**t * reward
+        obs = get_observation(newState, pObs)
+        t += 1
+        history[0, t] = newState
+        history[1, t] = obs
+        curState = newState
+    return history, t, Rewards
+
+def prettyTraj():
+
+
+    hst, t, rs = getTraj(softmax(th, axis = 2), dataC, rho)
+    print(t)
+    x, y = np.unravel_index(hst[0, :t] % SC, (131, 92))
+    pippo = np.linspace(0,1, len(x))
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    fig, ax = plt.subplots(figsize=(20,10))
+    lc = LineCollection(segments, cmap="viridis")
+    lc.set_linewidth(2)
+    lc.set_array(pippo)
+    line = ax.add_collection(lc)
+    ax.set_xlim([0,131])
+    ax.set_ylim([0,92])
+
+    ax.matshow(dataC.reshape((2,131,92))[1].T, cmap = "binary")
+    ax.add_patch(plt.Circle((91,45.5), 1.1, color="r"))
+    ax.add_patch(plt.Circle((x[0], y[0]), 0.9, color="b"))
+    ax.add_patch(plt.Circle((x[-1], y[-1]), 0.7, color="g"))
+    xObs = x[np.where(hst[1, :t])]
+    yObs = y[np.where(hst[1, :t])]
+    ax.scatter(xObs, yObs, c="k")
+
 def totalTime(end, start, file = None):
     tot = end - start
     seconds = int(tot % 60)
