@@ -202,8 +202,7 @@ try:
             curMem = newState // SC
             # print(f"Step {curStep}/{maxStepsPerEpisode} of episode {i}/{numberEpisodes} took {e-s} seconds")
         if (i +1) % 1000 == 0:
-            print(f"Episode {i+1} done at {time.ctime()}",file=ouput)
-            print(f"PI at episode {i+1}: {pi}", flush=True,file=ouput)
+            print(f"Episode {i+1} done at {time.ctime()}",file=ouput, flush=True)
             np.save(os.path.join(actDir , f"theta{i+1}.npy"), theta)
             np.save(os.path.join(critDir , f"critic{i+1}.npy"), V)
             if np.any(np.isclose(pi[0], 1)):
@@ -213,6 +212,7 @@ try:
                 V = Vprev.copy()
                 i -= 1000
                 if len(errors) == 3:
+                    print(f"PI at episode {i+1}: {pi}",file=ouput)
                     print("Terminated", file=ouput)
                     sys.exit()
             thPrev = theta.copy()

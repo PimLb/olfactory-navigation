@@ -127,7 +127,7 @@ def sparse_T_CPU(pi, dataC, rSource, cSource, find_range, R, rho, M):
     V = sparse.linalg.spsolve(AV, R)
     eta = sparse.linalg.spsolve(Aeta, rho)
     e = time.perf_counter()
-    print("TOT", e-s)
+    # print("TOT", e-s)
     return V, eta
 
 def get_Transition_Matrix_sparse_GPU(pi, pObs, rSource, cSource, find_range, M):

@@ -113,7 +113,8 @@ if __name__ == "__main__":
     # results = getTrajectories(starts, dataC, 10000, pi)
     np.save(f"results/{thetaName}", results)
     # print([b * 200 for b in range(51)])
-    plt.hist(results, 50, range = (0, maxStep))
+    n, b, patch = plt.hist(results, 50, range = (0, maxStep))
+    patch[-1].set_facecolor('red')
     plt.ylim(0, 5000)
     finished = results[results != maxStep]
     plt.yticks([i*500 for i in range(0, 11)] + [np.count_nonzero(results == maxStep)])
