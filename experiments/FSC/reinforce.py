@@ -29,7 +29,7 @@ rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
 def natGrad(pi, obs, curMem, action):
     ret = np.zeros_like(pi)
     ret[obs, curMem, action] = 1 / pi[obs, curMem, action]
-    print(1 / pi[obs, curMem, action])
+    # print(1 / pi[obs, curMem, action])
     return ret
 
 def vanillaGrad(pi, obs, curMem, action):
@@ -136,11 +136,13 @@ while i < episodes:
     hasFoundSource = isEnd(curState)
     for j in range(step):
         G = 0
-        for k in range(j, step): # TODO: check for one-off error in the reward computation
+        for k in range(j, step-1): # Should have the correct reward both when it found the source and when it didn't
             G += gamma ** (k-j)*reward
-    
+        if not hasFoundSource:
+            G += gamma ** (step-1-j) * reward
+            
         # It could likely be made more efficient, but for now I implemented exactly as in the sutton
-        theta += curLr * gamma ** j * grad(pi, history[j,0], history[j,1], history[j,2])
+        theta += curLr * gamma ** j * G * grad(pi, history[j,0], history[j,1], history[j,2])
         # Could be moved outside the loop, likely, but I think inside they should reduce floating points errors
         if subMax:
             theta -= np.max(theta, axis =2 , keepdims=True)
