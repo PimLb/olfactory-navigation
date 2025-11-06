@@ -143,14 +143,17 @@ while i < episodes:
             
         # It could likely be made more efficient, but for now I implemented exactly as in the sutton
         theta += curLr * gamma ** j * G * grad(pi, history[j,0], history[j,1], history[j,2])
-        # Could be moved outside the loop, likely, but I think inside they should reduce floating points errors
-        if subMax:
-            theta -= np.max(theta, axis =2 , keepdims=True)
+    if subMax:
+        theta -= np.max(theta, axis =2 , keepdims=True)
     if toClip:
             theta = np.clip(theta, -20, 0)
     e1 = time.perf_counter()
     # print(i, e1-s1, flush=True, file = ouput)
     pi = softmax(theta, axis = 2)
+    if np.any(np.isclose(pi[0], 1)):
+        np.save(os.path.join(thetaDir , f"thetaErr_{i+1}.npy"), theta)
+        print(f"Error iteration {i+1}: reached determinism at {time.ctime()} ", file=ouput)
+        sys.exit()
     # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
         print(f"Episode {i+1} done at {time.ctime()}",file=ouput, flush=True)
