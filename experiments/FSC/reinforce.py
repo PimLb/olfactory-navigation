@@ -100,7 +100,7 @@ if thetaPath is not None:
 else:
     theta = (np.random.rand(2, M, 4*M) -0.5) * 0.5
 
-saveDir = f"results/reinforce{"_Vanilla" if vanilla else ""}/M{M}/lr_{lr}{"_scheduled" if schedule else ""}/{name}_episodes{episodes}"
+saveDir = f"storage/reinforceRes/reinforce{"_Vanilla" if vanilla else ""}/M{M}/lr_{lr}{"_scheduled" if schedule else ""}/{name}_episodes{episodes}"
 thetaDir = saveDir+"/thetas"
 os.makedirs(saveDir)
 os.makedirs(thetaDir)

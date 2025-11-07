@@ -64,10 +64,10 @@ def plot_and_save(totIter, obj, paramas, sb, vanilla):
     # plt.ylim(-1, -0.475)
     plt.legend()
     if sb is not None:
-        os.makedirs(f"objOut/png/reinforce/{sb}", exist_ok=True)
-        plt.savefig(f"objOut/png/reinforce/{sb}/{name}_{lr}_{episodes}.png")
+        os.makedirs(f"objOut/reinforce/{sb}", exist_ok=True)
+        plt.savefig(f"objOut/reinforce/{sb}/{name}_{lr}_{episodes}.png")
     else:
-        plt.savefig(f"objOut/png/reinforce/{name}.png")
+        plt.savefig(f"objOut/reinforce/{name}.png")
 
 parser = ap.ArgumentParser()
 parser.add_argument("path", help="The path of the directory with the policies to plot")
@@ -77,9 +77,19 @@ args = parser.parse_args()
 parentDir = args.path
 GPU = args.GPU
 subFolder = args.subFolder
-reg = re.compile("results/reinforce(_Vanilla)?/M([0-9])/lr_([0-9]+\\.[0-9]*)(?:_scheduled)?/(.*)/")
+reg = re.compile(".*/reinforce(_Vanilla)?/M([0-9])/lr_([0-9]+\\.[0-9]*)(?:_scheduled)?/(.*)/")
 gr = reg.match(parentDir).groups()
 M = int(gr[1])
+
+ls = glob.glob(parentDir+"thetas/theta*")
+totIter = len(ls) - (2 if parentDir + "thetas/thetaFinal.npy" in ls else 1)
+if totIter <= 0:
+    print("Nothing to do")
+    sys.exit()
+minTh = int(re.search("theta([0-9]+).npy", min(ls)).group(1))
+# print(f"{gr}")
+vanilla = gr[0] is not None
+print(f"M {gr[1]}; Lr {gr[2]} {gr[3]}\nVanilla: {vanilla}")
 
 rho = np.zeros(SC * M)
 rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
@@ -97,18 +107,11 @@ if GPU is not None:
     calc_V_eta = ggTrasfer
     xp = cp
 
-ls = glob.glob(parentDir+"thetas/theta*")
-totIter = len(ls) - (2 if parentDir + "thetas/thetaFinal.npy" in ls else 1)
-minTh = int(re.search("theta([0-9]+).npy", min(ls)).group(1))
-# print(f"{gr}")
-vanilla = gr[0] is not None
-print(f"M {gr[1]}; Lr {gr[2]} {gr[3]}\nVanilla: {vanilla}")
-
 start = 0
 if os.path.exists(parentDir + "Obj"):
     obj = np.load(parentDir + "Obj/obj.npy")
+    start = obj.shape[0] -1
     obj.resize(totIter+1)
-    start = obj.shape[0]
 else:
     obj = np.zeros(totIter +1)
     th = np.load(parentDir + f"thetas/thetaStart.npy")
@@ -117,6 +120,11 @@ else:
     # trueV = sparse.linalg.spsolve(AV, R)
     trueV, _ = calc_V_eta(softmax(th, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
     obj[0] = xp.dot(trueV, rho)
+
+if totIter -start <= 0:
+    print("Nothing to do")
+    sys.exit()
+
 
 print(f"Starting from {start} To do {totIter - start}")
 s = time.perf_counter()

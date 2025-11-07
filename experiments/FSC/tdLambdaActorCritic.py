@@ -112,9 +112,9 @@ vanilla = args.vanilla
 SCM = SC * M
 
 if vanilla:
-    saveDir = f"results/TD_Lambda_Vanilla/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
+    saveDir = f"storage/resultsActorCritic/TD_Lambda_Vanilla/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
 else:
-    saveDir = f"results/TD_Lambda/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
+    saveDir = f"storage/resultsActorCritic/TD_Lambda/M{M}/lambda_actor{lambda_actor}/lambda_critic{lambda_critic}/alphaActor_{actor_lr}_"
 if scheduleActor:
     saveDir += "Scheduled_"
 saveDir += f"alphaCritic_{critic_lr}"

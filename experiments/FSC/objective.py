@@ -89,7 +89,7 @@ args = parser.parse_args()
 parentDir = args.path
 GPU = args.GPU
 subFolder = args.subFolder
-reg = re.compile("results/TD_Lambda(_Vanilla)?/M([0-9])/lambda_actor([01]\\.[0-9]*)/lambda_critic([01]\\.[0-9]*)/alphaActor_([0-9]+\\.[0-9]*)(?:_Scheduled)?_alphaCritic_([0-9]+\\.[0-9]*)(?:_Scheduled)?/(.*)/")
+reg = re.compile(".*/TD_Lambda(_Vanilla)?/M([0-9])/lambda_actor([01]\\.[0-9]*)/lambda_critic([01]\\.[0-9]*)/alphaActor_([0-9]+\\.[0-9]*)(?:_Scheduled)?_alphaCritic_([0-9]+\\.[0-9]*)(?:_Scheduled)?/(.*)/")
 gr = reg.match(parentDir).groups()
 M = int(gr[1])
 
