@@ -77,7 +77,7 @@ args = parser.parse_args()
 parentDir = args.path
 GPU = args.GPU
 subFolder = args.subFolder
-reg = re.compile(".*/reinforce(_Vanilla)?/M([0-9])/lr_([0-9]+\\.[0-9]*)(?:_scheduled)?/(.*)/")
+reg = re.compile(".*/(vanilla|natural)?/M([0-9])/lr_([0-9]+\\.[0-9]*)(?:_scheduled)?/(.*)/")
 gr = reg.match(parentDir).groups()
 M = int(gr[1])
 
@@ -88,7 +88,7 @@ if totIter <= 0:
     sys.exit()
 minTh = int(re.search("theta([0-9]+).npy", min(ls)).group(1))
 # print(f"{gr}")
-vanilla = gr[0] is not None
+vanilla = gr[0] == "vanilla"
 print(f"M {gr[1]}; Lr {gr[2]} {gr[3]}\nVanilla: {vanilla}")
 
 rho = np.zeros(SC * M)
@@ -131,9 +131,12 @@ s = time.perf_counter()
 prevTime = s
 
 for i in range(start, totIter):
-    th = np.load(parentDir + f"thetas/theta{minTh + i*1000}.npy")
-    trueV, _ = calc_V_eta(softmax(th, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
-    obj[i+1] = xp.dot(trueV, rho)
+    try:
+        th = np.load(parentDir + f"thetas/theta{minTh + i*1000}.npy")
+        trueV, _ = calc_V_eta(softmax(th, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
+        obj[i+1] = xp.dot(trueV, rho)
+    except FileNotFoundError:
+        obj[i+1] = -1
     if i % 10 == 0:
         t = time.perf_counter()
         print(i, "done", t-prevTime, flush=True)

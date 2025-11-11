@@ -82,7 +82,7 @@ parser.add_argument("-t","--thetaStart", help="the path to a .npy file containin
 parser.add_argument("--schedule", help="wheter or not to decrease the learning rate", action="store_true")
 parser.add_argument("--subMax", help="if specified, every iteration from each row of theta will be subtracted its maximum", action="store_true")
 parser.add_argument("--toClip", help="if specified, theta's entries will be clipped in the [-20, 0] interval", action="store_true")
-parser.add_argument("--vanilla", help="whether to use vanilla gradient instead on the natural", action="store_true")
+parser.add_argument("--vanilla", help="if specified uses vanilla gradient instead on the natural", action="store_true")
 args = parser.parse_args()
 name = args.name
 lr = args.lr
@@ -100,18 +100,18 @@ if thetaPath is not None:
 else:
     theta = (np.random.rand(2, M, 4*M) -0.5) * 0.5
 
-saveDir = f"storage/reinforceRes/reinforce{"_Vanilla" if vanilla else ""}/M{M}/lr_{lr}{"_scheduled" if schedule else ""}/{name}_episodes{episodes}"
+saveDir = f"storage/reinforce/{"vanilla" if vanilla else "natural"}/M{M}/lr_{lr}{"_scheduled" if schedule else ""}/{name}_episodes{episodes}"
 thetaDir = saveDir+"/thetas"
 os.makedirs(saveDir)
 os.makedirs(thetaDir)
-ouput = open(os.path.join(saveDir, "_results.out"), "w")
+output = open(os.path.join(saveDir, "_results.out"), "w")
 
 grad = vanillaGrad if vanilla else natGrad
 pi = softmax(theta, axis = 2)
 
 s = time.perf_counter()
-print(f" Startinng {episodes} episodes at {time.ctime()}",file=ouput)
-print("Starting pi:", pi,file=ouput, flush=True)
+print(f" Startinng {episodes} episodes at {time.ctime()}",file=output)
+print("Starting pi:", pi,file=output, flush=True)
 np.save(thetaDir+"/thetaStart.npy", theta)
 
 
@@ -152,15 +152,16 @@ while i < episodes:
     pi = softmax(theta, axis = 2)
     if np.any(np.isclose(pi[0], 1)):
         np.save(os.path.join(thetaDir , f"thetaErr_{i+1}.npy"), theta)
-        print(f"Error iteration {i+1}: reached determinism at {time.ctime()} ", file=ouput)
+        print(f"Error iteration {i+1}: reached determinism at {time.ctime()} ", file=output)
+        print(pi, file = output)
         sys.exit()
     # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
-        print(f"Episode {i+1} done at {time.ctime()}",file=ouput, flush=True)
+        print(f"Episode {i+1} done at {time.ctime()}",file=output, flush=True)
         np.save(os.path.join(thetaDir , f"theta{i+1}.npy"), theta)
     i+=1
 e = time.perf_counter()
 
-print("Learned pi:", pi,file=ouput)
+print("Learned pi:", pi,file=output)
 np.save(os.path.join(thetaDir,"thetaFinal.npy"), theta)
-totalTime(e, s, ouput)
+totalTime(e, s, output)
