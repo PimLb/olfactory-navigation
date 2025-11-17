@@ -50,6 +50,10 @@ def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas
     plt.legend()
     plt.subplot(2,2,2)
     ticks = [0, -0.1, -0.3, -0.4,-0.485, -0.6, -0.7, -0.8, -0.9, -1]
+    if M >= 4:
+        plt.hlines(-0.098, 0,totIter, "orange", label = f"Optimal M4")
+        ticks += [-0.098]
+        ticks.remove(-0.1)
     if M >= 3:
         plt.hlines(-0.138, 0,totIter, "r", label = f"Optimal M3")
         ticks += [-0.138]
@@ -108,7 +112,7 @@ if GPU is not None:
     rho = cp.asarray(rho)
     calc_V_eta = ggTrasfer
     xp = cp
-if M <= 3:
+if M <= 4:
     Vopt = xp.load(f"celaniData/V{M}_opt.npy")
 
 ls = glob.glob(parentDir+"Actors/theta*")
@@ -159,7 +163,7 @@ for i in range(start, totIter):
     lambdaV = xp.load(parentDir + f"Critics/critic{minTh + i*1000}.npy")
     obj[i+1] = xp.dot(trueV, rho)
     normDiff[i] = xp.linalg.norm(trueV - lambdaV, 2)
-    if M <= 3:
+    if M <= 4:
         diffFromOpt[i] = xp.linalg.norm(lambdaV - Vopt, 2)
     if i > start:
         diffPrev[i] = xp.linalg.norm(lambdaV - prev)
