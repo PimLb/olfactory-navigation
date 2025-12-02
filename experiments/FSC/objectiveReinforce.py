@@ -43,14 +43,21 @@ def plot_and_save(totIter, obj, paramas, sb, vanilla):
     style = "--"
     plt.figure(figsize=(15, 10))
     M, lr, tmp = paramas
-    name, episodes = tmp.split("_")
+    l = tmp.split("_")
+    n, episodes = l[:-1], l[-1]
+    name = f"{n[0]}"
+    for i in range(1, len(n)):
+        name += f"_{n[i]}"
     M = int(M)
     plt.suptitle(f"{name}\n Lr {lr} M {M}" + ("\n Vanilla" if vanilla else ""))
-    if vanilla:
-        name += "_vanilla"
+    name += "_vanilla" if vanilla else "_natural"
     ticks = [0, -0.1, -0.3, -0.4,-0.485, -0.6, -0.7, -0.8, -0.9, -1]
-    if M == 3:
-        plt.hlines(-0.138, 0,totIter, "r", label = f"Optimal M3")
+    if M >= 4:
+        plt.hlines(-0.098, 0,totIter, "orange", label = f"Optimal M4")
+        ticks += [-0.098]
+        ticks.remove(-0.1)
+    if M >= 3:
+        plt.hlines(-0.13895278486341234, 0,totIter, "r", label = f"Optimal M3")
         ticks += [-0.138]
     if M >= 2:
         ticks += [-0.197]
@@ -77,7 +84,7 @@ args = parser.parse_args()
 parentDir = args.path
 GPU = args.GPU
 subFolder = args.subFolder
-reg = re.compile(".*/(vanilla|natural)?/M([0-9])/lr_([0-9]+\\.[0-9]*)(?:_scheduled)?/(.*)/")
+reg = re.compile(".*/(vanilla|natural)?/M([0-9])/lr_([0-9]+\\.[0-9]*|[0-9]e-[0-9]+)(?:_scheduled)?/(.*)/")
 gr = reg.match(parentDir).groups()
 M = int(gr[1])
 
@@ -121,9 +128,9 @@ else:
     trueV, _ = calc_V_eta(softmax(th, axis = 2), dataC, rSource, cSource, find_range, R, rho, M)
     obj[0] = xp.dot(trueV, rho)
 
-if totIter -start <= 0:
-    print("Nothing to do")
-    sys.exit()
+# if totIter -start <= 0:
+#     print("Nothing to do")
+#     sys.exit()
 
 
 print(f"Starting from {start} To do {totIter - start}")

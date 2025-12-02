@@ -43,8 +43,7 @@ def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas
     style = "--"
     plt.figure(figsize=(15, 10))
     plt.suptitle(f"{name}\n Actor Lambda {paramas[1]}; Lr {paramas[3]}\nCritic Lambda {paramas[2]}; Lr {paramas[4]}; M {paramas[0]}" + ("\n Vanilla" if vanilla else ""))
-    if vanilla:
-        name += "_vanilla"
+    name += "_vanilla" if vanilla else "_natural"
     plt.subplot(2,2, 1)
     plt.plot(range(totIter +1), thetas, label = "Theta Norm")
     plt.legend()
@@ -55,7 +54,7 @@ def plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt, diffPrev, paramas
         ticks += [-0.098]
         ticks.remove(-0.1)
     if M >= 3:
-        plt.hlines(-0.138, 0,totIter, "r", label = f"Optimal M3")
+        plt.hlines(-0.13895278486341234, 0,totIter, "r", label = f"Optimal M3")
         ticks += [-0.138]
     if M >= 2:
         ticks += [-0.197]
@@ -177,7 +176,6 @@ for i in range(start, totIter):
         prevTime = t
 e = time.perf_counter()
 totalTime(e, s)
-plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt,diffPrev, gr[1:6],gr[6],M, subFolder,vanilla, close=True )    
 
 os.makedirs(parentDir +"Obj", exist_ok=True)
 np.save(parentDir+"Obj/obj.npy",obj)
@@ -185,3 +183,5 @@ np.save(parentDir+"Obj/normDiff.npy",normDiff)
 np.save(parentDir+"Obj/diffFromOpt.npy",diffFromOpt)
 np.save(parentDir+"Obj/diffPrev.npy",diffPrev)
 np.save(parentDir+"Obj/thetas.npy",thetas)
+
+plot_and_save(totIter, thetas, obj, normDiff, diffFromOpt,diffPrev, gr[1:6],gr[6],M, subFolder,vanilla, close=True )    
