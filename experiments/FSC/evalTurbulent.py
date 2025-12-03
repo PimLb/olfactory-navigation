@@ -88,9 +88,9 @@ if __name__ == "__main__":
     saveDir = f"eval/turbulent/{thetaName}_{threshold}"
 
     os.makedirs(saveDir, exist_ok=True)
-    for s in range(SC):
-        if rho[s] > 0:
-            print(s // cols, s % cols)
+    # for s in range(SC):
+    #     if rho[s] > 0:
+    #         print(s // cols, s % cols)
     # sys.exit()
     theta = np.load(thetaPath)
     M = theta.shape[1]
