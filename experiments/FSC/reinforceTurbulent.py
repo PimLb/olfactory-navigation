@@ -112,7 +112,7 @@ if thetaPath is not None:
 else:
     theta = (np.random.rand(2, M, 4*M) -0.5) * 0.5
 
-saveDir = f"storage/reinforce/turbulent/thresh_{threshold}/{"vanilla" if vanilla else "natural"}/M{M}/lr_{lr}{"_scheduled" if schedule else ""}/{name}_episodes{episodes}/pad_{padRows}/"
+saveDir = f"storage/reinforce/turbulent/thresh_{threshold}/{"vanilla" if vanilla else "natural"}/M{M}/lr_{lr}{"_scheduled" if schedule else ""}/pad_{padRows}/{name}_episodes{episodes}/"
 thetaDir = saveDir+"/thetas"
 os.makedirs(saveDir)
 os.makedirs(thetaDir)
@@ -131,6 +131,7 @@ np.save(thetaDir+"/thetaStart.npy", theta)
 
 i = 0
 s = time.perf_counter()
+reached = 0
 while i < episodes:
     s1 = time.perf_counter()
     curLr = lr * 1000 / (1000 + i)
@@ -149,6 +150,8 @@ while i < episodes:
         curState, curMem = takeAction(curState, action, rowTot, cols)
         step += 1
     # print("Obs time", sumObs)
+    if step < maxSteps:
+        reached += 1
     for j in range(step):
         theta += curLr * gamma ** j * partialRewards[j] * grad(pi, history[j,0], history[j,1], history[j,2])
     if subMax:
@@ -161,7 +164,8 @@ while i < episodes:
         sys.exit()
     # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
-        print(f"Episode {i+1} done at {time.ctime()}",file=output, flush=True)
+        print(f"Episode {i+1} done at {time.ctime()}; {reached/1000:.0%} reached source in the last 1000 episodes",file=output, flush=True)
+        reached = 0
         np.save(os.path.join(thetaDir , f"theta{i+1}.npy"), theta)
     i+=1
     e1 = time.perf_counter()
