@@ -40,14 +40,15 @@ def takeAction(state, actionMem, rMax, cMax):
     c = np.clip(c + action[1], 0, cMax -1)
     return (r,c),newM
 
-def getObservation(state, odor, time, threshold, rowNoPad):
+def getObservation(state, odor, time, threshold, rowNoPad, maxFrames):
     r,c = state
     if r >= rowNoPad:
         return 0
+    t = time % maxFrames
     try:
-        return int(odor[f"odor/{str(time)}"][r,c] >= threshold)
+        return int(odor[f"odor/{str(t)}"][r,c] >= threshold)
     except IndexError as e:
-        print(state, odor[f"odor/{str(time)}"].shape, rowNoPad)
+        print(state, odor[f"odor/{str(t)}"].shape, rowNoPad)
         raise e
     
 def totalTime(end, start, file = None):
@@ -97,6 +98,7 @@ rowOriginal, cols = odor['odor/0'].shape
 rowTot = rowOriginal + padRows
 SC = rowTot * cols
 rSource, cSource = odor['source']
+maxFrames = odor['frames'][()] # Syntax to get a scalar value from h5py
 find_range = 1.1 # Source radius
 
 gamma = 0.99975
@@ -104,7 +106,10 @@ reward = -(1 -gamma)
 maxSteps = 10000
 
 rho = np.zeros(cols) # For now I assume to start always from the most downwind row
-rho = odor['odor/0'][0] / np.sum(odor['odor/0'][0])
+if "rho" in odor:
+    rho = np.array(odor["rho"])
+else:
+    rho = odor['odor/0'][0] / np.sum(odor['odor/0'][0])
 
 assert M >= 1
 if thetaPath is not None:
@@ -132,6 +137,7 @@ np.save(thetaDir+"/thetaStart.npy", theta)
 i = 0
 s = time.perf_counter()
 reached = 0
+avgStep = 0
 while i < episodes:
     s1 = time.perf_counter()
     curLr = lr * 1000 / (1000 + i)
@@ -142,7 +148,7 @@ while i < episodes:
     history = np.zeros((maxSteps, 3), dtype=np.uint8) # Observation 0; Memory 1; Actions 2
     while not isEnd(curState, rSource, cSource) and step < maxSteps:
 
-        obs = getObservation(curState, odor, step, threshold, rowOriginal)
+        obs = getObservation(curState, odor, step, threshold, rowOriginal, maxFrames)
         action = np.random.choice(4 * M, p= pi[obs, curMem])
         history[step, 0] = obs
         history[step, 1] = curMem
@@ -152,6 +158,7 @@ while i < episodes:
     # print("Obs time", sumObs)
     if step < maxSteps:
         reached += 1
+        avgStep += step
     for j in range(step):
         theta += curLr * gamma ** j * partialRewards[j] * grad(pi, history[j,0], history[j,1], history[j,2])
     if subMax:
@@ -164,8 +171,9 @@ while i < episodes:
         sys.exit()
     # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
-        print(f"Episode {i+1} done at {time.ctime()}; {reached/1000:.0%} reached source in the last 1000 episodes",file=output, flush=True)
+        print(f"Episode {i+1} done at {time.ctime()}; {reached/1000:.1%} reached source in the last 1000 episodes {f"with an average of {avgStep / reached} steps" if reached != 0 else ""}",file=output, flush=True)
         reached = 0
+        avgStep = 0
         np.save(os.path.join(thetaDir , f"theta{i+1}.npy"), theta)
     i+=1
     e1 = time.perf_counter()
