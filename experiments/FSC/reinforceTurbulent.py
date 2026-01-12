@@ -160,7 +160,7 @@ while i < episodes:
         reached += 1
         avgStep += step
     for j in range(step):
-        theta += curLr * gamma ** j * partialRewards[j] * grad(pi, history[j,0], history[j,1], history[j,2])
+        theta += curLr * gamma ** j * partialRewards[-step+j] * grad(pi, history[j,0], history[j,1], history[j,2])
     if subMax:
         theta -= np.max(theta, axis =2 , keepdims=True)
     pi = softmax(theta, axis = 2)
