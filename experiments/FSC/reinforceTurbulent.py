@@ -137,7 +137,7 @@ np.save(thetaDir+"/thetaStart.npy", theta)
 i = 0
 s = time.perf_counter()
 reached = 0
-avgStep = 0
+avgObj = 0
 while i < episodes:
     s1 = time.perf_counter()
     curLr = lr * 1000 / (1000 + i)
@@ -155,10 +155,11 @@ while i < episodes:
         history[step, 2] = action
         curState, curMem = takeAction(curState, action, rowTot, cols)
         step += 1
-    # print("Obs time", sumObs)
     if step < maxSteps:
         reached += 1
-        avgStep += step
+        avgObj += partialRewards[-step]
+    else:
+        avgObj += -1 # Failed episodes get -1 as it is the worst possible case, given the choice of reward
     for j in range(step):
         theta += curLr * gamma ** j * partialRewards[-step+j] * grad(pi, history[j,0], history[j,1], history[j,2])
     if subMax:
@@ -171,9 +172,9 @@ while i < episodes:
         sys.exit()
     # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
-        print(f"Episode {i+1} done at {time.ctime()}; {reached/1000:.1%} reached source in the last 1000 episodes {f"with an average of {avgStep / reached} steps" if reached != 0 else ""}",file=output, flush=True)
+        print(f"Episode {i+1} done at {time.ctime()}; In the last 1000 episodes: {reached/1000:.1%} converged and {avgObj / 1000} average J(pi)",file=output, flush=True)
         reached = 0
-        avgStep = 0
+        avgObj = 0
         np.save(os.path.join(thetaDir , f"theta{i+1}.npy"), theta)
     i+=1
     e1 = time.perf_counter()
