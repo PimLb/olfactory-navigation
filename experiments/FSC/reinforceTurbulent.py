@@ -127,7 +127,7 @@ grad = vanillaGrad if vanilla else natGrad
 pi = softmax(theta, axis = 2)
 
 # Given that the reward is constant, the cumulative reward depends only on time to reach the source and we can precompute them
-partialRewards = np.cumsum([gamma**a for a in range(maxSteps)] )[::-1]* reward
+cumulativeRewards = np.cumsum([gamma**a for a in range(maxSteps)] )[::-1]* reward
 
 print(f" Startinng {episodes} episodes at {time.ctime()}",file=output)
 print("Starting pi:", pi,file=output, flush=True)
@@ -137,7 +137,7 @@ np.save(thetaDir+"/thetaStart.npy", theta)
 i = 0
 s = time.perf_counter()
 reached = 0
-avgObj = 0
+avgSteps = 0
 while i < episodes:
     s1 = time.perf_counter()
     curLr = lr * 1000 / (1000 + i)
@@ -157,11 +157,9 @@ while i < episodes:
         step += 1
     if step < maxSteps:
         reached += 1
-        avgObj += partialRewards[-step]
-    else:
-        avgObj += -1 # Failed episodes get -1 as it is the worst possible case, given the choice of reward
+        avgSteps += step
     for j in range(step):
-        theta += curLr * gamma ** j * partialRewards[-step+j] * grad(pi, history[j,0], history[j,1], history[j,2])
+        theta += curLr * gamma ** j * cumulativeRewards[-step+j] * grad(pi, history[j,0], history[j,1], history[j,2])
     if subMax:
         theta -= np.max(theta, axis =2 , keepdims=True)
     pi = softmax(theta, axis = 2)
@@ -172,9 +170,9 @@ while i < episodes:
         sys.exit()
     # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
-        print(f"Episode {i+1} done at {time.ctime()}; In the last 1000 episodes: {reached/1000:.1%} converged and {avgObj / 1000} average J(pi)",file=output, flush=True)
+        print(f"Episode {i+1} done at {time.ctime()}; In the last 1000 episodes: {reached/1000:.1%} converged with {avgSteps / reached if reached != 0 else maxSteps} avg steps",file=output, flush=True)
         reached = 0
-        avgObj = 0
+        avgSteps = 0
         np.save(os.path.join(thetaDir , f"theta{i+1}.npy"), theta)
     i+=1
     e1 = time.perf_counter()
