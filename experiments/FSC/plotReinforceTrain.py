@@ -26,20 +26,23 @@ for file in sys.stdin:
         name += f"_{n[i]}"
     name += f"_{grad}_{lr:.2e}"
     success = []
-    avgObj = []
+    avgSteps = []
     for line in open(file[:-1]):
         if line.startswith("Episode"):
             num = reg.findall(line)
             success.append(float(num[0]))
-            avgObj.append(float(num[1]))
+            avgSteps.append(float(num[1]))
+    
     plt.figure(figsize=(20, 10))
     plt.suptitle(name)
+    
     plt.subplot(1,2,1).set_title("Success Rate")
     plt.plot(range(len(success)), success, label="success percentage")
     plt.ylim(-5, 110)
-    plt.subplot(1,2,2).set_title("Average Empirical J")
-    plt.plot(range(len(avgObj)), avgObj, label="Empirical J")
-    plt.ylim(-1.1, 0.3)
+    
+    plt.subplot(1,2,2).set_title("Average Steps per episode")
+    plt.plot(range(len(avgSteps)), avgSteps, label="Average Steps per episode")
+    plt.ylim(-1.1, 0)
     plt.savefig(f"{folder}/{name}.png")
     plt.close()
 

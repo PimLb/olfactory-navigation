@@ -5,6 +5,7 @@ import os
 import sys
 import argparse as ap
 import h5py
+import signal
 
 ActionDict = [
             (-1,  0), # North
@@ -67,6 +68,11 @@ def totalTime(end, start, file = None):
         return
     print(f"Total time: {hours}h:{minutes}m:{seconds}s", file=file)
 
+def handleTERM(sig, frame): # Maybe not best practice, but seems to work
+    e = time.perf_counter()
+    print("Terminated:", end="", file=output)
+    totalTime(e, s, output)
+    exit()
 
 parser = ap.ArgumentParser()
 parser.add_argument("name", help="name the folder in which to save the result")
@@ -136,6 +142,7 @@ np.save(thetaDir+"/thetaStart.npy", theta)
 
 i = 0
 s = time.perf_counter()
+signal.signal(signal.SIGTERM, handleTERM)
 reached = 0
 avgSteps = 0
 while i < episodes:
@@ -170,7 +177,7 @@ while i < episodes:
         sys.exit()
     # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
-        print(f"Episode {i+1} done at {time.ctime()}; In the last 1000 episodes: {reached/1000:.1%} converged with {avgSteps / reached if reached != 0 else maxSteps} avg steps",file=output, flush=True)
+        print(f"Episode {i+1} done at {time.ctime()}; In the last 1000 episodes: {reached/1000:.1%} converged with {avgSteps / reached if reached != 0 else 0.0} avg steps",file=output, flush=True)
         reached = 0
         avgSteps = 0
         np.save(os.path.join(thetaDir , f"theta{i+1}.npy"), theta)
