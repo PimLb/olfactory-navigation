@@ -171,9 +171,11 @@ while i < episodes:
         theta -= np.max(theta, axis =2 , keepdims=True)
     pi = softmax(theta, axis = 2)
     if np.any(np.isclose(pi[0], 1)):
+        e = time.perf_counter()
         np.save(os.path.join(thetaDir , f"thetaErr_{i+1}.npy"), theta)
-        print(f"Error iteration {i+1}: reached determinism at {time.ctime()} ", file=output)
         print(pi, file = output)
+        print(f"Error iteration {i+1}: reached determinism at {time.ctime()} ", file=output)
+        totalTime(e, s, output)
         sys.exit()
     # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
