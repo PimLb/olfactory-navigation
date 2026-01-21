@@ -33,17 +33,21 @@ for file in sys.stdin:
     name += f"_{grad}_{lr:.2e}_{M}"
     success = []
     avgSteps = []
+    counted = False
     for line in open(file[:-1]):
         if line.startswith("Episode"):
             num = reg.findall(line)
             success.append(float(num[0]))
             avgSteps.append(float(num[1]))
-        if "Error" in line:
+        if "Error" in line and not counted:
             errors += 1
-        elif "Terminated" in line:
+            counted = True
+        elif "Terminated" in line and not counted:
             killed += 1 
-        elif "Total" in line:
+            counted = True
+        elif "Total" in line and not counted:
             finished += 1
+            counted = True
     plt.figure(figsize=(20, 10))
     plt.suptitle(name)
     
