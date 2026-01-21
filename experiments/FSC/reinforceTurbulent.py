@@ -41,16 +41,10 @@ def takeAction(state, actionMem, rMax, cMax):
     c = np.clip(c + action[1], 0, cMax -1)
     return (r,c),newM
 
-def getObservation(state, odor, time, threshold, rowNoPad, maxFrames):
+def getObservation(state, odor, time, threshold, maxFrames):
     r,c = state
-    if r >= rowNoPad:
-        return 0
     t = time % maxFrames
-    try:
-        return int(odor[f"odor/{str(t)}"][r,c] >= threshold)
-    except IndexError as e:
-        print(state, odor[f"odor/{str(t)}"].shape, rowNoPad)
-        raise e
+    return int(odor[f"odor/{str(t)}"][r,c] >= threshold)
     
 def totalTime(end, start, file = None):
     tot = end - start
@@ -85,7 +79,6 @@ parser.add_argument("-t","--thetaStart", help="the path to a .npy file containin
 parser.add_argument("--schedule", help="wheter or not to decrease the learning rate", action="store_true")
 parser.add_argument("--subMax", help="if specified, every iteration from each row of theta will be subtracted its maximum", action="store_true")
 parser.add_argument("--vanilla", help="if specified uses vanilla gradient instead on the natural", action="store_true")
-parser.add_argument("--padRows", type=int, default=0, help="how many rows add behind the last row of the data. In these rows, the observation is always 0")
 args = parser.parse_args()
 name = args.name
 dataPath = args.dataPath
@@ -96,13 +89,11 @@ thetaPath = args.thetaStart
 schedule = args.schedule
 subMax = args.subMax
 vanilla = args.vanilla
-padRows = args.padRows
 threshold = args.threshold
 
 odor = h5py.File(dataPath)
-rowOriginal, cols = odor['odor/0'].shape
-rowTot = rowOriginal + padRows
-SC = rowTot * cols
+rows, cols = odor['odor/0'].shape
+SC = rows * cols
 rSource, cSource = odor['source']
 maxFrames = odor['frames'][()] # Syntax to get a scalar value from h5py
 find_range = 1.1 # Source radius
@@ -123,7 +114,7 @@ if thetaPath is not None:
 else:
     theta = (np.random.rand(2, M, 4*M) -0.5) * 0.5
 
-saveDir = f"storage/reinforce/turbulent/thresh_{threshold}/{"vanilla" if vanilla else "natural"}/M{M}/lr_{lr}{"_scheduled" if schedule else ""}/pad_{padRows}/{name}_episodes{episodes}/"
+saveDir = f"storage/reinforce/turbulent/thresh_{threshold}/{"vanilla" if vanilla else "natural"}/M{M}/lr_{lr}{"_scheduled" if schedule else ""}/{name}_episodes{episodes}/"
 thetaDir = saveDir+"/thetas"
 os.makedirs(saveDir)
 os.makedirs(thetaDir)
@@ -155,12 +146,12 @@ while i < episodes:
     history = np.zeros((maxSteps, 3), dtype=np.uint8) # Observation 0; Memory 1; Actions 2
     while not isEnd(curState, rSource, cSource) and step < maxSteps:
 
-        obs = getObservation(curState, odor, step, threshold, rowOriginal, maxFrames)
+        obs = getObservation(curState, odor, step, threshold, maxFrames)
         action = np.random.choice(4 * M, p= pi[obs, curMem])
         history[step, 0] = obs
         history[step, 1] = curMem
         history[step, 2] = action
-        curState, curMem = takeAction(curState, action, rowTot, cols)
+        curState, curMem = takeAction(curState, action, rows, cols)
         step += 1
     if step < maxSteps:
         reached += 1

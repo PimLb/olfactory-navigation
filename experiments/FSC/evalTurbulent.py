@@ -17,11 +17,10 @@ ActionDict = np.asarray([
 # Ugly, but better (IMO) than having to init a list of the same parameter when using map or to define the functions inside getTraj
 rSource = 0
 cSource = 0
-rMax = 0
+rows = 0
 cMax = 0
 odor = None
 threshold = 1e-4
-rowNoPad = 0
 maxFrames = 0
 pi = None
 M = 0
@@ -37,20 +36,14 @@ def takeAction(state, actionMem):
     newM = actionMem // 4
     r, c = state
     action = ActionDict[actionIdx]
-    r = np.clip(r + action[0], 0, rMax -1)
-    c = np.clip(c + action[1], 0, cMax -1)
+    r = np.clip(r + action[0], 0, rows -1)
+    c = np.clip(c + action[1], 0, cols -1)
     return (r,c),newM
 
 def getObservation(state, time):
     r,c = state
-    if r >= rowNoPad:
-        return 0
     t = time % maxFrames
-    try:
-        return int(odor[f"odor/{str(t)}"][r,c] >= threshold)
-    except IndexError as e:
-        print(state, odor[f"odor/{str(t)}"].shape, rowNoPad)
-        raise e
+    return int(odor[f"odor/{str(t)}"][r,c] >= threshold)
     
 
 def choose_action(o, curMem):
@@ -83,19 +76,16 @@ if __name__ == "__main__":
     parser.add_argument("dataPath", help="the path to a h5 file that contains the data")
     parser.add_argument("theta_path", help="the path to the theta values")
     parser.add_argument("--threshold", help="The threshold abov which the agent will receive a positve observation. Default 1e-4", default=1e-4)
-    parser.add_argument("--padRows", type=int, default=0, help="how many rows add behind the last row of the data. In these rows, the observation is always 0")
     args = parser.parse_args()
     thetaName = args.name
     dataPath = args.dataPath
     thetaPath = args.theta_path
     threshold = args.threshold
-    padRows = args.padRows
 
     odor = h5py.File(dataPath)
-    rowNoPad, cols = odor['odor/0'].shape
-    rMax = rowNoPad + padRows
+    rows, cols = odor['odor/0'].shape
     cMax = cols
-    SC = rMax * cols
+    SC = rows * cols
     rSource, cSource = odor['source']
     find_range = 1.1 # Source radius
     maxFrames = odor['frames'][()] # Syntax to get a scalar value from h5py
