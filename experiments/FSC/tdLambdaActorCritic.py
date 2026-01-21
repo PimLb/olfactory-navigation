@@ -91,8 +91,6 @@ parser.add_argument("-v","--vStart", help="the path to a .npy file containing th
 parser.add_argument("--scheduleActorLR", help="wheter or not to decrease the actor learning rate", action="store_true")
 parser.add_argument("--scheduleCriticLR", help="wheter or not to decrease the critic learning rate", action="store_true")
 parser.add_argument("--iterationStart", help="if specified, is the iteration to start from, useful to continue stopped run. If any scheduling is on, it will restart from that too.", type=int)
-parser.add_argument("--subMax", help="if specified, every iteration from each row of theta will be subtracted its maximum", action="store_true")
-parser.add_argument("--toClip", help="if specified, theta's entries will be clipped in the [-20, 0] interval", action="store_true")
 parser.add_argument("--vanilla", help="whether to use vanilla gradient instead on the natural", action="store_true")
 args = parser.parse_args()
 actor_lr = args.actor_lr
@@ -104,8 +102,6 @@ lambda_critic = args.lambda_critic
 numberEpisodes = args.episodes
 scheduleActor = args.scheduleActorLR
 scheduleCritic = args.scheduleCriticLR
-subMax = args.subMax
-toClip = args.toClip
 itStart = args.iterationStart if args.iterationStart else 0
 vanilla = args.vanilla
 
@@ -150,10 +146,10 @@ pi = softmax(theta, axis=2)
 os.makedirs(saveDir)
 os.makedirs(critDir)
 os.makedirs(actDir)
-ouput = open(os.path.join(saveDir, "_results.out"), "w")
+output = open(os.path.join(saveDir, "_results.out"), "w")
 s = time.perf_counter()
-print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=ouput)
-print("Starting pi:", pi,file=ouput, flush=True)
+print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=output)
+print("Starting pi:", pi,file=output, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 thPrev = theta.copy()
 Vprev = V.copy()
@@ -190,10 +186,7 @@ try:
                 zActor[obs, curMem, action] += discount / pi[obs, curMem, action]
 
             theta += cur_actor_lr * tdError * zActor
-            if subMax:
-                theta -= np.max(theta, axis =2 , keepdims=True)
-            if toClip:
-                theta = np.clip(theta, -20, 0)
+            theta -= np.max(theta, axis =2 , keepdims=True)
             V += cur_critic_lr * tdError * zCritic 
             discount *= gamma
             pi = softmax(theta, axis = 2)
@@ -202,30 +195,27 @@ try:
             curMem = newState // SC
             # print(f"Step {curStep}/{maxStepsPerEpisode} of episode {i}/{numberEpisodes} took {e-s} seconds")
         if (i +1) % 1000 == 0:
-            print(f"Episode {i+1} done at {time.ctime()}",file=ouput, flush=True)
+            print(f"Episode {i+1} done at {time.ctime()}",file=output, flush=True)
             np.save(os.path.join(actDir , f"theta{i+1}.npy"), theta)
             np.save(os.path.join(critDir , f"critic{i+1}.npy"), V)
             if np.any(np.isclose(pi[0], 1)):
                 errors.append(i)
-                print(f"Error {len(errors)}", file=ouput)
+                print(f"Error {len(errors)}", file=output)
                 theta = thPrev.copy()
                 V = Vprev.copy()
                 i -= 1000
                 if len(errors) == 3:
-                    print(f"PI at episode {i+1}: {pi}",file=ouput)
-                    print("Terminated", file=ouput)
+                    print(f"PI at episode {i+1}: {pi}",file=output)
+                    print("Terminated", file=output)
                     sys.exit()
             thPrev = theta.copy()
             Vprev = V.copy()
         i += 1
-        # if(isEnd(curState)):
-        #     print(f"Episode {i} has reached the source in {curStep} steps", file=ouput, flush=True)
-        #     print(f"Episode {i} has reached the source in {curStep} steps", flush=True)
 
     e = time.perf_counter()
-    print("Learned pi:", pi,file=ouput)
+    print("Learned pi:", pi,file=output)
     np.save(os.path.join(actDir,"thetaActorCriticFInale.npy"), theta)
-    totalTime(e, s, ouput)
+    totalTime(e, s, output)
 except Exception as e:
     err = open(f"error_{args.name}_{actor_lr}_{critic_lr}_{lambda_actor}_{lambda_critic}.out", "w")
     print("cur_actor_lr", cur_actor_lr, file = err)

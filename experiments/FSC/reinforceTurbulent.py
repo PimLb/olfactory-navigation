@@ -77,7 +77,6 @@ parser.add_argument("episodes", type=int, help="The final episode number. ")
 parser.add_argument("--threshold", default=1e-4, help="The concentration of odor above which the agent receives a positive observation", type=float)
 parser.add_argument("-t","--thetaStart", help="the path to a .npy file containing the starting values of theta")
 parser.add_argument("--schedule", help="wheter or not to decrease the learning rate", action="store_true")
-parser.add_argument("--subMax", help="if specified, every iteration from each row of theta will be subtracted its maximum", action="store_true")
 parser.add_argument("--vanilla", help="if specified uses vanilla gradient instead on the natural", action="store_true")
 args = parser.parse_args()
 name = args.name
@@ -87,7 +86,6 @@ M = args.memories
 episodes = args.episodes
 thetaPath = args.thetaStart
 schedule = args.schedule
-subMax = args.subMax
 vanilla = args.vanilla
 threshold = args.threshold
 
@@ -158,8 +156,7 @@ while i < episodes:
         avgSteps += step
     for j in range(step):
         theta += curLr * gamma ** j * cumulativeRewards[-step+j] * grad(pi, history[j,0], history[j,1], history[j,2])
-    if subMax:
-        theta -= np.max(theta, axis =2 , keepdims=True)
+    theta -= np.max(theta, axis =2 , keepdims=True)
     pi = softmax(theta, axis = 2)
     if np.any(np.isclose(pi[0], 1)):
         e = time.perf_counter()
