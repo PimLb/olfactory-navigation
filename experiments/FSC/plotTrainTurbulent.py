@@ -7,18 +7,21 @@ import sys
 import os
 
 parser = ap.ArgumentParser()
+parser.add_argument("--TD", action="store_true", default=False)
 parser.add_argument("--subfolder", default="tmp")
 args = parser.parse_args()
 sb = args.subfolder
+td = args.TD
 
 reg = re.compile(r"[-+]?\d*\.\d+") # Maybe not completely correct
 
-folder = f"plots/reinforceTrain/{sb}"
+folder = f"plots/{"AC" if td else "reinforceTrain"}/{sb}"
 os.makedirs(folder, exist_ok=True)
 killed = 0
 errors = 0
 total = 0
 finished = 0
+rollbacks = 0
 for file in sys.stdin:
     total += 1
     tmp = file.split("/")
@@ -39,7 +42,9 @@ for file in sys.stdin:
             num = reg.findall(line)
             success.append(float(num[0]))
             avgSteps.append(float(num[1]))
-        if "Error" in line and not counted:
+        if "rollback" in line:
+            rollbacks += 1 # Don't set count because up to 3 rollbacks are allowed during training (olny with TDAC)
+        if ("Error" in line or "Determinism" in line ) and not counted:
             errors += 1
             counted = True
         elif "Terminated" in line and not counted:
@@ -61,4 +66,4 @@ for file in sys.stdin:
     plt.savefig(f"{folder}/{name}.png")
     plt.close()
 with open(folder+"/stats.out","w") as recap:
-    print(f"{sb} lr {lr:.2e} {M}:\tOn {total} runs: {finished} completed; {errors} reached determinism; {killed} were interrupted", file=recap)
+    print(f"{sb} lr {lr:.2e} {M}:\tOn {total} runs: {finished} completed; {errors} reached determinism; {killed} were interrupted; {rollbacks} has been rollbacked", file=recap, end="")
