@@ -153,7 +153,6 @@ grad = vanillaGrad if vanilla else natGrad
 pi = softmax(theta, axis = 2)
 s = time.perf_counter()
 print(f" Startinng {episodes} episodes at {time.ctime()}",file=output)
-print("Starting pi:", pi,file=output, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 signal.signal(signal.SIGTERM, handleTERM)
 thPrev = theta.copy()
@@ -213,7 +212,6 @@ while i < episodes:
             i -= 1000
             if len(errors) == 3:
                 e = time.perf_counter()
-                print(f"PI at episode {i+1}: {pi}",file=output)
                 print(f"Episode {i+1} done at {time.ctime()}; In the last 1000 episodes: {reached/1000:.1%} converged with {avgSteps / reached if reached != 0 else 0.0} avg steps",file=output, flush=True)
                 print("Determinism", file=output)
                 totalTime(e,s,output)

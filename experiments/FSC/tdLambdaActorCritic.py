@@ -149,7 +149,6 @@ os.makedirs(actDir)
 output = open(os.path.join(saveDir, "_results.out"), "w")
 s = time.perf_counter()
 print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=output)
-print("Starting pi:", pi,file=output, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 thPrev = theta.copy()
 Vprev = V.copy()
@@ -205,7 +204,6 @@ try:
                 V = Vprev.copy()
                 i -= 1000
                 if len(errors) == 3:
-                    print(f"PI at episode {i+1}: {pi}",file=output)
                     print("Terminated", file=output)
                     sys.exit()
             thPrev = theta.copy()
@@ -213,7 +211,6 @@ try:
         i += 1
 
     e = time.perf_counter()
-    print("Learned pi:", pi,file=output)
     np.save(os.path.join(actDir,"thetaActorCriticFInale.npy"), theta)
     totalTime(e, s, output)
 except Exception as e:

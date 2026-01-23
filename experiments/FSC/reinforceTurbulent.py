@@ -125,7 +125,6 @@ pi = softmax(theta, axis = 2)
 cumulativeRewards = np.cumsum([gamma**a for a in range(maxSteps)] )[::-1]* reward
 
 print(f" Startinng {episodes} episodes at {time.ctime()}",file=output)
-print("Starting pi:", pi,file=output, flush=True)
 np.save(thetaDir+"/thetaStart.npy", theta)
 
 
@@ -161,7 +160,6 @@ while i < episodes:
     if np.any(np.isclose(pi[0], 1)):
         e = time.perf_counter()
         np.save(os.path.join(thetaDir , f"thetaErr_{i+1}.npy"), theta)
-        print(pi, file = output)
         print(f"Error iteration {i+1}: reached determinism at {time.ctime()} ", file=output)
         totalTime(e, s, output)
         sys.exit()
@@ -176,7 +174,6 @@ while i < episodes:
     # print("Total Iteration", step, e1-s1, flush = True)
 e = time.perf_counter()
 
-print("Learned pi:", pi,file=output)
 np.save(os.path.join(thetaDir,"thetaFinal.npy"), theta)
 totalTime(e, s, output)
 totalTime(e, s)
