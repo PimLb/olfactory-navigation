@@ -13,7 +13,7 @@ def buildWindow():
     '''
     Main method to build an environment builder GUI.
     '''
-    
+
     # GLOBAL VARIABLES
     bold_font = 'Helvetica 12 bold'
     frame_padding = 10
@@ -39,11 +39,11 @@ def buildWindow():
             # Plotting
             self.mpl_frame = None
             self.canvas = None
-        
+
         @property
         def data(self):
             return self._data
-        
+
         @data.setter
         def data(self, dat):
             self._data = dat
@@ -71,7 +71,7 @@ def buildWindow():
             # Multiplier
             self.config['multiplier_y'] = "100"
             self.config['multiplier_x'] = "100"
-            
+
             # Other
             self.config['interpolation'] = "Linear"
             self.config['boundary'] = "stop"
@@ -166,7 +166,7 @@ def buildWindow():
             # Source circle
             goal_circle = plt.Circle(source_position[::-1], source_radius, color='r', fill=False)
             ax.add_patch(goal_circle)
-            
+
             # Legend
             ax.legend([odor, start_zone, goal_circle], [f'Frame odor cues', 'Start zone', 'Source'])
 
@@ -185,7 +185,7 @@ def buildWindow():
             margins = np.array([[int(self.config['margin_up']), int(self.config['margin_down'])],
                                 [int(self.config['margin_left']), int(self.config['margin_right'])]])
             axis_margins = np.sum(margins, axis=1)
-            
+
             data_source_position = np.array([int(self.config['data_source_y']), int(self.config['data_source_x'])])
 
             shape = np.array([int(self.config['shape_y']), int(self.config['shape_x'])])
@@ -200,7 +200,7 @@ def buildWindow():
             # SHAPE
             if np.any(shape < axis_margins):
                 return False
-            
+
             # DATA SOURCE
             if np.any(data_source_position < 0) or np.any(data_source_position >= data_shape):
                 return False
@@ -209,14 +209,14 @@ def buildWindow():
             if np.any(multiplier < 0):
                 return False
 
-            with np.errstate(divide='ignore'):
+            with np.errstate(divide='ignore', invalid='ignore'):
                 low_max_mult = ((margins[:,0] / data_source_position) + 1)
                 high_max_mult = (1 + (margins[:,1] / (data_shape - data_source_position)))
                 max_mult = np.min(np.vstack([low_max_mult, high_max_mult]), axis=0)
 
                 if np.any(multiplier > max_mult):
                     return False
-                
+
             return True
 
 
@@ -300,7 +300,7 @@ def buildWindow():
 
         fail_label = tk.Label(fail_win, text="Wrong config!", font="Helvetica 12 bold", fg='red')
         fail_label.pack(side="top")
-        
+
         fail_text = tk.Text(master=fail_win)
         fail_text.insert("1.0", '\n'.join(lines))
         fail_text.pack(side="top")
@@ -337,7 +337,7 @@ def buildWindow():
         file_path_entry.delete(0, tk.END)
         file_path_entry.insert(0, data_file)
 
-    browse_button = tk.Button(master=file_panel, text="Browse", command=browseFiles) 
+    browse_button = tk.Button(master=file_panel, text="Browse", command=browseFiles)
     browse_button.pack(side="left", padx=5)
 
     def loadFiles():
@@ -396,7 +396,7 @@ def buildWindow():
         value_entry = tk.Entry(value_entry_frame, width=4, validate="focusout", validatecommand=gather_entries_and_refresh, bg=('black' if not entry_enabled else None))
         if entry_enabled:
             value_entry.insert(0, str(data_config.config[config_name])) # Set default value
-        
+
         entry_fields[config_name] = value_entry
 
         def changeEntryValue(entry:tk.Entry, val:int):
@@ -415,7 +415,7 @@ def buildWindow():
                     linked_entry.delete(0, tk.END)
 
                     new_val = current_val + val
-                    linked_entry.insert(0, str(new_val))                
+                    linked_entry.insert(0, str(new_val))
 
             gather_entries_and_refresh()
 
