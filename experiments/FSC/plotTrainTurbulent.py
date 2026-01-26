@@ -26,14 +26,18 @@ for file in sys.stdin:
     total += 1
     tmp = file.split("/")
     l = tmp[-2].split("_")
-    lr = float(reg.search(tmp[6]).group(0)) # Won't catch scientific notation. Not a problem for now, tho
-    grad = tmp[4]
-    M = tmp[5]
+    if td:
+        lr = reg.findall(tmp[6])
+    else:
+        lr = float(reg.search(tmp[6]).group(0)) # Won't catch scientific notation. Not a problem for now, tho
+    lr = f"actor{float(lr[0]):.2e}_critic{float(lr[1]):.2e}" if td else f"{lr:.2e}"
+    grad = tmp[4] if not td else tmp[2]
+    M = tmp[5] if not td else tmp[3]
     n, episodes = l[:-1], l[-1]
     name = f"{n[0]}"
     for i in range(1, len(n)):
         name += f"_{n[i]}"
-    name += f"_{grad}_{lr:.2e}_{M}"
+    name += f"_{grad}_{lr}_{M}"
     success = []
     avgSteps = []
     counted = False
@@ -63,7 +67,7 @@ for file in sys.stdin:
     plt.subplot(1,2,2).set_title("Average Steps per episode")
     plt.plot(range(len(avgSteps)), avgSteps, label="Average Steps per episode")
     plt.ylim(-50, 10000)
-    plt.savefig(f"{folder}/{name}.png")
+    plt.savefig(f"{folder}/{name}.svg")
     plt.close()
 with open(folder+"/stats.out","w") as recap:
-    print(f"{sb} lr {lr:.2e} {M}:\tOn {total} runs: {finished} completed; {errors} reached determinism; {killed} were interrupted; {rollbacks} has been rollbacked", file=recap, end="")
+    print(f"{sb} lr {lr} {M}:\tOn {total} runs: {finished} completed; {errors} reached determinism; {killed} were interrupted; {rollbacks} has been rollbacked", file=recap, end="")

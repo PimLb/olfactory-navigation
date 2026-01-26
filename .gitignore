@@ -4,6 +4,7 @@
 *.npy
 *.out
 *.png
+*.svg
 experiments/FSC/coso.sh
 experiments/FSC/temp.py
 experiments/FSC/tmp.sh
