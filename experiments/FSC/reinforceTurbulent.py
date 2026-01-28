@@ -124,7 +124,7 @@ pi = softmax(theta, axis = 2)
 # Given that the reward is constant, the cumulative reward depends only on time to reach the source and we can precompute them
 cumulativeRewards = np.cumsum([gamma**a for a in range(maxSteps)] )[::-1]* reward
 
-print(f" Startinng {episodes} episodes at {time.ctime()}",file=output)
+print(f" Starting {episodes} episodes at {time.ctime()}",file=output, flush=True)
 np.save(thetaDir+"/thetaStart.npy", theta)
 
 
@@ -140,16 +140,18 @@ while i < episodes:
     curState = (0, startCol) # (row,col) -> starts from most downwind row
     curMem = 0 # starts from first memory
     step = 0
+    t = np.random.randint(maxFrames) # Randomize on the starting time of the plume. Will make it harder to overfit the plume dynamic
     history = np.zeros((maxSteps, 3), dtype=np.uint8) # Observation 0; Memory 1; Actions 2
     while not isEnd(curState, rSource, cSource) and step < maxSteps:
 
-        obs = getObservation(curState, odor, step, threshold, maxFrames)
+        obs = getObservation(curState, odor, t, threshold, maxFrames)
         action = np.random.choice(4 * M, p= pi[obs, curMem])
         history[step, 0] = obs
         history[step, 1] = curMem
         history[step, 2] = action
         curState, curMem = takeAction(curState, action, rows, cols)
         step += 1
+        t+=1
     if step < maxSteps:
         reached += 1
         avgSteps += step

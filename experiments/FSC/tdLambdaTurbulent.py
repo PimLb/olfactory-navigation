@@ -152,7 +152,7 @@ else:
 grad = vanillaGrad if vanilla else natGrad
 pi = softmax(theta, axis = 2)
 s = time.perf_counter()
-print(f" Startinng {episodes} episodes at {time.ctime()}",file=output)
+print(f" Starting {episodes} episodes at {time.ctime()}",file=output, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 signal.signal(signal.SIGTERM, handleTERM)
 thPrev = theta.copy()
@@ -168,6 +168,7 @@ while i < episodes:
     curMem = 0
     discount = 1
     step = 0
+    t = np.random.randint(maxFrames) # Randomize on the starting time of the plume. Will make it harder to overfit the plume dynamic
     zCritic = np.zeros_like(V)
     zActor = np.zeros_like(theta)
 
@@ -176,7 +177,7 @@ while i < episodes:
 
     while( not isEnd(curState, rSource, cSource) and step < maxSteps):
 
-        obs = getObservation(curState, odor, step, threshold, maxFrames)
+        obs = getObservation(curState, odor, t, threshold, maxFrames)
         action = np.random.choice(4 * M, p= pi[obs, curMem])
         newState, newMem = takeAction(curState, action, rows, cols)
         newStateMem = newState + (newMem,) # Concatenation of tuples. Used to index V 
@@ -196,6 +197,7 @@ while i < episodes:
         pi = softmax(theta, axis = 2)
         curState = newState
         step += 1
+        t += 1
         curMem = newMem
         curStateMem = newStateMem
     if step < maxSteps:
@@ -206,7 +208,7 @@ while i < episodes:
         np.save(os.path.join(critDir , f"critic{i+1}.npy"), V)
         if np.any(np.isclose(pi[0], 1)):
             errors.append(i)
-            print(f"rollback {len(errors)}", file=output)
+            print(f"rollback {len(errors)}", file=output, flush=True)
             theta = thPrev.copy()
             V = Vprev.copy()
             i -= 1000
