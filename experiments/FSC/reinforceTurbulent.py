@@ -132,7 +132,8 @@ i = 0
 s = time.perf_counter()
 signal.signal(signal.SIGTERM, handleTERM)
 reached = 0
-avgSteps = 0
+empiricalTimeNormalized = 0
+empiricalG = 0
 while i < episodes:
     s1 = time.perf_counter()
     curLr = lr * 1000 / (1000 + i)
@@ -154,7 +155,11 @@ while i < episodes:
         t+=1
     if step < maxSteps:
         reached += 1
-        avgSteps += step
+        manhattanSource = np.abs(startCol - cSource) + rSource # Since we always start from row 0, startRow would be 0
+        empiricalTimeNormalized += manhattanSource / step
+        empiricalG += cumulativeRewards[-step]
+    else:
+        empiricalG += -1 # Failed episode treated as if it would never reach the source. Uncomparable with Model Based G, though.
     for j in range(step):
         theta += curLr * gamma ** j * cumulativeRewards[-step+j] * grad(pi, history[j,0], history[j,1], history[j,2])
     theta -= np.max(theta, axis =2 , keepdims=True)
@@ -167,9 +172,12 @@ while i < episodes:
         sys.exit()
     # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
-        print(f"Episode {i+1} done at {time.ctime()}; In the last 1000 episodes: {reached/1000:.1%} converged with {avgSteps / reached if reached != 0 else 0.0} avg steps",file=output, flush=True)
+        print(f"Episode {i+1} done at {time.ctime()}; In the last 1000 episodes: {reached/1000:.1%}",
+              f"Time to reach normalized (only succesful): {empiricalTimeNormalized / reached if reached != 0 else 0.0}",
+              f"Empirical G: {empiricalG / 1000}", file=output, flush=True)
         reached = 0
-        avgSteps = 0
+        empiricalTimeNormalized = 0
+        empiricalG = 0
         np.save(os.path.join(thetaDir , f"theta{i+1}.npy"), theta)
     i+=1
     e1 = time.perf_counter()
