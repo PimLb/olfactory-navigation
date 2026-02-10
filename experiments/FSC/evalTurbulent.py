@@ -49,16 +49,21 @@ def getObservation(state, time):
 def choose_action(o, curMem):
     return np.random.choice(4 * M, p = pi[o, curMem])
 
+def manhattan(start):
+    return np.abs(start[0] - rSource) + np.abs(start[1] - cSource)
+
 def getTrajectories(start ):
     # num = start.shape[0]
     num = len(start)
     # curStates = start.astype(int)
+    minDist = [manhattan(a) for a in start]
     curStates = start
     curMem = np.zeros(num,int)
     done = np.array([a for a in map(isEnd, curStates)])
     # obs = np.array([a for a in map(get_observation, step, [0 for i in range(num)])])
     t = 0
     stepsDone = np.zeros(num)
+    Gs = np.zeros(num)
     while np.any(~done) and t < maxSteps:
         obs = np.array([a for a in map(getObservation, curStates, [t for i in range(num)])])
         for i in range(num): 
@@ -67,8 +72,9 @@ def getTrajectories(start ):
                 curStates[i], curMem[i] = takeAction(curStates[i], a)
         t+= 1
         stepsDone[~done] += 1
+        Gs[~done] += reward * gamma**t
         done = np.array([a for a in map(isEnd, curStates)])
-    return stepsDone
+    return minDist / stepsDone, Gs, done, stepsDone
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser()
@@ -103,7 +109,9 @@ if __name__ == "__main__":
     procNumber = 50
     traj = 10000
 
-    saveDir = f"eval/turbulent/{thetaName}_{threshold}"
+    saveDir = f"eval/turbulent/{thetaName}"
+    if threshold != 1e-4:
+       saveDir+= f"_{threshold}"
 
     os.makedirs(saveDir, exist_ok=True)
     # for s in range(SC):
@@ -115,7 +123,10 @@ if __name__ == "__main__":
     assert theta.shape == (2, M, 4 * M)
     pi = softmax(theta, axis = 2)
     print("PI to be evaluated: ", pi, flush= True)
-    results = np.zeros(traj)
+    steps = np.zeros(traj)
+    timeToReach = np.zeros(traj)
+    empiricalG = np.zeros(traj)
+    successes = np.zeros(traj, dtype=bool)
     print("Inizio: ", time.ctime(), flush=True)
     startsCols = np.random.choice(range(cols), size=traj, replace=True, p = rho)
     starts = [(0, cols) for cols in startsCols]
@@ -128,17 +139,23 @@ if __name__ == "__main__":
         rewardList = p.map(getTrajectories, args)
     print(time.ctime())
     for i, rl in enumerate(rewardList):
-        results[procNumber*i:procNumber*(i+1)] += rl
-    np.save(f"{saveDir}/res.npy", results)
-    n, b, patch = plt.hist(results, 50, range = (0, maxSteps))
-    patch[-1].set_facecolor('red')
-    plt.ylim(0, 5000)
-    finished = results[results != maxSteps]
-    plt.yticks([i*500 for i in range(0, 11)] + [np.count_nonzero(results == maxSteps)])
+        timeToReach[procNumber*i:procNumber*(i+1)] += rl[0]
+        empiricalG[procNumber*i:procNumber*(i+1)] += rl[1]
+        successes[procNumber*i:procNumber*(i+1)] += rl[2]
+        steps[procNumber*i:procNumber*(i+1)] += rl[3]
+    np.save(f"{saveDir}/res.npy", np.stack((timeToReach, empiricalG, successes, steps)))
+    plt.boxplot((timeToReach[successes],empiricalG), tick_labels = ["t", r"$\hat{G}$"])
     plt.title(thetaName)
 
-    plt.savefig(f"{saveDir}/res.png")
-    print("Mean Reached: ", np.mean(finished )," STD Reached: ", np.std(finished ), " Finished", np.count_nonzero(results != maxSteps) / traj * 100, "%")
-    print("Mean Overall: ", np.mean(results )," STD Overall: ", np.std(results) , "Not finished", np.count_nonzero(results == maxSteps) / traj * 100, "%")
+    plt.savefig(f"{saveDir}/res.svg")
+    plt.close()
+    n, b, patch = plt.hist(steps, 50, range = (0, maxSteps))
+    patch[-1].set_facecolor('red')
+    plt.ylim(0, 5000)
+    plt.yticks([i*500 for i in range(0, 11)] + [np.count_nonzero(~successes)])
+    plt.savefig(f"{saveDir}/hist.svg")
+    print(np.count_nonzero(successes) / len(successes), "% success rate")
+    # print("Mean Reached: ", np.mean(finished )," STD Reached: ", np.std(finished ), " Finished", np.count_nonzero(results != maxSteps) / traj * 100, "%")
+    # print("Mean Overall: ", np.mean(results )," STD Overall: ", np.std(results) , "Not finished", np.count_nonzero(results == maxSteps) / traj * 100, "%")
 
     
