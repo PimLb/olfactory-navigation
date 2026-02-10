@@ -42,7 +42,8 @@ for file in sys.stdin:
         name += f"_{n[i]}"
     name += f"_{grad}_{lr}_{M}"
     success = []
-    avgSteps = []
+    timeToReach = []
+    empiricalJ = []
     counted = False
     iterations = 0
     for line in open(file[:-1]):
@@ -50,7 +51,8 @@ for file in sys.stdin:
             iterations += 1
             num = reg.findall(line)
             success.append(float(num[0]))
-            avgSteps.append(float(num[1]))
+            timeToReach.append(float(num[1]))
+            empiricalJ.append(float(num[2]))
         if "rollback" in line:
             rollbacks += 1 # Don't set count because up to 3 rollbacks are allowed during training (olny with TDAC)
             rollbackPoint.append(iterations)
@@ -68,7 +70,7 @@ for file in sys.stdin:
     plt.figure(figsize=(20, 10))
     plt.suptitle(name)
     
-    plt.subplot(1,2,1).set_title("Success Rate")
+    plt.subplot(1,3,1).set_title("Success Rate")
     plt.plot(range(len(success)), success, label="success percentage")
     plt.ylim(-5, 110)
     plt.scatter(rollbackPoint, np.array(success)[rollbackPoint], marker="x", color="r")
@@ -77,15 +79,22 @@ for file in sys.stdin:
     if hasFinished:
         plt.scatter(len(success)-1, success[-1], marker="o", color="g")
 
-    plt.subplot(1,2,2).set_title("Average Steps per episode")
-    plt.plot(range(len(avgSteps)), avgSteps, label="Average Steps per episode")
-    plt.scatter(rollbackPoint, np.array(avgSteps)[rollbackPoint], marker="x", color="r")
+    plt.subplot(1,3,2).set_title("Time To Reach")
+    plt.plot(range(len(timeToReach)), timeToReach, label="Time To Reach")
+    plt.scatter(rollbackPoint, np.array(timeToReach)[rollbackPoint], marker="x", color="r")
     if beenKilled:
-        plt.scatter(len(avgSteps)-1, avgSteps[-1], marker="*", color="k")
+        plt.scatter(len(timeToReach)-1, timeToReach[-1], marker="*", color="k")
     if hasFinished:
-        plt.scatter(len(avgSteps)-1, avgSteps[-1], marker="o", color="g")
+        plt.scatter(len(timeToReach)-1, timeToReach[-1], marker="o", color="g")
 
-    plt.ylim(-50, 10000)
+    plt.subplot(1,3,3).set_title("Empirical J")
+    plt.plot(range(len(empiricalJ)), empiricalJ, label="Empirical J")
+    plt.scatter(rollbackPoint, np.array(empiricalJ)[rollbackPoint], marker="x", color="r")
+    if beenKilled:
+        plt.scatter(len(empiricalJ)-1, empiricalJ[-1], marker="*", color="k")
+    if hasFinished:
+        plt.scatter(len(empiricalJ)-1, empiricalJ[-1], marker="o", color="g")
+
     plt.savefig(f"{folder}/{name}.svg")
     plt.close()
 with open(folder+"/stats.out","w") as recap:
