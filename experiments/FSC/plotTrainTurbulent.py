@@ -86,6 +86,7 @@ for file in sys.stdin:
         plt.scatter(len(timeToReach)-1, timeToReach[-1], marker="*", color="k")
     if hasFinished:
         plt.scatter(len(timeToReach)-1, timeToReach[-1], marker="o", color="g")
+    plt.ylim(0, 1)
 
     plt.subplot(1,3,3).set_title("Empirical J")
     plt.plot(range(len(empiricalJ)), empiricalJ, label="Empirical J")
@@ -94,6 +95,7 @@ for file in sys.stdin:
         plt.scatter(len(empiricalJ)-1, empiricalJ[-1], marker="*", color="k")
     if hasFinished:
         plt.scatter(len(empiricalJ)-1, empiricalJ[-1], marker="o", color="g")
+    plt.ylim(-1, -0.1)
 
     plt.savefig(f"{folder}/{name}.svg")
     plt.close()

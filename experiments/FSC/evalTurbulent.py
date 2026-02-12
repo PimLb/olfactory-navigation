@@ -23,57 +23,49 @@ odor = None
 threshold = 1e-4
 maxFrames = 0
 pi = None
+cumProbs = None
 M = 0
 maxSteps = 0
 
-def isEnd(state, find_range = 1.1):
-    r, c = state
-    return (r - rSource) ** 2 + (c -cSource) **2 < find_range**2
+def chooseActionsVect(obs, curMems):
+    actions = np.arange(4*M)
+    CDFs = cumProbs[obs*M+curMems]
+    u = np.random.random(obs.shape)[:, None]
+    idx = np.argmax(u < CDFs, axis = 1)
+    return actions[idx]
 
-def takeAction(state, actionMem):
+def takeActionVect(curStates, actionsMem):
     #TODO: count how many times the agent hit the boundaries? 
-    actionIdx = actionMem % 4
-    newM = actionMem // 4
-    r, c = state
-    action = ActionDict[actionIdx]
-    r = np.clip(r + action[0], 0, rows -1)
-    c = np.clip(c + action[1], 0, cols -1)
-    return (r,c),newM
+    newStates = np.clip(curStates + ActionDict[actionsMem % 4], [0,0], [rows-1, cols-1])
+    newMem = actionsMem // 4
+    return newStates, newMem
 
-def getObservation(state, time):
-    r,c = state
-    t = time % maxFrames
-    return int(odor[f"odor/{str(t)}"][r,c] >= threshold)
-    
+def getObsVect(states, t):
+    curFrame = t % maxFrames
+    return odor[f'odor/{curFrame}'][:][states[:, 0], states[:, 1]] >= threshold
 
-def choose_action(o, curMem):
-    return np.random.choice(4 * M, p = pi[o, curMem])
+def isEndVect(curStates, finished=False):
+    return finished | (np.linalg.norm(curStates-[rSource, cSource], axis=1) < find_range)
 
-def manhattan(start):
-    return np.abs(start[0] - rSource) + np.abs(start[1] - cSource)
-
-def getTrajectories(start ):
-    # num = start.shape[0]
-    num = len(start)
-    # curStates = start.astype(int)
-    minDist = [manhattan(a) for a in start]
-    curStates = start
-    curMem = np.zeros(num,int)
-    done = np.array([a for a in map(isEnd, curStates)])
-    # obs = np.array([a for a in map(get_observation, step, [0 for i in range(num)])])
+def getManyTraj(starts):
+    minDist = np.linalg.norm(starts-[rSource, cSource], ord=1, axis=1)
+    curStates = starts
+    curMem = np.zeros(starts.shape[0], dtype=int)
+    stepsDone = np.zeros(starts.shape[0], dtype=int)
+    Gs = np.zeros(starts.shape[0])
+    # Checking if any starting states is an ending states. It will never happen as of now, but maybe a change in the starring condition will make it possible
+    done = isEndVect(starts)
+    curFrame = np.random.randint(maxFrames) # The same for all trajectories. Maybe change, but like this it's much more efficient
     t = 0
-    stepsDone = np.zeros(num)
-    Gs = np.zeros(num)
     while np.any(~done) and t < maxSteps:
-        obs = np.array([a for a in map(getObservation, curStates, [t for i in range(num)])])
-        for i in range(num): 
-            if not done[i]:
-                a = choose_action(obs[i], curMem[i])
-                curStates[i], curMem[i] = takeAction(curStates[i], a)
-        t+= 1
+        obs = getObsVect(curStates, curFrame)
+        actions = chooseActionsVect(obs, curMem)
+        curStates, curMem = takeActionVect(curStates, actions)
         stepsDone[~done] += 1
         Gs[~done] += reward * gamma**t
-        done = np.array([a for a in map(isEnd, curStates)])
+        curFrame += 1
+        t += 1
+        done = isEndVect(curStates, done)
     return minDist / stepsDone, Gs, done, stepsDone
 
 if __name__ == "__main__":
@@ -114,14 +106,11 @@ if __name__ == "__main__":
        saveDir+= f"_{threshold}"
 
     os.makedirs(saveDir, exist_ok=True)
-    # for s in range(SC):
-    #     if rho[s] > 0:
-    #         print(s // cols, s % cols)
-    # sys.exit()
     theta = np.load(thetaPath)
     M = theta.shape[1]
     assert theta.shape == (2, M, 4 * M)
     pi = softmax(theta, axis = 2)
+    cumProbs = np.cumsum(pi.reshape(-1, 4*M), axis = 1)
     print("PI to be evaluated: ", pi, flush= True)
     steps = np.zeros(traj)
     timeToReach = np.zeros(traj)
@@ -129,20 +118,8 @@ if __name__ == "__main__":
     successes = np.zeros(traj, dtype=bool)
     print("Inizio: ", time.ctime(), flush=True)
     startsCols = np.random.choice(range(cols), size=traj, replace=True, p = rho)
-    starts = [(0, cols) for cols in startsCols]
-
-    N = traj // procNumber
-    remainder = traj % procNumber
-    print("prima: ", pi[0, 0].shape)
-    args = [starts[i * procNumber: (i+1)* procNumber] for i in range(N)]
-    with mp.Pool(procNumber) as p:
-        rewardList = p.map(getTrajectories, args)
-    print(time.ctime())
-    for i, rl in enumerate(rewardList):
-        timeToReach[procNumber*i:procNumber*(i+1)] += rl[0]
-        empiricalG[procNumber*i:procNumber*(i+1)] += rl[1]
-        successes[procNumber*i:procNumber*(i+1)] += rl[2]
-        steps[procNumber*i:procNumber*(i+1)] += rl[3]
+    starts = np.array([(0, cols) for cols in startsCols])
+    timeToReach, empiricalG, successes, steps = getManyTraj(starts)
     np.save(f"{saveDir}/res.npy", np.stack((timeToReach, empiricalG, successes, steps)))
     plt.boxplot((timeToReach[successes],empiricalG), tick_labels = ["t", r"$\hat{G}$"])
     plt.title(thetaName)
@@ -154,7 +131,7 @@ if __name__ == "__main__":
     plt.ylim(0, 5000)
     plt.yticks([i*500 for i in range(0, 11)] + [np.count_nonzero(~successes)])
     plt.savefig(f"{saveDir}/hist.svg")
-    print(np.count_nonzero(successes) / len(successes), "% success rate")
+    print(f"{np.count_nonzero(successes) / len(successes):.2%} success rate")
     # print("Mean Reached: ", np.mean(finished )," STD Reached: ", np.std(finished ), " Finished", np.count_nonzero(results != maxSteps) / traj * 100, "%")
     # print("Mean Overall: ", np.mean(results )," STD Overall: ", np.std(results) , "Not finished", np.count_nonzero(results == maxSteps) / traj * 100, "%")
 
