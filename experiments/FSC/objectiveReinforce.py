@@ -50,7 +50,7 @@ def plot_and_save(totIter, obj, paramas, sb, vanilla):
         name += f"_{n[i]}"
     M = int(M)
     plt.suptitle(f"{name}\n Lr {lr} M {M}" + ("\n Vanilla" if vanilla else ""))
-    name += "_vanilla" if vanilla else "_natural"
+    name += f"_{lr}" + "_vanilla" if vanilla else "_natural"
     ticks = [0, -0.1, -0.3, -0.4,-0.485, -0.6, -0.7, -0.8, -0.9, -1]
     if M >= 4:
         plt.hlines(-0.098, 0,totIter, "orange", label = f"Optimal M4")

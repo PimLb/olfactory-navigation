@@ -8,7 +8,7 @@ import os
 
 parser = ap.ArgumentParser()
 parser.add_argument("--TD", action="store_true", default=False)
-parser.add_argument("--subfolder", default="tmp")
+parser.add_argument("--subfolder", default="pippo")
 args = parser.parse_args()
 sb = args.subfolder
 td = args.TD

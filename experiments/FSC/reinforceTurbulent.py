@@ -134,9 +134,11 @@ signal.signal(signal.SIGTERM, handleTERM)
 reached = 0
 empiricalTimeNormalized = 0
 empiricalG = 0
+curLr = lr
 while i < episodes:
     s1 = time.perf_counter()
-    curLr = lr * 1000 / (1000 + i)
+    if schedule:
+        curLr = lr * 1000 / (1000 + i)
     startCol = np.random.choice(range(cols), p = rho)
     curState = (0, startCol) # (row,col) -> starts from most downwind row
     curMem = 0 # starts from first memory
