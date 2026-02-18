@@ -13,7 +13,7 @@ args = parser.parse_args()
 sb = args.subfolder
 td = args.TD
 
-reg = re.compile(r"[-+]?\d*\.\d+") # Maybe not completely correct
+reg = re.compile(r"[-+]?(?:\d*\.\d+)|(?:\de[-+]?\d+)") # Maybe not completely correct
 
 folder = f"plots/{"AC" if td else "reinforceTrain"}/{sb}"
 os.makedirs(folder, exist_ok=True)
@@ -50,6 +50,7 @@ for file in sys.stdin:
         if line.startswith("Episode"):
             iterations += 1
             num = reg.findall(line)
+            print(num[0])
             success.append(float(num[0]))
             timeToReach.append(float(num[1]))
             empiricalJ.append(float(num[2]))
