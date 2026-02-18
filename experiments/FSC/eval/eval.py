@@ -13,7 +13,10 @@ gamma = 0.99975
 cols = 92
 rows = 131
 traj = 10000
+cumProbs = None
+obsProb = None
 maxStep = 10000
+dataC = None
 SC = 92 * 131 # Number of States
 ActionDict = np.asarray([
             [-1,  0], # North
@@ -24,56 +27,55 @@ ActionDict = np.asarray([
 reward = -(1 -gamma)
 procNumber = 50
 
-def isEnd(sm):
-    s = sm % SC
-    r, c = s // cols, s % cols
-    return (r - rSource) ** 2 + (c -cSource) **2 < find_range**2
+def chooseActionsVect(obs, curMems):
+    actions = np.arange(4*M)
+    CDFs = cumProbs[obs*M+curMems]
+    u = np.random.random(obs.shape)[:, None]
+    idx = np.argmax(u < CDFs, axis = 1)
+    return actions[idx]
 
+def takeActionVect(curStates, actionsMem, unbounded):
+    #TODO: count how many times the agent hit the boundaries?
+    if unbounded:
+        newStates = curStates + ActionDict[actionsMem % 4]
+    else:
+        newStates = np.clip(curStates + ActionDict[actionsMem % 4], [0,0], [rows-1, cols-1])
+    newMem = actionsMem // 4
+    return newStates, newMem
 
-def get_observation(sm, pObs):
-    s = sm % SC
-    return np.random.choice(2, p=pObs[:, s])
+def getObsVect(states):
+    cdf = np.ones((starts.shape[0], 2))
+    rr = states[:, 0]
+    cc = states[:, 1]
+    valid = (rr >= 0) & (rr < rows) & (cc >= 0) & (cc < cols)
+    u = np.random.random(states.shape[0])[:, None]
+    cdf[valid] = obsProb[rr[valid]*cols+cc[valid]]
+    
+    return np.argmax(u < cdf, axis = 1)
 
-def choose_action(pi, o, M, curMem):
-    return np.random.choice(4 * M, p = pi[o, curMem])
+def isEndVect(curStates, finished=False):
+    return finished | (np.linalg.norm(curStates-[rSource, cSource], axis=1) < find_range)
 
-def takeAction(sm, am):
-    s = sm % SC
-    a = am % 4
-    newM = am // 4
-    r, c = s // cols, s % cols # forse usare unravel_index
-    action = ActionDict[a]
-    rNew = r + action[0]
-    cNew = c + action[1]
-    r = rNew if rNew >= 0 and rNew < 131 else r
-    c = cNew if cNew >= 0 and cNew < 92 else c
-    return r * 92 + c + newM * SC, newM
-
-def move(states, actions):
-    ret = states + actions
-    ret[:, 0] = np.clip(ret[:, 0], 0, rows -1)
-    ret[:, 1] = np.clip(ret[:, 1], 0, cols -1)
-    return ret
-
-def getTrajectories(start, pObs, max_MC_steps, pi, M):
-    num = start.shape[0]
-    mapObs = [pObs for i in range(num)]
-    step = start.astype(int)
-    curMem = np.zeros(num,int)
-    done = np.array([a for a in map(isEnd, step)])
-    obs = np.array([a for a in map(get_observation, step, mapObs)])
+def getManyTraj(starts, unbounded):
+    minDist = np.linalg.norm(starts-[rSource, cSource], ord=1, axis=1)
+    curStates = starts
+    curMem = np.zeros(starts.shape[0], dtype=int)
+    stepsDone = np.zeros(starts.shape[0], dtype=int)
+    Gs = np.zeros(starts.shape[0])
+    # Checking if any starting states is an ending states. It will never happen as of now, but maybe a change in the starring condition will make it possible
+    done = isEndVect(starts)
     t = 0
-    stepsDone = np.zeros(num)
-    while np.any(~done) and t < max_MC_steps:
-        for i in range(num): # TODO: sequenziale, sarebbe da parallelizare
-            if not done[i]:
-                a = choose_action(pi, obs[i], M, curMem[i])
-                step[i], curMem[i] = takeAction(step[i], a)
-        t+= 1
-        obs = np.array([a for a in map(get_observation, step, mapObs)])
+    while np.any(~done) and t < maxStep:
+        obs = getObsVect(curStates)
+        actions = chooseActionsVect(obs, curMem)
+        curStates, curMem = takeActionVect(curStates, actions, unbounded)
         stepsDone[~done] += 1
-        done = np.array([a for a in map(isEnd, step)])
-    return stepsDone
+        Gs[~done] += reward * gamma**t
+        # curFrame += 1
+        t += 1
+        done = isEndVect(curStates, done)
+    return minDist / stepsDone, Gs, done, stepsDone
+
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser()
@@ -81,44 +83,40 @@ if __name__ == "__main__":
     parser.add_argument("obs_path",  help="the path to the obsservation probability file")
     parser.add_argument("memories", type=int, help="The memories of the FSC")
     parser.add_argument("name", help="the name of the file to save into")
+    parser.add_argument("-u", "--unbounded", help="whether to use an infinite domain", action="store_true", default=False)
     args = parser.parse_args()
     thetaPath = args.theta_path
     dataFile = args.obs_path
     M = args.memories
     thetaName = args.name
-    
+    unbounded = args.unbounded
+
     theta = np.load(thetaPath)
     assert theta.shape == (2, M, 4 * M)
     pi = softmax(theta, axis = 2)
+    cumProbs = np.cumsum(pi.reshape(-1, 4*M), axis = 1)
 
     print("PI to be evaluated: ", pi, flush= True)
     dataC = np.load(dataFile)
+    obsProb = np.cumsum(dataC.T, axis = 1)
     rho = np.zeros(SC * M)
     rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
     results = np.zeros(traj)
     print("Inizio: ", time.ctime(), flush=True)
-    starts = np.random.choice(range(SC * M), size=traj, replace=True, p = rho)
-    # starts = np.array(np.unravel_index(tmp, (131, 92))).T
-    # print("Starting points at iteration 0", starts, flush=True)
 
-    N = traj // procNumber
-    remainder = traj % procNumber
-    print("prima: ", pi[0, 0].shape)
-    args = [(starts[i * procNumber: (i+1)* procNumber], dataC, maxStep, pi, M) for i in range(N)]
-    with mp.Pool(procNumber) as p:
-        rewardList = p.starmap(getTrajectories, args)
-    print(time.ctime())
-    for i, rl in enumerate(rewardList):
-        results[procNumber*i:procNumber*(i+1)] += rl
-    # results = getTrajectories(starts, dataC, 10000, pi)
-    np.save(f"results/{thetaName}", results)
-    # print([b * 200 for b in range(51)])
+    startsCols = np.random.choice(range(cols), size=traj, replace=True, p = rho[:cols])
+    starts = np.array([(0, cols) for cols in startsCols])
+    timeToReach, empiricalG, successes, steps = getManyTraj(starts, unbounded)
+    results = steps
+
+
+    np.save(f"results/{thetaName}{"_unbounded" if unbounded else ""}", results)
     n, b, patch = plt.hist(results, 50, range = (0, maxStep))
     patch[-1].set_facecolor('red')
     plt.ylim(0, 5000)
     finished = results[results != maxStep]
     plt.yticks([i*500 for i in range(0, 11)] + [np.count_nonzero(results == maxStep)])
     plt.title(thetaName)
-    plt.savefig(f"pngs/{thetaName}.png")
+    plt.savefig(f"pngs/{thetaName}{"_unbounded" if unbounded else ""}.svg")
     print("Mean Reached: ", np.mean(finished )," STD Reached: ", np.std(finished ), " Finished", np.count_nonzero(results != maxStep) / traj * 100, "%")
     print("Mean Overall: ", np.mean(results )," STD Overall: ", np.std(results) , "Not finished", np.count_nonzero(results == maxStep) / traj * 100, "%")

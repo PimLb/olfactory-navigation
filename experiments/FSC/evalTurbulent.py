@@ -34,20 +34,29 @@ def chooseActionsVect(obs, curMems):
     idx = np.argmax(u < CDFs, axis = 1)
     return actions[idx]
 
-def takeActionVect(curStates, actionsMem):
+def takeActionVect(curStates, actionsMem, unbounded):
     #TODO: count how many times the agent hit the boundaries? 
-    newStates = np.clip(curStates + ActionDict[actionsMem % 4], [0,0], [rows-1, cols-1])
+    if unbounded:
+        newStates = curStates + ActionDict[actionsMem % 4]
+    else:
+        newStates = np.clip(curStates + ActionDict[actionsMem % 4], [0,0], [rows-1, cols-1])
     newMem = actionsMem // 4
     return newStates, newMem
 
 def getObsVect(states, t):
     curFrame = t % maxFrames
-    return odor[f'odor/{curFrame}'][:][states[:, 0], states[:, 1]] >= threshold
+    rr = states[:, 0]
+    cc = states[:, 1]
+    valid = (rr >= 0) & (rr < rows) & (cc >= 0) & (cc < cols)
+    obs = odor[f'odor/{curFrame}'][:] >= threshold
+    res = np.zeros(states.shape[0], dtype=bool)
+    res[valid] = obs[rr[valid], cc[valid]]
+    return res
 
 def isEndVect(curStates, finished=False):
     return finished | (np.linalg.norm(curStates-[rSource, cSource], axis=1) < find_range)
 
-def getManyTraj(starts):
+def getManyTraj(starts, unbounded):
     minDist = np.linalg.norm(starts-[rSource, cSource], ord=1, axis=1)
     curStates = starts
     curMem = np.zeros(starts.shape[0], dtype=int)
@@ -60,7 +69,7 @@ def getManyTraj(starts):
     while np.any(~done) and t < maxSteps:
         obs = getObsVect(curStates, curFrame)
         actions = chooseActionsVect(obs, curMem)
-        curStates, curMem = takeActionVect(curStates, actions)
+        curStates, curMem = takeActionVect(curStates, actions, unbounded)
         stepsDone[~done] += 1
         Gs[~done] += reward * gamma**t
         curFrame += 1
@@ -73,12 +82,16 @@ if __name__ == "__main__":
     parser.add_argument("name", help="the name of the file to save into")
     parser.add_argument("dataPath", help="the path to a h5 file that contains the data")
     parser.add_argument("theta_path", help="the path to the theta values")
+    parser.add_argument("-f", "--subfolder", help="save the results into another folder")
+    parser.add_argument("-u", "--unbounded", help="whether to use an infinite domain", action="store_true", default=False)
     parser.add_argument("--threshold", help="The threshold abov which the agent will receive a positve observation. Default 1e-4", default=1e-4)
     args = parser.parse_args()
     thetaName = args.name
     dataPath = args.dataPath
     thetaPath = args.theta_path
     threshold = args.threshold
+    unbounded = args.unbounded
+    sb = args.subfolder
 
     odor = h5py.File(dataPath)
     rows, cols = odor['odor/0'].shape
@@ -100,8 +113,10 @@ if __name__ == "__main__":
 
     procNumber = 50
     traj = 10000
-
-    saveDir = f"eval/turbulent/{thetaName}"
+    if sb is None:
+        saveDir = f"eval/turbulent/{thetaName}{"_unbounded" if unbounded else ""}"
+    else:
+        saveDir = f"eval/turbulent/{sb}/{thetaName}{"_unbounded" if unbounded else ""}"
     if threshold != 1e-4:
        saveDir+= f"_{threshold}"
 
@@ -119,7 +134,7 @@ if __name__ == "__main__":
     print("Inizio: ", time.ctime(), flush=True)
     startsCols = np.random.choice(range(cols), size=traj, replace=True, p = rho)
     starts = np.array([(0, cols) for cols in startsCols])
-    timeToReach, empiricalG, successes, steps = getManyTraj(starts)
+    timeToReach, empiricalG, successes, steps = getManyTraj(starts, unbounded)
     np.save(f"{saveDir}/res.npy", np.stack((timeToReach, empiricalG, successes, steps)))
     plt.boxplot((timeToReach[successes],empiricalG), tick_labels = ["t", r"$\hat{G}$"])
     plt.title(thetaName)
