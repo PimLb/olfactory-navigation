@@ -57,7 +57,7 @@ def isEndVect(curStates, finished=False):
     return finished | (np.linalg.norm(curStates-[rSource, cSource], axis=1) < find_range)
 
 def getManyTraj(starts, unbounded):
-    minDist = np.linalg.norm(starts-[rSource, cSource], ord=1, axis=1)
+    minDist = np.floor(np.linalg.norm(starts-[rSource, cSource], ord=1, axis=1))
     curStates = starts
     curMem = np.zeros(starts.shape[0], dtype=int)
     stepsDone = np.zeros(starts.shape[0], dtype=int)

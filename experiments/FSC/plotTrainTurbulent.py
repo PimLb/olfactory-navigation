@@ -50,7 +50,6 @@ for file in sys.stdin:
         if line.startswith("Episode"):
             iterations += 1
             num = reg.findall(line)
-            print(num[0])
             success.append(float(num[0]))
             timeToReach.append(float(num[1]))
             empiricalJ.append(float(num[2]))

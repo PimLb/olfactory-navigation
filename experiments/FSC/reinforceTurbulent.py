@@ -124,6 +124,12 @@ pi = softmax(theta, axis = 2)
 # Given that the reward is constant, the cumulative reward depends only on time to reach the source and we can precompute them
 cumulativeRewards = np.cumsum([gamma**a for a in range(maxSteps)] )[::-1]* reward
 
+# Given a reward list rl, where rewards are arbitrary
+# G = 0
+# for r in reversed(rl):
+#   G = r + gamma * G
+# produces the correct G. If at each step they're prependend to a list, it computes the correct in O(n)
+
 print(f" Starting {episodes} episodes at {time.ctime()}",file=output, flush=True)
 np.save(thetaDir+"/thetaStart.npy", theta)
 
@@ -157,7 +163,7 @@ while i < episodes:
         t+=1
     if step < maxSteps:
         reached += 1
-        manhattanSource = np.abs(startCol - cSource) + rSource # Since we always start from row 0, startRow would be 0
+        manhattanSource = np.floor(np.abs(startCol - cSource) + rSource) # Since we always start from row 0, startRow would be 0
         empiricalTimeNormalized += manhattanSource / step
         empiricalG += cumulativeRewards[-step]
     else:
