@@ -79,19 +79,26 @@ def getManyTraj(starts, unbounded):
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser()
-    parser.add_argument("theta_path", help="the path to the theta values")
-    parser.add_argument("obs_path",  help="the path to the obsservation probability file")
-    parser.add_argument("memories", type=int, help="The memories of the FSC")
     parser.add_argument("name", help="the name of the file to save into")
+    parser.add_argument("obs_path",  help="the path to the obsservation probability file")
+    parser.add_argument("theta_path", help="the path to the theta values")
+    parser.add_argument("-f", "--subfolder", help="save the results into another folder")
     parser.add_argument("-u", "--unbounded", help="whether to use an infinite domain", action="store_true", default=False)
     args = parser.parse_args()
     thetaPath = args.theta_path
     dataFile = args.obs_path
-    M = args.memories
     thetaName = args.name
     unbounded = args.unbounded
+    sb = args.subfolder
+
+
+    if sb is None:
+        saveDir = f"eval/likelihood/{thetaName}{"_unbounded" if unbounded else ""}"
+    else:
+        saveDir = f"eval/likelihood/{sb}/{thetaName}{"_unbounded" if unbounded else ""}"
 
     theta = np.load(thetaPath)
+    M = theta.shape[1]
     assert theta.shape == (2, M, 4 * M)
     pi = softmax(theta, axis = 2)
     cumProbs = np.cumsum(pi.reshape(-1, 4*M), axis = 1)
@@ -110,13 +117,13 @@ if __name__ == "__main__":
     results = steps
 
 
-    np.save(f"results/{thetaName}{"_unbounded" if unbounded else ""}", results)
+    np.save(f"{saveDir}/res.npy", results)
     n, b, patch = plt.hist(results, 50, range = (0, maxStep))
     patch[-1].set_facecolor('red')
     plt.ylim(0, 5000)
     finished = results[results != maxStep]
     plt.yticks([i*500 for i in range(0, 11)] + [np.count_nonzero(results == maxStep)])
     plt.title(thetaName)
-    plt.savefig(f"pngs/{thetaName}{"_unbounded" if unbounded else ""}.svg")
+    plt.savefig(f"{saveDir}/hist.svg")
     print("Mean Reached: ", np.mean(finished )," STD Reached: ", np.std(finished ), " Finished", np.count_nonzero(results != maxStep) / traj * 100, "%")
     print("Mean Overall: ", np.mean(results )," STD Overall: ", np.std(results) , "Not finished", np.count_nonzero(results == maxStep) / traj * 100, "%")
