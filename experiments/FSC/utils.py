@@ -44,7 +44,48 @@ def getEndingStates(rMax, cMax, src, find_range=1.1):
 def getMinDist(starts, ends):
     return np.min(np.floor(np.linalg.norm(starts-ends[:, None, :], ord = 1, axis = 2)), axis = 0)
 
-   
+# Assumes CDF is obtained as np.cumsum(p, axis = 1), where p is an array (s, e). Each entry of the e axis represent the probability to sample the
+# event in such position. Makes no check wheter this assumption is respected
+# If event is provided, is assumed to be a numpy array of correct dimension and return the samples from such array
+# If event is not provided, return the index of choice done, should be equivalent to provide np.arange(cdf.shape[0]) as events
+def multiChoice(CDF, events = None):
+    u = np.random.random(CDF.shape[0])[:, None]
+    idx = np.argmax(u < CDF, axis = 1)
+    if events is None:
+        return idx
+    return events[idx]
+
+# Only 1 between cumProbs and pi can be provided.
+# cumProbs is assumed to be derived as np.cumSum(pi.reshape(-1, 4*M), axis = 1)
+# if pi is provided, cumProbs will be constructed as such
+# then, the function will return the actions sampled from each pair of obs and curMem
+def chooseActionsVect(obs, curMems, cumProbs = None, pi = None):
+    if cumProbs is not None and pi is not None:
+        raise ValueError("Only one of cumProbs and pi can be provided")
+    if cumProbs is None and pi is None:
+        raise ValueError("Either cumProbs or pi must be provided")
+    if pi is not None:
+        M = pi.shape[1]
+        cumProbs = np.cumsum(pi.reshape(-1, 4*M), axis = 1)
+    else:
+        M = cumProbs.shape[1]
+    assert np.all((obs == 0) | (obs == 1)) , "Invalid Observation"
+    assert np.all((0 <= curMems) & (curMems < M)), "Invalid Memories"
+    CDFs = cumProbs[obs*M+curMems]
+    u = np.random.random(obs.shape)[:, None]
+    idx = np.argmax(u < CDFs, axis = 1)
+    return idx
+
+def takeActionVect(curStates, actionsMem, rMax = None, cMax = None, unbounded = False):
+    if not unbounded and (rMax is None or cMax is None):
+        raise ValueError("When not unbounded the limit rMax and cMax must be specified")
+    if unbounded:
+        newStates = curStates + ActionDict[actionsMem % 4]
+    else:
+        newStates = np.clip(curStates + ActionDict[actionsMem % 4], [0,0], [rMax-1, cMax-1])
+    newMem = actionsMem // 4
+    return newStates, newMem
+
 def totalTime(end, start, file = None):
     tot = end - start
     seconds = int(tot % 60)
