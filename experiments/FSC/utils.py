@@ -30,6 +30,27 @@ def vanillaGrad(pi, obs, curMem, action, out = None):
     out[obs, curMem, action] = 1
     out[obs,curMem] -= pi[obs, curMem]
 
+
+def vanillaGradVect(pis, obs, curMems, actions, out = None):
+    tmp = np.arange(pis.shape[0]).astype(int)
+    if out is None:
+        ret = np.zeros_like(pis)
+        ret[tmp, obs, curMems, actions] = 1
+        ret[tmp, obs,curMems] -= pis[tmp, obs, curMems]
+        return ret
+    out[:] = 0
+    out[tmp, obs, curMems, actions] = 1
+    out[tmp, obs, curMems] -= pis[tmp, obs, curMems]
+
+def natGradVect(pis, obs, curMems, actions, out = None):
+    tmp = np.arange(pis.shape[0]).astype(int)
+    if out is None:
+        ret = np.zeros_like(pis)
+        ret[tmp, obs, curMems, actions] = 1 / pis[tmp, obs, curMems, actions]
+        return ret
+    out[:] = 0
+    out[tmp, obs, curMems, actions] = 1 / pis[tmp, obs, curMems, actions]
+
 def isEnd(states, src, finished=False, find_range = 1.1 ):
     return finished | (np.linalg.norm(states-src, axis=1) < find_range)
 
@@ -72,10 +93,31 @@ def chooseActionsVect(obs, curMems, cumProbs = None, pi = None):
     assert np.all((obs == 0) | (obs == 1)) , "Invalid Observation"
     assert np.all((0 <= curMems) & (curMems < M)), "Invalid Memories"
     CDFs = cumProbs[obs*M+curMems]
-    u = np.random.random(obs.shape)[:, None]
-    idx = np.argmax(u < CDFs, axis = 1)
-    return idx
+    return multiChoice(CDFs)
 
+
+def getObsTurb(states, t, odor, rows, cols, maxFrames, threshold = 1e-4):
+    curFrame = t % maxFrames
+    rr = states[:, 0]
+    cc = states[:, 1]
+    valid = (rr >= 0) & (rr < rows) & (cc >= 0) & (cc < cols)
+    obs = odor[f'odor/{curFrame}'][:] >= threshold
+    res = np.zeros(states.shape[0], dtype=bool)
+    res[valid] = obs[rr[valid], cc[valid]]
+    return res
+
+def getObsLikelihood(states, obsProb, rows, cols):
+    cdf = np.ones((states.shape[0], 2))
+    rr = states[:, 0]
+    cc = states[:, 1]
+    valid = (rr >= 0) & (rr < rows) & (cc >= 0) & (cc < cols)
+    u = np.random.random(states.shape[0])[:, None]
+    cdf[valid] = obsProb[rr[valid]*cols+cc[valid]]
+    
+    return np.argmax(u < cdf, axis = 1)
+
+
+# Maybe let having only part unbounded
 def takeActionVect(curStates, actionsMem, rMax = None, cMax = None, unbounded = False):
     if not unbounded and (rMax is None or cMax is None):
         raise ValueError("When not unbounded the limit rMax and cMax must be specified")
