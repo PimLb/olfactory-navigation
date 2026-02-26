@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import argparse as ap
 import h5py
 import os
+import utils
 
 ActionDict = np.asarray([
             [-1,  0], # Downwind
@@ -27,54 +28,27 @@ cumProbs = None
 M = 0
 maxSteps = 0
 
-def chooseActionsVect(obs, curMems):
-    actions = np.arange(4*M)
-    CDFs = cumProbs[obs*M+curMems]
-    u = np.random.random(obs.shape)[:, None]
-    idx = np.argmax(u < CDFs, axis = 1)
-    return actions[idx]
-
-def takeActionVect(curStates, actionsMem, unbounded):
-    #TODO: count how many times the agent hit the boundaries? 
-    if unbounded:
-        newStates = curStates + ActionDict[actionsMem % 4]
-    else:
-        newStates = np.clip(curStates + ActionDict[actionsMem % 4], [0,0], [rows-1, cols-1])
-    newMem = actionsMem // 4
-    return newStates, newMem
-
-def getObsVect(states, t):
-    curFrame = t % maxFrames
-    rr = states[:, 0]
-    cc = states[:, 1]
-    valid = (rr >= 0) & (rr < rows) & (cc >= 0) & (cc < cols)
-    obs = odor[f'odor/{curFrame}'][:] >= threshold
-    res = np.zeros(states.shape[0], dtype=bool)
-    res[valid] = obs[rr[valid], cc[valid]]
-    return res
-
-def isEndVect(curStates, finished=False):
-    return finished | (np.linalg.norm(curStates-[rSource, cSource], axis=1) < find_range)
-
 def getManyTraj(starts, unbounded):
-    minDist = np.floor(np.linalg.norm(starts-[rSource, cSource], ord=1, axis=1))
+    src = np.array([rSource, cSource])
+    ends = utils.getEndingStates(rows, cols, src)
+    minDist = utils.getMinDist(starts, ends)
     curStates = starts
     curMem = np.zeros(starts.shape[0], dtype=int)
     stepsDone = np.zeros(starts.shape[0], dtype=int)
     Gs = np.zeros(starts.shape[0])
     # Checking if any starting states is an ending states. It will never happen as of now, but maybe a change in the starring condition will make it possible
-    done = isEndVect(starts)
+    done = utils.isEnd(curStates, src)
     curFrame = np.random.randint(maxFrames) # The same for all trajectories. Maybe change, but like this it's much more efficient
     t = 0
     while np.any(~done) and t < maxSteps:
-        obs = getObsVect(curStates, curFrame)
-        actions = chooseActionsVect(obs, curMem)
-        curStates, curMem = takeActionVect(curStates, actions, unbounded)
+        obs = utils.getObsTurb(curStates,t,odor, rows, cols, maxFrames)
+        actions = utils.chooseActionsVect(obs, curMem, cumProbs=cumProbs)
+        curStates, curMem = utils.takeActionVect(curStates, actions, rows, cols, unbounded)
         stepsDone[~done] += 1
         Gs[~done] += reward * gamma**t
         curFrame += 1
         t += 1
-        done = isEndVect(curStates, done)
+        done = utils.isEnd(curStates, src, done)
     return minDist / stepsDone, Gs, done, stepsDone
 
 if __name__ == "__main__":
@@ -134,7 +108,10 @@ if __name__ == "__main__":
     print("Inizio: ", time.ctime(), flush=True)
     startsCols = np.random.choice(range(cols), size=traj, replace=True, p = rho)
     starts = np.array([(0, cols) for cols in startsCols])
+    s = time.perf_counter()
     timeToReach, empiricalG, successes, steps = getManyTraj(starts, unbounded)
+    e = time.perf_counter()
+    print(f"{traj} trajectories done in {e-s}s")
     np.save(f"{saveDir}/res.npy", np.stack((timeToReach, empiricalG, successes, steps)))
     plt.boxplot((timeToReach[successes],empiricalG), tick_labels = ["t", r"$\hat{G}$"])
     plt.title(thetaName)

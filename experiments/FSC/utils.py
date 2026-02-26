@@ -5,12 +5,12 @@ import os
 import h5py
 
 
-ActionDict = [
+ActionDict = np.array([
             (-1,  0), # North
             ( 0,  1), # East
             ( 1,  0), # South
             ( 0, -1)  # West
-        ]
+        ])
 
 def natGrad(pi, obs, curMem, action, out = None):
     if out is None:
@@ -89,9 +89,10 @@ def chooseActionsVect(obs, curMems, cumProbs = None, pi = None):
         M = pi.shape[1]
         cumProbs = np.cumsum(pi.reshape(-1, 4*M), axis = 1)
     else:
-        M = cumProbs.shape[1]
+        M = int(cumProbs.shape[1] / 4)
     assert np.all((obs == 0) | (obs == 1)) , "Invalid Observation"
     assert np.all((0 <= curMems) & (curMems < M)), "Invalid Memories"
+    # print(cumProbs.shape, "\t", np.max(obs*M+curMems), M)
     CDFs = cumProbs[obs*M+curMems]
     return multiChoice(CDFs)
 
@@ -119,6 +120,7 @@ def getObsLikelihood(states, obsProb, rows, cols):
 
 # Maybe let having only part unbounded
 def takeActionVect(curStates, actionsMem, rMax = None, cMax = None, unbounded = False):
+    # print("utils Act", ActionDict.dtype, actionsMem.dtype)
     if not unbounded and (rMax is None or cMax is None):
         raise ValueError("When not unbounded the limit rMax and cMax must be specified")
     if unbounded:
