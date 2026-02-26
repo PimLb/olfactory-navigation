@@ -7,7 +7,7 @@ import time
 import os
 import sys
 import argparse as ap
-
+import signal
 
 # Setting Parameters
 SC = 92 * 131 # Number of States
@@ -35,7 +35,9 @@ actor_lr = 0.001
 critic_lr = 0.001
 
 def natGrad(pi, obs, curMem, action):
-    return 1 / pi[obs, curMem, action]
+    ret = np.zeros_like(pi)
+    ret[obs, curMem, action] = 1 / pi[obs, curMem, action]
+    return ret
 
 def vanillaGrad(pi, obs, curMem, action):
     ret = np.zeros_like(pi)
@@ -78,6 +80,12 @@ def totalTime(end, start, file = None):
         return
     print(f"Total time: {hours}h:{minutes}m:{seconds}s", file=file)
 
+def handleTERM(sig, frame): # Maybe not best practice, but seems to work
+    e = time.perf_counter()
+    print("Terminated:", end="", file=output)
+    totalTime(e, s, output)
+    exit()
+
 parser = ap.ArgumentParser()
 parser.add_argument("actor_lr", type=float, help="the learning rate for the actor")
 parser.add_argument("critic_lr", type=float, help="the learning rate for the critic")
@@ -85,6 +93,8 @@ parser.add_argument("memories", type=int, help="The memories of the FSC")
 parser.add_argument("lambda_actor", type=float, help="the trace decay parameter for the actor")
 parser.add_argument("lambda_critic", type=float, help="the trace decay parameter for the critic")
 parser.add_argument("episodes", type=int, help="The final episode number. If --iterationStart is specified, the number of episode ran will be episodes - iterationStart")
+parser.add_argument("-c", "--clip", type=float, help="TODO")
+parser.add_argument("--normalize", action="store_true", help="TODO")
 parser.add_argument("-n", "--name", help="subfolder name in which to save the results")
 parser.add_argument("-t","--thetaStart", help="the path to a .npy file containing the starting values of theta")
 parser.add_argument("-v","--vStart", help="the path to a .npy file containing the starting values of V")
@@ -104,7 +114,8 @@ scheduleActor = args.scheduleActorLR
 scheduleCritic = args.scheduleCriticLR
 itStart = args.iterationStart if args.iterationStart else 0
 vanilla = args.vanilla
-
+c = args.clip
+norm = args.normalize
 SCM = SC * M
 
 if vanilla:
@@ -147,13 +158,16 @@ os.makedirs(saveDir)
 os.makedirs(critDir)
 os.makedirs(actDir)
 output = open(os.path.join(saveDir, "_results.out"), "w")
+signal.signal(signal.SIGTERM, handleTERM)
 s = time.perf_counter()
-print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=output)
+print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=output, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 thPrev = theta.copy()
 Vprev = V.copy()
 errors = []
 i = itStart
+gradF = vanillaGrad if vanilla else natGrad
+
 try:
     while i < numberEpisodes:
         start = np.random.choice(range(SC), p = rho) # Parto sempre dalla memoria 0
@@ -179,10 +193,12 @@ try:
             zCritic[curState] += 1 # Caso speciale per V tabulare. Credo sia giusto
             # Caso speciale per Natural Gradient e softmax. Credo sia giusto
             zActor = gamma * lambda_actor * zActor
-            if vanilla:
-                zActor += discount * vanillaGrad(pi, obs, curMem, action)
-            else:
-                zActor[obs, curMem, action] += discount / pi[obs, curMem, action]
+            grad = gradF(pi, obs, curMem, action)
+            if c is not None:
+                grad *= np.min((1, c/np.linalg.norm(grad)))
+            if norm:
+                grad /= np.linalg.norm(grad)
+            zActor += discount * grad
 
             theta += cur_actor_lr * tdError * zActor
             theta -= np.max(theta, axis =2 , keepdims=True)
