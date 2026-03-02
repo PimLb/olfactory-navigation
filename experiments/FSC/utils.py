@@ -80,7 +80,7 @@ def multiChoice(CDF, events = None):
 # cumProbs is assumed to be derived as np.cumSum(pi.reshape(-1, 4*M), axis = 1)
 # if pi is provided, cumProbs will be constructed as such
 # then, the function will return the actions sampled from each pair of obs and curMem
-def chooseActionsVect(obs, curMems, cumProbs = None, pi = None):
+def chooseActions(obs, curMems, cumProbs = None, pi = None):
     if cumProbs is not None and pi is not None:
         raise ValueError("Only one of cumProbs and pi can be provided")
     if cumProbs is None and pi is None:
@@ -96,7 +96,8 @@ def chooseActionsVect(obs, curMems, cumProbs = None, pi = None):
     CDFs = cumProbs[obs*M+curMems]
     return multiChoice(CDFs)
 
-
+# Returns whether any of the states at time t have a detection
+# If a state is outside the rectangle [0,0] (rows, cols), will return False
 def getObsTurb(states, t, odor, rows, cols, maxFrames, threshold = 1e-4):
     curFrame = t % maxFrames
     rr = states[:, 0]
@@ -117,6 +118,11 @@ def getObsLikelihood(states, obsProb, rows, cols):
     
     return np.argmax(u < cdf, axis = 1)
 
+def clipMultiGrad(grads, c, ord=None):
+    d = grads.shape[0]
+    rescale = np.min((np.ones(d), c/ np.linalg.norm(grads.reshape(d, -1), ord=None, axis=1)), axis=0)
+    tmp = grads.T
+    tmp *= rescale
 
 # Maybe let having only part unbounded
 def takeActionVect(curStates, actionsMem, rMax = None, cMax = None, unbounded = False):

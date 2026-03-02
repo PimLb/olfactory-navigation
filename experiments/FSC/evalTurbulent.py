@@ -42,7 +42,7 @@ def getManyTraj(starts, unbounded):
     t = 0
     while np.any(~done) and t < maxSteps:
         obs = utils.getObsTurb(curStates,t,odor, rows, cols, maxFrames)
-        actions = utils.chooseActionsVect(obs, curMem, cumProbs=cumProbs)
+        actions = utils.chooseActions(obs, curMem, cumProbs=cumProbs)
         curStates, curMem = utils.takeActionVect(curStates, actions, rows, cols, unbounded)
         stepsDone[~done] += 1
         Gs[~done] += reward * gamma**t
