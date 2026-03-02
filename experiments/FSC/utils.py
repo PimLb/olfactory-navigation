@@ -77,23 +77,28 @@ def multiChoice(CDF, events = None):
     return events[idx]
 
 # Only 1 between cumProbs and pi can be provided.
-# cumProbs is assumed to be derived as np.cumSum(pi.reshape(-1, 4*M), axis = 1)
-# if pi is provided, cumProbs will be constructed as such
-# then, the function will return the actions sampled from each pair of obs and curMem
-def chooseActions(obs, curMems, cumProbs = None, pi = None):
-    if cumProbs is not None and pi is not None:
+# cumProbs is assumed to be derived as np.cumSum(pi.reshape(-1, 4*M), axis = 1) from a single policy
+# if pis is provided, it must be an array of (p, 2, M, 4*M) shape, where p is the number of different policies
+# obs and curMems must be one-dimensional array of size p
+# The function will return an action for each obs, curMem pair. 
+# If pis is provided, it will sample an action for each policy 
+def chooseActions(obs, curMems, cumProbs = None, pis = None):
+    if cumProbs is not None and pis is not None:
         raise ValueError("Only one of cumProbs and pi can be provided")
-    if cumProbs is None and pi is None:
+    if cumProbs is None and pis is None:
         raise ValueError("Either cumProbs or pi must be provided")
-    if pi is not None:
-        M = pi.shape[1]
-        cumProbs = np.cumsum(pi.reshape(-1, 4*M), axis = 1)
+    assert np.all((obs == 0) | (obs == 1)) , "Invalid Observation"
+    if pis is not None:
+        p = pis.shape[0]
+        M = pis.shape[2]
+        assert np.all((0 <= curMems) & (curMems < M)), "Invalid Memories"
+        cumProbs = np.cumsum(pis.reshape(p, -1, 4*M), axis = 2)
+        CDFs = cumProbs[np.arange(p, dtype=int), obs*M+curMems]
     else:
         M = int(cumProbs.shape[1] / 4)
-    assert np.all((obs == 0) | (obs == 1)) , "Invalid Observation"
-    assert np.all((0 <= curMems) & (curMems < M)), "Invalid Memories"
+        assert np.all((0 <= curMems) & (curMems < M)), "Invalid Memories"
+        CDFs = cumProbs[obs*M+curMems]
     # print(cumProbs.shape, "\t", np.max(obs*M+curMems), M)
-    CDFs = cumProbs[obs*M+curMems]
     return multiChoice(CDFs)
 
 # Returns whether any of the states at time t have a detection
@@ -120,7 +125,7 @@ def getObsLikelihood(states, obsProb, rows, cols):
 
 def clipMultiGrad(grads, c, ord=None):
     d = grads.shape[0]
-    rescale = np.min((np.ones(d), c/ np.linalg.norm(grads.reshape(d, -1), ord=None, axis=1)), axis=0)
+    rescale = np.min((np.ones(d), c/ np.linalg.norm(grads.reshape(d, -1), ord=ord, axis=1)), axis=0)
     tmp = grads.T
     tmp *= rescale
 
