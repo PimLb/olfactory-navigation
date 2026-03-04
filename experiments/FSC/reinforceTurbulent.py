@@ -8,16 +8,15 @@ import h5py
 import signal
 
 ActionDict = [
-            (-1,  0), # North
-            ( 0,  1), # East
-            ( 1,  0), # South
-            ( 0, -1)  # West
+            (-1,  0), # Downwind
+            ( 0,  1), # Crosswind (Left when facing upwind)
+            ( 1,  0), # Upwind
+            ( 0, -1)  # Crosswind (Right when facing upwind)
         ]
 
 def natGrad(pi, obs, curMem, action):
     ret = np.zeros_like(pi)
     ret[obs, curMem, action] = 1 / pi[obs, curMem, action]
-    # print(1 / pi[obs, curMem, action])
     return ret
 
 def vanillaGrad(pi, obs, curMem, action):
@@ -142,7 +141,6 @@ empiricalTimeNormalized = 0
 empiricalG = 0
 curLr = lr
 while i < episodes:
-    s1 = time.perf_counter()
     if schedule:
         curLr = lr * 1000 / (1000 + i)
     startCol = np.random.choice(range(cols), p = rho)
@@ -178,7 +176,6 @@ while i < episodes:
         print(f"Error iteration {i+1}: reached determinism at {time.ctime()} ", file=output)
         totalTime(e, s, output)
         sys.exit()
-    # print(file=ouput, flush=True)
     if (i+1) % 1000 == 0:
         print(f"Episode {i+1} done at {time.ctime()}; In the last 1000 episodes: {reached/1000:.1%}",
               f"Time to reach normalized (only succesful): {empiricalTimeNormalized / reached if reached != 0 else 0.0}",
@@ -188,8 +185,6 @@ while i < episodes:
         empiricalG = 0
         np.save(os.path.join(thetaDir , f"theta{i+1}.npy"), theta)
     i+=1
-    e1 = time.perf_counter()
-    # print("Total Iteration", step, e1-s1, flush = True)
 e = time.perf_counter()
 
 np.save(os.path.join(thetaDir,"thetaFinal.npy"), theta)
