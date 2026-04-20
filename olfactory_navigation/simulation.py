@@ -514,8 +514,8 @@ class SimulationHistory:
 
 
     def save(self,
-             file: str | None = None,
-             folder: str | None = None,
+             file: str = None,
+             folder: str = None,
              save_analysis: bool = True,
              save_components: bool = False
              ) -> None:
@@ -848,7 +848,7 @@ class SimulationHistory:
 
     def plot(self,
              sim_id: int = 0,
-             ax: plt.Axes | None = None
+             ax: plt.Axes = None
              ) -> None:
         '''
         Function to plot a the trajectory of a given simulation.
@@ -937,7 +937,7 @@ class SimulationHistory:
 
 
     def plot_runtimes(self,
-                      ax: plt.Axes | None = None
+                      ax: plt.Axes = None
                       ) -> None:
         '''
         Function to plot the runtimes over the iterations.
@@ -968,7 +968,7 @@ class SimulationHistory:
 
 
     def plot_successes(self,
-                       ax: plt.Axes | None = None
+                       ax: plt.Axes = None
                        ) -> None:
         '''
         Function to plot a 2D map of whether a given starting point was successfull or not (and whether it died early).
@@ -1003,9 +1003,9 @@ class SimulationHistory:
 
 
 def run_test(agent: Agent,
-             n: int | None = None,
-             start_points: np.ndarray | None = None,
-             environment: Environment | None = None,
+             n: int = None,
+             start_points: np.ndarray = None,
+             environment: Environment = None,
              time_shift: int | np.ndarray = 0,
              time_loop: bool = True,
              horizon: int = 1000,

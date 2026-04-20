@@ -17,8 +17,8 @@ except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
 class QAgent(Agent):
-    def __init__(self, environment: Environment, 
-                 threshold: float  = 0.000003, 
+    def __init__(self, environment: Environment,
+                 threshold: float  = 0.000003,
                  horizon : int = 100,
                  num_episodes : int = 1000,
                  learning_rate  = lambda t : 1/sqrt(t + 1),
@@ -26,8 +26,8 @@ class QAgent(Agent):
                  gamma : float = 1.0,
                  delta : int = 100,
                  seed : int = 121314,
-                 checkpoint_folder : str | None = None,
-                 checkpoint_frequency : int | None = None
+                 checkpoint_folder : str = None,
+                 checkpoint_frequency : int = None
                  ) -> None:
         assert checkpoint_folder is None or (checkpoint_folder is not None and checkpoint_frequency is not None and checkpoint_frequency > 0)
         super().__init__(environment, threshold, "QAgent")
@@ -141,7 +141,7 @@ class QAgent(Agent):
 
 
 
-    def save(self, folder: str | None = None, force: bool = False) -> None:
+    def save(self, folder: str = None, force: bool = False) -> None:
         np.save(f"{folder}/QFunction", self.Q)
         with open(f"{folder}/agent_state.json", 'w') as f:
             json.dump(self._get_agent_state(), f)

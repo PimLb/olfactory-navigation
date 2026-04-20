@@ -39,7 +39,7 @@ class Belief:
     '''
     def __init__(self,
                  model: Model,
-                 values: np.ndarray | None = None
+                 values: np.ndarray = None
                  ) -> None:
         assert model is not None
         self.model = model

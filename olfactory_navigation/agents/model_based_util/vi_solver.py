@@ -56,7 +56,7 @@ class SolverHistory:
                  model: Model,
                  gamma: float,
                  eps: float,
-                 initial_value_function: ValueFunction | None = None
+                 initial_value_function: ValueFunction = None
                  ) -> None:
         self.tracking_level = tracking_level
         self.model = model
@@ -137,7 +137,7 @@ class SolverHistory:
 
 def solve(model: Model,
           horizon: int = 100,
-          initial_value_function: ValueFunction | None = None,
+          initial_value_function: ValueFunction = None,
           gamma: float = 0.99,
           eps: float = 1e-6,
           use_gpu: bool = False,

@@ -35,7 +35,7 @@ class PBVI_GER_Agent(PBVI_Agent):
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
-        If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
+        If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
     seed : int, default=12131415
@@ -171,8 +171,8 @@ class PBVI_GER_Agent(PBVI_Agent):
               expansions: int,
               update_passes: int = 1,
               max_belief_growth: int = 10,
-              initial_belief: BeliefSet | Belief | None = None,
-              initial_value_function: ValueFunction | None = None,
+              initial_belief: BeliefSet | Belief = None,
+              initial_value_function: ValueFunction = None,
               prune_level: int = 1,
               prune_interval: int = 10,
               limit_value_function_size: int = -1,

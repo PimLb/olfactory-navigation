@@ -142,7 +142,7 @@ class Model:
                  rewards = None,
                  rewards_are_probabilistic: bool = False,
                  state_grid = None,
-                 start_probabilities: list | None = None,
+                 start_probabilities: list = None,
                  end_states: list[int] = [],
                  end_actions: list[int] = [],
                  print_debug: bool = False,

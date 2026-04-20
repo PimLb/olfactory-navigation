@@ -189,15 +189,15 @@ class Environment:
                  data_source_position: list | np.ndarray,
                  source_radius: float = 1.0,
                  layers: bool | list[str] = False,
-                 shape: list | np.ndarray | None = None,
+                 shape: list | np.ndarray = None,
                  margins: int | list | np.ndarray = 0,
                  multiplier: list| np.ndarray = [1.0, 1.0],
                  interpolation_method: Literal['Nearest', 'Linear', 'Cubic'] = 'Linear',
                  preprocess_data: bool = False,
                  boundary_condition: Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip', 'no'] = 'stop',
                  start_zone: Literal['odor_present', 'data_zone'] | np.ndarray = 'data_zone',
-                 odor_present_threshold: float | None = None,
-                 name: str | None = None,
+                 odor_present_threshold: float = None,
+                 name: str = None,
                  seed: int = 12131415,
                  ) -> None:
         self.saved_at: str = None
@@ -486,7 +486,7 @@ class Environment:
     def plot(self,
              frame: int = 0,
              layer: int = 0,
-             ax: plt.Axes | None = None
+             ax: plt.Axes = None
              ) -> None:
         '''
         Simple function to plot the environment with a single frame of odor cues.
@@ -812,7 +812,7 @@ class Environment:
 
 
     def save(self,
-             folder: str | None = None,
+             folder: str = None,
              save_arrays: bool = False,
              force: bool = False
              ) -> None:
@@ -1117,13 +1117,13 @@ class Environment:
 
 
     def modify(self,
-               data_source_position: list | np.ndarray | None = None,
-               source_radius: float | None = None,
-               shape: list | np.ndarray | None = None,
-               margins: int | list | np.ndarray | None = None,
-               multiplier: list | np.ndarray | None = None,
-               interpolation_method: str | None = None,
-               boundary_condition: str | None = None
+               data_source_position: list | np.ndarray = None,
+               source_radius: float = None,
+               shape: list | np.ndarray = None,
+               margins: int | list | np.ndarray = None,
+               multiplier: list | np.ndarray = None,
+               interpolation_method: str = None,
+               boundary_condition: str = None
                ) -> 'Environment':
         '''
         Returns a copy of the environment with one or more parameters modified.

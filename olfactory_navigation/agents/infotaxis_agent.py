@@ -47,7 +47,7 @@ class Infotaxis_Agent(Agent):
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
-        If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
+        If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
     seed : int, default=12131415
@@ -104,12 +104,12 @@ class Infotaxis_Agent(Agent):
                  environment: Environment,
                  thresholds: float | list[float] | dict[str, float] | dict[str, list[float]] = 3e-6,
                  space_aware: bool = False,
-                 spacial_subdivisions: np.ndarray | None = None,
-                 actions: dict[str, np.ndarray] | np.ndarray | None = None,
-                 name: str | None=None,
+                 spacial_subdivisions: np.ndarray = None,
+                 actions: dict[str, np.ndarray] | np.ndarray = None,
+                 name: str = None,
                  seed: int = 12131415,
-                 model: Model | None = None,
-                 environment_converter: Callable | None = None,
+                 model: Model = None,
+                 environment_converter: Callable = None,
                  **converter_parameters
                  ) -> None:
         super().__init__(
@@ -184,7 +184,7 @@ class Infotaxis_Agent(Agent):
 
     def initialize_state(self,
                          n: int = 1,
-                         belief: BeliefSet | None = None
+                         belief: BeliefSet = None
                          ) -> None:
         '''
         To use an agent within a simulation, the agent's state needs to be initialized.

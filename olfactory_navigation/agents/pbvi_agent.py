@@ -272,7 +272,7 @@ class PBVI_Agent(Agent):
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
-        If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
+        If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
     seed : int, default=12131415
@@ -333,12 +333,12 @@ class PBVI_Agent(Agent):
                  environment: Environment,
                  thresholds: float | list[float] | dict[str, float] | dict[str, list[float]] = 3e-6,
                  space_aware: bool = False,
-                 spacial_subdivisions: np.ndarray | None = None,
-                 actions: dict[str, np.ndarray] | np.ndarray | None = None,
-                 name: str | None = None,
+                 spacial_subdivisions: np.ndarray = None,
+                 actions: dict[str, np.ndarray] | np.ndarray = None,
+                 name: str = None,
                  seed: int = 12131415,
-                 model: Model | None = None,
-                 environment_converter: Callable | None = None,
+                 model: Model = None,
+                 environment_converter: Callable = None,
                  **converter_parameters
                  ) -> None:
         super().__init__(
@@ -464,7 +464,7 @@ class PBVI_Agent(Agent):
 
 
     def save(self,
-             folder: str | None = None,
+             folder: str = None,
              force: bool = False,
              save_environment: bool = False
              ) -> None:
@@ -604,8 +604,8 @@ class PBVI_Agent(Agent):
               full_backup: bool = True,
               update_passes: int = 1,
               max_belief_growth: int = 10,
-              initial_belief: BeliefSet | Belief | None = None,
-              initial_value_function: ValueFunction | None = None,
+              initial_belief: BeliefSet | Belief = None,
+              initial_value_function: ValueFunction = None,
               prune_level: int = 1,
               prune_interval: int = 10,
               limit_value_function_size: int = -1,
@@ -1053,7 +1053,7 @@ class PBVI_Agent(Agent):
 
     def initialize_state(self,
                          n: int = 1,
-                         belief: BeliefSet | None = None
+                         belief: BeliefSet = None
                          ) -> None:
         '''
         To use an agent within a simulation, the agent's state needs to be initialized.
@@ -1162,7 +1162,7 @@ class PBVI_Agent(Agent):
     def generate_beliefs_from_trajectory(self,
                                          history: SimulationHistory,
                                          trajectory_i: int = 0,
-                                         initial_belief: Belief | None = None
+                                         initial_belief: Belief = None
                                          ) -> BeliefSet:
         '''
         Function to generate a sequence of belief points from the trajectory from SimulationHistory instance.

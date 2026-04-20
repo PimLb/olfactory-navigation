@@ -405,7 +405,7 @@ class ValueFunction:
 
     def save(self,
              folder: str = './ValueFunctions',
-             file_name: str | None = None
+             file_name: str = None
              ) -> None:
         '''
         Function to save the value function in a file at a given path. If no path is provided, it will be saved in a subfolder (ValueFunctions) inside the current working directory.

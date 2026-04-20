@@ -16,11 +16,6 @@ except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
 
-class AgentState:
-    def __init__(self) -> None:
-        pass
-
-
 class Agent:
     '''
     A generic agent class.
@@ -76,7 +71,7 @@ class Agent:
     actions : dict or np.ndarray, optional
         The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
         Else, a dict of strings and action vectors where the strings represent the action labels.
-        If none is provided, by default, all unit movement vectors are included and shuch for all layers (if the environment has layers.)
+        If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name for the agent. If it is not provided it will be named like "<class_name>-thresh_<threshold>".
     seed : int, default=12131415
@@ -114,9 +109,9 @@ class Agent:
                  environment: Environment,
                  thresholds: float | list[float] | dict[str, float] | dict[str, list[float]] = 3e-6,
                  space_aware: bool = False,
-                 spacial_subdivisions: np.ndarray | None = None,
-                 actions: dict[str, np.ndarray] | np.ndarray | None = None,
-                 name: str | None = None,
+                 spacial_subdivisions: np.ndarray = None,
+                 actions: dict[str, np.ndarray] | np.ndarray = None,
+                 name: str = None,
                  seed: int = 12131415
                  ) -> None:
         self.environment = environment
@@ -455,7 +450,7 @@ class Agent:
     # General methods
     # ---------------
     def save(self,
-             folder: str | None = None,
+             folder: str = None,
              force: bool = False,
              save_environment: bool = False
              ) -> None:
