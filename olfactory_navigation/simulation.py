@@ -846,6 +846,57 @@ class SimulationHistory:
         return hist
 
 
+    def compare(self, *other: 'SimulationHistory') -> pd.DataFrame:
+        '''
+        Function to generate a comparison table that compares this SimulationHistory instance with other ones.
+
+        Returns
+        -------
+        comparison_table : pd.DataFrame
+            A table comparing the various metric of SimulationHistory instances.
+        '''
+        return self.__class__.compare_all(self, *other)
+
+
+    @classmethod
+    def compare_all(cls, *simulation_histories: 'SimulationHistory') -> pd.DataFrame:
+        '''
+        Function to generate a comparison table that compares SimulationHistory instances.
+
+        Returns
+        -------
+        comparison_table : pd.DataFrame
+            A table comparing the various metric of SimulationHistory instances.
+        '''
+        summary_dicts = []
+        for hist in simulation_histories:
+            hist_general_analysis_df = hist.general_analysis_df
+            hist_dict = {
+                'convergence': hist_general_analysis_df.loc['mean', 'converged'],
+                'convergence_std': hist_general_analysis_df.loc['standard_deviation', 'converged'],
+                'steps_taken': hist_general_analysis_df.loc['mean', 'steps_taken'],
+                'steps_taken_std': hist_general_analysis_df.loc['standard_deviation', 'steps_taken'],
+                'steps_taken_success': hist_general_analysis_df.loc['success_mean', 'steps_taken'],
+                'steps_taken_success_std': hist_general_analysis_df.loc['success_standard_deviation', 'steps_taken'],
+                'discounted_rewards': hist_general_analysis_df.loc['mean', 'discounted_rewards'],
+                'discounted_rewards_std': hist_general_analysis_df.loc['standard_deviation', 'discounted_rewards'],
+                'discounted_rewards_success': hist_general_analysis_df.loc['success_mean', 'discounted_rewards'],
+                'discounted_rewards_success_std': hist_general_analysis_df.loc['success_standard_deviation', 'discounted_rewards'],
+                'extra_steps': hist_general_analysis_df.loc['mean', 'extra_steps'],
+                'extra_steps_std': hist_general_analysis_df.loc['standard_deviation', 'extra_steps'],
+                'extra_steps_success': hist_general_analysis_df.loc['success_mean', 'extra_steps'],
+                'extra_steps_success_std': hist_general_analysis_df.loc['success_standard_deviation', 'extra_steps'],
+                't_min_over_t': hist_general_analysis_df.loc['mean', 't_min_over_t'],
+                't_min_over_t_std': hist_general_analysis_df.loc['standard_deviation', 't_min_over_t'],
+                't_min_over_t_success': hist_general_analysis_df.loc['success_mean', 't_min_over_t'],
+                't_min_over_t_success_std': hist_general_analysis_df.loc['success_standard_deviation', 't_min_over_t'],
+            }
+            summary_dicts.append(hist_dict)
+
+        summary_table = pd.DataFrame(data=summary_dicts)
+        return summary_table
+
+
     def plot(self,
              sim_id: int = 0,
              ax: plt.Axes = None
