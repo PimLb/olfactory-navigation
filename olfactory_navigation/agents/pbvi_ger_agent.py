@@ -58,6 +58,8 @@ class PBVI_GER_Agent(PBVI_Agent):
         In the case of a 2D array of thresholds, the rows of thresholds apply to the different layers of the environment.
     space_aware : bool
     spacial_subdivisions : np.ndarray
+    trained : bool
+        Whether or not the agent needs to be trained. If an agent doesnt need training this parameter is set to True by default.
     name : str
     action_set : np.ndarray
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
