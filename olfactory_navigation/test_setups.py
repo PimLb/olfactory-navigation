@@ -597,3 +597,68 @@ def test_scale_robustness(agent: Agent,
         print(f'Scale robustness analysis saved to: {save_folder}/{analysis_file_name}')
 
     return all_histories
+
+
+def test_agents(*agents: Agent,
+                environments: list[Environment],
+                time_shift: int | np.ndarray = 0,
+                time_loop: bool = True,
+                horizon: int = 1000,
+                reward_discount: float = 0.99,
+                print_progress: bool = False,
+                print_stats: bool = True,
+                use_gpu: bool = False
+                ) -> list[SimulationHistory] | list[list[SimulationHistory]]:
+    '''
+    _summary_
+
+    Parameters
+    ----------
+    environments : list[Environment]
+        _description_
+    time_shift : int | np.ndarray, optional
+        _description_, by default 0
+    time_loop : bool, optional
+        _description_, by default True
+    horizon : int, optional
+        _description_, by default 1000
+    reward_discount : float, optional
+        _description_, by default 0.99
+    print_progress : bool, optional
+        _description_, by default False
+    print_stats : bool, optional
+        _description_, by default True
+    use_gpu : bool, optional
+        _description_, by default False
+
+    Returns
+    -------
+    list[SimulationHistory]
+        _description_
+    '''
+    simulation_histories = []
+    for i_agent, agent in enumerate(agents):
+        print(f'Testing Agent {i_agent}:')
+
+        agent_histories = []
+        for i_environment, environment in enumerate(environments):
+
+            print(f'- Environment {i_environment}')
+            hist = run_all_starts_test(agent=agent,
+                                       environment=environment,
+                                       time_shift=time_shift,
+                                       time_loop=time_loop,
+                                       horizon=horizon,
+                                       reward_discount=reward_discount,
+                                       print_progress=print_progress,
+                                       print_stats=print_stats,
+                                       use_gpu=use_gpu
+                                       )
+
+            agent_histories.append(hist)
+            print('')
+
+        simulation_histories.append(agent_histories)
+        print('--------------------------------------')
+
+    return simulation_histories
