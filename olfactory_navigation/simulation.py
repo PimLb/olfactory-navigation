@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timedelta
 from matplotlib import pyplot as plt
 from matplotlib import colors
+from matplotlib.collections import LineCollection
 from matplotlib.patches import Circle
 from tqdm.auto import trange, tqdm
 
@@ -899,6 +900,7 @@ class SimulationHistory:
 
     def plot(self,
              sim_id: int = 0,
+             path_gradient: str = None,
              ax: plt.Axes = None
              ) -> None:
         '''
@@ -909,6 +911,8 @@ class SimulationHistory:
         ----------
         sim_id : int, default=0
             The id of the simulation to plot.
+        path_gradient : str, optional
+            If provided, will draw the path with a the color gradient specified.
         ax : plt.Axes, optional
             The ax on which to plot the path. (If not provided, a new axis will be created)
         '''
@@ -939,8 +943,23 @@ class SimulationHistory:
         # Until step
         seq = sim[['x','y']].to_numpy()
 
-        # Path
-        ax.plot(seq[:,0], seq[:,1], zorder=-1, c='black', label='Path')
+        # Path (gradient)
+        if path_gradient is not None:
+            points = seq.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            path = LineCollection(
+                segments,
+                cmap=path_gradient,
+                norm=colors.Normalize(vmin=0, vmax=max(len(segments) - 1, 1)),
+                zorder=-1
+            )
+            path.set_array(np.arange(len(segments)))
+            path.set_linewidth(2)
+            path.set_label('Path')
+            ax.add_collection(path)
+        # Path (black)
+        else:
+            ax.plot(seq[:,0], seq[:,1], zorder=-1, c='black', label='Path')
 
         # Layer observations
         if self.environment_layer_labels is not None:
