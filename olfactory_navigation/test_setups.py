@@ -1,6 +1,8 @@
 import numpy as np
 import os
 import pandas as pd
+import psutil
+import time
 
 from datetime import datetime
 from tqdm.auto import tqdm
@@ -601,44 +603,59 @@ def test_scale_robustness(agent: Agent,
 
 def test_agents(*agents: Agent,
                 environments: list[Environment],
-                time_shift: int | np.ndarray = 0,
-                time_loop: bool = True,
-                horizon: int = 1000,
+                simulation_time_shift: int | np.ndarray = 0,
+                simulation_time_loop: bool = True,
+                simulation_horizon: int = 1000,
                 reward_discount: float = 0.99,
                 print_progress: bool = False,
                 print_stats: bool = True,
-                use_gpu: bool = False
-                ) -> list[SimulationHistory] | list[list[SimulationHistory]]:
+                use_gpu: bool = False,
+                save_histories_path: str = None,
+                save_result_table: bool = True
+                ) -> pd.DataFrame:
     '''
-    _summary_
+    A function to test multiple (trained) agents in multiple given environments.
+
+    A summary table will be generated to compare the performance of the various agents within each environment.
 
     Parameters
     ----------
+    agents : Agent
+        The agents to test. They must be already trained.
     environments : list[Environment]
-        _description_
-    time_shift : int | np.ndarray, optional
-        _description_, by default 0
-    time_loop : bool, optional
-        _description_, by default True
-    horizon : int, optional
-        _description_, by default 1000
-    reward_discount : float, optional
-        _description_, by default 0.99
-    print_progress : bool, optional
-        _description_, by default False
-    print_stats : bool, optional
-        _description_, by default True
-    use_gpu : bool, optional
-        _description_, by default False
+        The environment to test the agents in.
+    simulation_time_shift : int | np.ndarray, default = 0
+        By how many steps to shift the t0 of the environment.
+        It can be fixed or for each starting point of the simulation (in such case the amount of starting points must be same in each environments).
+    simulation_time_loop : bool, default = True
+        Whether the simulation t should loop back to 0 when reaching the max t of the given environment.
+    simulation_horizon : int, default = 1000
+        For how many steps the simulation should run for.
+    reward_discount : float, default = 0.99
+        The reward discount that is used to compare the cummulative discounted reward.
+    print_progress : bool, default = False
+        Whether to show a progress bar for the simulations.
+    print_stats : bool, default = True
+        Whether to print the stats (results) after each simulation.
+    use_gpu : bool, default = False
+        Whether to use the gpu to speedup testing.
+    save_histories_path : str, optional
+        If the details of the simulation histories are to be saved, a path can be provided here.
+    save_result_table : bool, default = True
+        Whether the returned table should also be saved, it will be saved at the save_histories_path if it is set.
 
     Returns
     -------
-    list[SimulationHistory]
-        _description_
+    simulations_comparison_df : pd.DataFrame
+        A table with as row indices (agent, environment) pairs and columns the same columns as the output of SimulationHistory.compare_all.
     '''
     simulation_histories = []
     for i_agent, agent in enumerate(agents):
         print(f'Testing Agent {i_agent}:')
+
+        if not agent.trained:
+            print(f'[Warning] Skipping agent {i_agent} due to it not being marked as trained...')
+            continue
 
         agent_histories = []
         for i_environment, environment in enumerate(environments):
@@ -646,19 +663,252 @@ def test_agents(*agents: Agent,
             print(f'- Environment {i_environment}')
             hist = run_all_starts_test(agent=agent,
                                        environment=environment,
-                                       time_shift=time_shift,
-                                       time_loop=time_loop,
-                                       horizon=horizon,
+                                       time_shift=simulation_time_shift,
+                                       time_loop=simulation_time_loop,
+                                       horizon=simulation_horizon,
                                        reward_discount=reward_discount,
                                        print_progress=print_progress,
                                        print_stats=print_stats,
-                                       use_gpu=use_gpu
-                                       )
+                                       use_gpu=use_gpu)
 
             agent_histories.append(hist)
             print('')
 
+            # Save simulation history if requested
+            if save_histories_path is not None:
+                hist.save(file=f'Simualtions-agent_{i_agent}-environment_{i_environment}', folder=save_histories_path, save_analysis=False)
+
         simulation_histories.append(agent_histories)
         print('--------------------------------------')
 
-    return simulation_histories
+    # Generating comparison result table
+    all_agent_comparison_dfs = []
+    for agent_simulation_histories in simulation_histories:
+        agent_comparison_df = SimulationHistory.compare_all(agent_simulation_histories)
+        agent_comparison_df['environment'] = [f'environment_{i}' for i in range(len(environments))]
+        agent_comparison_df.set_index('environment')
+
+        all_agent_comparison_dfs.append(agent_comparison_df)
+
+    simulations_comparison_df: pd.DataFrame = pd.concat(all_agent_comparison_dfs, keys=[f'agent_{i}' for i in range(len(agents))], names='agent')
+
+    # Save comparison table if needed
+    if save_result_table:
+        folder = './' if save_histories_path is None else save_histories_path
+        file = 'Simulation_comparison-' + datetime.now().strftime('%Y%m%d_%H%M%S%f')
+        simulations_comparison_df.to_csv(folder+file)
+
+    return simulations_comparison_df
+
+
+def train_and_test_agents(*agent_classes: type[Agent],
+                          environments: list[Environment],
+                          agent_thresholds: float | list[float] = 3e-6,
+                          agent_space_aware: bool = False,
+                          agent_spacial_subdivisions: np.ndarray = None,
+                          agent_actions: dict[str, np.ndarray] | np.ndarray = None,
+                          agent_additional_parameters: list[dict] = None, # Has to be as long the agents
+                          training_environment: Environment = None,
+                          training_parameters: list[dict] = None, # Has to be as long the agents
+                          simulation_time_shift: int | np.ndarray = 0,
+                          simulation_time_loop: bool = True,
+                          simulation_horizon: int = 1000,
+                          reward_discount: float = 0.99,
+                          print_progress: bool = False,
+                          print_stats: bool = True,
+                          use_gpu: bool = False,
+                          save_histories_path: str = None,
+                          save_result_table: bool = True
+                          ) -> pd.DataFrame:
+    '''
+    A function to train (with a given training_environment) and test multiple agents in multiple given environments.
+
+    A summary table will be generated to compare the performance of the various agents within each environment.
+
+    Parameters
+    ----------
+    agent_classes: type[Agent]
+        The classes of the agents to create, train and test.
+    environments : list[Environment]
+        The environment to test the agents in.
+    agent_thresholds : float | list[float], default = 3e-6
+        The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
+        If a list of thresholds is provided, the agent should be able to detect |thresholds|+1 levels of odor.
+    agent_space_aware : bool, default = False
+        Whether the agent is aware of it's own position in space.
+    agent_spacial_subdivisions : np.ndarray, optional
+        How many spacial compartments the agent has to internally represent the space it lives in.
+        By default, it will be as many as there are grid points in the environment.
+    agent_actions : dict[str, np.ndarray] | np.ndarray, optional
+        The set of action available to the agent. It should match the type of environment (ie: if the environment has layers, it should contain a layer component to the action vector, and similarly for a third dimension).
+        Else, a dict of strings and action vectors where the strings represent the action labels.
+        If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
+    agent_additional_parameters : list[dict], optional
+        Any additional parameters to pass over to the agent constructor.
+        The list needs to be as long as the amount of agents provided.
+    training_parameters : list[dict], optional
+        Any additional parameters to pass over to the agent's training process.
+        The list needs to be as long as the amount of agents provided.
+    simulation_time_shift : int | np.ndarray, default = 0
+        By how many steps to shift the t0 of the environment.
+        It can be fixed or for each starting point of the simulation (in such case the amount of starting points must be same in each environments).
+    simulation_time_loop : bool, default = True
+        Whether the simulation t should loop back to 0 when reaching the max t of the given environment.
+    simulation_horizon : int, default = 1000
+        For how many steps the simulation should run for.
+    reward_discount : float, default = 0.99
+        The reward discount that is used to compare the cummulative discounted reward.
+    print_progress : bool, default = False
+        Whether to show a progress bar for the simulations.
+    print_stats : bool, default = True
+        Whether to print the stats (results) after each simulation.
+    use_gpu : bool, default = False
+        Whether to use the gpu to speedup testing.
+    save_histories_path : str, optional
+        If the details of the simulation histories are to be saved, a path can be provided here.
+    save_result_table : bool, default = True
+        Whether the returned table should also be saved, it will be saved at the save_histories_path if it is set.
+
+    Returns
+    -------
+    simulations_comparison_df : pd.DataFrame
+        A table with as row indices (agent, environment) pairs and columns the same columns as the output of SimulationHistory.compare_all.
+    '''
+    training_stats = []
+    simulation_histories = []
+
+    # Print warning in case no training environment is set because the agent will be retrained for each environment
+    if training_environment is None:
+        print('[Warning] The training environment has not been provided so the agent will be re-trained for each environment provided...')
+
+    # Loop through all agents
+    for i_agent, agent_class, agent_additional_params, training_params in enumerate(zip(agent_classes, agent_additional_parameters, training_parameters)):
+        print(f'Agent {i_agent} ({agent_class.__name__}):')
+
+        if training_environment is not None:
+            print(f'- Training...')
+
+            agent: Agent = agent_class(
+                environment=training_environment,
+                thresholds=agent_thresholds,
+                space_aware=agent_space_aware,
+                spatial_subdivisions=agent_spacial_subdivisions,
+                actions=agent_actions,
+                **agent_additional_params)
+
+            # Tracking
+            process = psutil.Process(os.getpid())
+            memory_before = process.memory_info().rss
+            start_time = time.perf_counter()
+
+            if not agent.trained:
+                agent.train(**training_params)
+
+            # End tracking
+            end_time = time.perf_counter()
+            memory_after = process.memory_info().rss
+
+            # Saving tracking
+            training_stats.append({'memory_used': memory_after - memory_before,
+                                   'time_taken': end_time - start_time})
+
+            # Testing trained agent on all environments
+            agent_simulation_histories = []
+            for i_environment, environment in enumerate(environments):
+                print(f'- Testing environment {i_environment}')
+
+                hist = run_all_starts_test(agent=agent,
+                                           environment=environment,
+                                           time_shift=simulation_time_shift,
+                                           time_loop=simulation_time_loop,
+                                           horizon=simulation_horizon,
+                                           reward_discount=reward_discount,
+                                           print_progress=print_progress,
+                                           print_stats=print_stats,
+                                           use_gpu=use_gpu)
+
+                agent_simulation_histories.append(hist)
+                print('')
+
+                # Save simulation history if requested
+                if save_histories_path is not None:
+                    hist.save(file=f'Simualtions-agent_{i_agent}-environment_{i_environment}', folder=save_histories_path, save_analysis=False)
+
+            simulation_histories.append(agent_simulation_histories)
+            print('--------------------------------------')
+
+        # No training environment
+        else:
+            agent_histories = []
+            agent_training_stats = []
+
+            # Loop through the environments
+            for i_environment, environment in enumerate(environments):
+                print(f'- Environment {i_environment}')
+
+                agent: Agent = agent_class(
+                    environment=environment,
+                    thresholds=agent_thresholds,
+                    space_aware=agent_space_aware,
+                    spatial_subdivisions=agent_spacial_subdivisions,
+                    actions=agent_actions,
+                    **agent_additional_params
+                    )
+
+                # Tracking
+                process = psutil.Process(os.getpid())
+                memory_before = process.memory_info().rss
+                start_time = time.perf_counter()
+
+                agent.train(**training_params)
+
+                # End tracking
+                end_time = time.perf_counter()
+                memory_after = process.memory_info().rss
+
+                # Saving tracking
+                agent_training_stats.append({'memory_used': memory_after - memory_before,
+                                             'time_taken': end_time - start_time})
+
+                hist = run_all_starts_test(agent=agent,
+                                           time_shift=simulation_time_shift,
+                                           time_loop=simulation_time_loop,
+                                           horizon=simulation_horizon,
+                                           reward_discount=reward_discount,
+                                           print_progress=print_progress,
+                                           print_stats=print_stats,
+                                           use_gpu=use_gpu)
+
+                agent_histories.append(hist)
+                print('')
+
+                # Save simulation history if requested
+                if save_histories_path is not None:
+                    hist.save(file=f'Simualtions-agent_{i_agent}-environment_{i_environment}', folder=save_histories_path, save_analysis=False)
+
+            training_stats.append(agent_training_stats)
+            simulation_histories.append(agent_histories)
+
+        print('--------------------------------------')
+
+    # Generating comparison result table
+    all_agent_comparison_dfs = []
+    n_environment = len(environments)
+    for agent_simulation_histories, agent_training_stats in zip(simulation_histories, training_stats):
+        agent_comparison_df = SimulationHistory.compare_all(agent_simulation_histories)
+        agent_comparison_df['environment'] = [f'environment_{i}' for i in range(len(environments))]
+        agent_comparison_df['training_memory_usage'] = [agent_training_stats['memory_used']] * n_environment if isinstance(agent_training_stats, dict) else [env_training_stats['memory_used'] for env_training_stats in agent_training_stats]
+        agent_comparison_df['training_time_taken'] = [agent_training_stats['time_taken']] * n_environment if isinstance(agent_training_stats, dict) else [env_training_stats['time_taken'] for env_training_stats in agent_training_stats]
+        agent_comparison_df.set_index('environment')
+
+        all_agent_comparison_dfs.append(agent_comparison_df)
+
+    simulations_comparison_df: pd.DataFrame = pd.concat(all_agent_comparison_dfs, keys=[f'agent_{i}' for i in range(len(agent_classes))], names='agent')
+
+    # Save comparison table if needed
+    if save_result_table:
+        folder = './' if save_histories_path is None else save_histories_path
+        file = 'Simulation_comparison-' + datetime.now().strftime('%Y%m%d_%H%M%S%f')
+        simulations_comparison_df.to_csv(folder+file)
+
+    return simulations_comparison_df
