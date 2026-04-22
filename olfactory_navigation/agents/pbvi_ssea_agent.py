@@ -21,7 +21,7 @@ class PBVI_SSEA_Agent(PBVI_Agent):
         The olfactory environment to train the agent with.
     thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default=3e-6
         The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
-        If a list of thresholds is provided, he agent should be able to detect |thresholds|+1 levels of odor.
+        If a list of thresholds is provided, the agent should be able to detect |thresholds|+1 levels of odor.
         A dictionary of (list of) thresholds can also be provided when the environment is layered.
         In such case, the number of layers provided must match the environment's layers and their labels must match.
         The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
