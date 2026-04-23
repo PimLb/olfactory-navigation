@@ -5,6 +5,7 @@ import time
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 import argparse as ap
+import os
 
 cSource = 45.5
 rSource = 91
@@ -97,6 +98,7 @@ if __name__ == "__main__":
     else:
         saveDir = f"eval/likelihood/{sb}/{thetaName}{"_unbounded" if unbounded else ""}"
 
+    os.makedirs(saveDir, exist_ok=True)
     theta = np.load(thetaPath)
     M = theta.shape[1]
     assert theta.shape == (2, M, 4 * M)
@@ -114,16 +116,21 @@ if __name__ == "__main__":
     startsCols = np.random.choice(range(cols), size=traj, replace=True, p = rho[:cols])
     starts = np.array([(0, cols) for cols in startsCols])
     timeToReach, empiricalG, successes, steps = getManyTraj(starts, unbounded)
-    results = steps
-
-
+    results = np.stack((timeToReach, empiricalG, successes, steps))
     np.save(f"{saveDir}/res.npy", results)
-    n, b, patch = plt.hist(results, 50, range = (0, maxStep))
+
+    plt.boxplot((timeToReach[successes],empiricalG), tick_labels = ["t", r"$\hat{G}$"])
+    plt.title(thetaName)
+
+    plt.savefig(f"{saveDir}/res.svg")
+    plt.close()
+
+    n, b, patch = plt.hist(steps, 50, range = (0, maxStep))
     patch[-1].set_facecolor('red')
     plt.ylim(0, 5000)
-    finished = results[results != maxStep]
-    plt.yticks([i*500 for i in range(0, 11)] + [np.count_nonzero(results == maxStep)])
+    finished = steps[steps != maxStep]
+    plt.yticks([i*500 for i in range(0, 11)] + [np.count_nonzero(steps == maxStep)])
     plt.title(thetaName)
     plt.savefig(f"{saveDir}/hist.svg")
-    print("Mean Reached: ", np.mean(finished )," STD Reached: ", np.std(finished ), " Finished", np.count_nonzero(results != maxStep) / traj * 100, "%")
-    print("Mean Overall: ", np.mean(results )," STD Overall: ", np.std(results) , "Not finished", np.count_nonzero(results == maxStep) / traj * 100, "%")
+    print("Mean Reached: ", np.mean(finished )," STD Reached: ", np.std(finished ), " Finished", np.count_nonzero(steps != maxStep) / traj * 100, "%")
+    print("Mean Overall: ", np.mean(steps )," STD Overall: ", np.std(steps) , "Not finished", np.count_nonzero(steps == maxStep) / traj * 100, "%")
