@@ -1,6 +1,7 @@
 import math
 import os
 import inspect
+from typing import Literal
 import pandas as pd
 import sys
 
@@ -52,8 +53,10 @@ class SimulationHistory:
         An array of time shifts in the simulation data.
     horizon : int
         The horizon of the simulation. i.e. how many steps can be taken by the agent during the simulation before he is considered lost.
-    reward_discount : float, default=0.99
+    reward_discount : float, default = 0.99
         A discount to be applied to the rewards received by the agent. (eg: reward of 1 received at time n would be: 1 * reward_discount^n)
+    distance_metric : "l1" or "l2", default = "l1"
+        The distance metric used to compute to compute for example the distance between the starting points and the goal.
 
     Attributes
     ----------
@@ -63,6 +66,7 @@ class SimulationHistory:
     time_shift : np.ndarray
     horizon : int
     reward_discount : float
+    distance_metric : "l1" or "l2"
     environment_dimensions : int
         The amount of dimensions of the environment.
     environment_shape : tuple[int]
@@ -114,7 +118,8 @@ class SimulationHistory:
                  agent: Agent,
                  time_shift: np.ndarray,
                  horizon: int,
-                 reward_discount: float = 0.99
+                 reward_discount: float = 0.99,
+                 distance_metric: Literal['l1', 'l2'] = 'l1'
                  ) -> None:
         # If only on state is provided, we make it a 1x2 vector
         if len(start_points.shape) == 1:
@@ -127,6 +132,7 @@ class SimulationHistory:
         self.time_shift = time_shift if gpu_support and cp.get_array_module(time_shift) == np else cp.asnumpy(time_shift)
         self.horizon = horizon
         self.reward_discount = reward_discount
+        self.distance_metric = distance_metric
 
         # Simulation Tracking
         self.start_points = start_points if gpu_support and cp.get_array_module(start_points) == np else cp.asnumpy(start_points)
@@ -215,7 +221,7 @@ class SimulationHistory:
 
     def compute_distance_to_source(self) -> np.ndarray:
         '''
-        Function to compute the optimal distance to the source of each starting point according to the optimal_distance_metric attribute.
+        Function to compute the optimal distance to the source of each starting point according to the distance_metric attribute.
 
         Returns
         -------
@@ -231,8 +237,12 @@ class SimulationHistory:
 
         # Computing dist
         dist = None
-        # if self.optimal_distance_metric == 'manhattan': # TODO Allow for other metrics to be used
-        dist = np.sum(np.abs(self.environment_source_position[None,:] - point), axis=-1) - self.environment_source_radius
+        if self.distance_metric == 'l1':
+            dist = np.sum(np.abs(self.environment_source_position[None,:] - point), axis=-1) - self.environment_source_radius
+        elif self.distance_metric == 'l2':
+            dist = np.sqrt(np.sum((self.environment_source_position[None, :] - point)**2, axis=-1)) - self.environment_source_radius
+        else:
+            raise Exception('Distance metric not supported')
 
         if dist is None: # Meaning it was not computed
             raise NotImplementedError('This distance metric has not yet been implemented')
@@ -449,6 +459,7 @@ class SimulationHistory:
         # Asserting the SimulationHistory objects are compatible
         assert self.horizon == other_hist.horizon, "The 'horizon' parameters must match between the two SimulationHistory objects..."
         assert self.reward_discount == other_hist.reward_discount, "The 'reward_discount' parameters must match between the two SimulationHistory objects..."
+        assert self.distance_metric == other_hist.distance_metric, "The 'distance_metric' parameters must match between the two SimulationHistory objects..."
         assert self.environment_dimensions == other_hist.environment_dimensions, "The 'environment_dimensions' parameters must match between the two SimulationHistory objects..."
         assert self.environment_shape == other_hist.environment_shape, "The 'environment_shape' parameters must match between the two SimulationHistory objects..."
         assert self.environment_layer_labels == other_hist.environment_layer_labels, "The 'environment_layer_labels' parameters must match between the two SimulationHistory objects..."
@@ -491,6 +502,7 @@ class SimulationHistory:
         combined_hist.time_shift = combined_time_shifts
         combined_hist.horizon = self.horizon
         combined_hist.reward_discount = self.reward_discount
+        combined_hist.distance_metric = self.distance_metric
 
         combined_hist.start_points = combined_start_points
         combined_hist._running_sims = None
@@ -588,6 +600,7 @@ class SimulationHistory:
         padding = [None] * len(combined_df)
         combined_df['horizon'] = [self.horizon] + padding[:-1]
         combined_df['reward_discount'] = [self.reward_discount] + padding[:-1]
+        combined_df['distance_metric'] = [self.distance_metric] + padding[:-1]
 
         environment_info = [
             self.environment.name,
@@ -687,6 +700,7 @@ class SimulationHistory:
         # Retrieving horizon and reward discount
         horizon = int(combined_df['horizon'][0])
         reward_discount = combined_df['reward_discount'][0]
+        distance_metric = combined_df['distance_metric'][0]
 
         # Retrieving environment
         if (not isinstance(environment, Environment)) and (environment == True):
@@ -741,7 +755,7 @@ class SimulationHistory:
             agent_thresholds = np.array(np.array(thresholds_string.split('_')).astype(float))
 
         # Columns to retrieve
-        columns = [col for col in columns if col not in ['reward_discount', 'environment', 'agent']]
+        columns = [col for col in columns if col not in ['reward_discount','distance_metric', 'environment', 'agent']]
 
         # Checking how many dimensions there are
         has_layers = (((len(columns) - 5) % 2) == 1)
@@ -783,6 +797,7 @@ class SimulationHistory:
         hist.time_shift = time_shift
         hist.horizon = horizon
         hist.reward_discount = reward_discount
+        hist.distance_metric = distance_metric
 
         hist.start_points = start_points
         hist._running_sims = None
