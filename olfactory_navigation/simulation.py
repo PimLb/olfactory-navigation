@@ -1356,13 +1356,13 @@ def run_test(agent: Agent,
         if print_progress:
             done_count = hist.done_count
             success_count = hist.success_count
-            success_percentage = (success_count/done_count)*100 if done_count > 0 else 100
             dead_percentage = ((done_count-success_count)/done_count)*100 if done_count > 0 else 0
-            iterator.set_postfix({
-                'done ': f' {done_count}/{n} ({(done_count/n)*100:.1f}%)',
-                'success ': f' {success_count}/{done_count} ({success_percentage:.1f}%)',
-                'dead ': f' {done_count-success_count}/{done_count} ({dead_percentage:.1f}%)'
-            })
+
+            postfix_dict = {'done ': f' {done_count}/{n} ({(done_count/n)*100:.1f}%)'}
+            if done_count != success_count:
+                postfix_dict['encountered error '] = f' {done_count-success_count}/{done_count} ({dead_percentage:.1f}%)'
+
+            iterator.set_postfix(postfix_dict)
 
     # If requested print the simulation start
     if print_stats:
