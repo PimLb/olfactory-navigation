@@ -1192,7 +1192,7 @@ def run_test(agent: Agent,
 
     # Auto batches selector where the amount of batches increases if a memory error is detected
     if batches < 0:
-        all_try_batches = (2**np.arange(np.log2(11000), dtype=int))
+        all_try_batches = (2**np.arange(int(np.log2(n)), dtype=int))
         for try_batches in all_try_batches:
             try:
                 hist = run_test(agent = agent,
