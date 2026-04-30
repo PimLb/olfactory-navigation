@@ -545,12 +545,12 @@ class SimulationHistory:
         folder : str, optional
             Folder to save the simulation histories to.
             If the folder name is not provided the current folder will be used.
-        save_analysis : bool, default=True
+        save_analysis : bool, default = True
             Whether to save an additional csv file with an analysis of the runs of the simulation.
             It will contain the amount of steps taken, the amount of extra steps compared to optimality, the discounted rewards and the ratio between optimal trajectory and the steps taken.
             The means and standard deviations of all the runs are also computed.
             The file will have the same name as the simulation history file with an additional '-analysis' tag at the end.
-        save_components : bool, default=False
+        save_components : bool, default = False
             Whether or not to save the environment and agent along with the simulation histories in the given folder.
         '''
         assert (self.environment is not None) and (self.agent is not None), "Function not available, the agent and/or the environment is not set."
@@ -596,23 +596,6 @@ class SimulationHistory:
                 timestamps_column[i_start + ts_i] = (ts.strftime('%Y%m%d_%H%M%S%f') if ts_i == 0 else ts.strftime('%H%M%S%f'))
         combined_df['timestamps'] = timestamps_column
 
-        # Adding other useful info
-        padding = [None] * len(combined_df)
-        combined_df['horizon'] = [self.horizon] + padding[:-1]
-        combined_df['reward_discount'] = [self.reward_discount] + padding[:-1]
-        combined_df['distance_metric'] = [self.distance_metric] + padding[:-1]
-
-        environment_info = [
-            self.environment.name,
-            self.environment.saved_at,
-            str(self.environment_dimensions), # int
-            '_'.join(str(axis_size) for axis_size in self.environment_shape),
-            '_'.join(str(axis_position) for axis_position in self.environment_source_position),
-            str(self.environment_source_radius), # float
-            '' if (self.environment_layer_labels is None) else '&'.join(self.environment_layer_labels) # Using '&' as splitter as '_' could be used in the labels themselves
-        ]
-        combined_df['environment'] = (environment_info + padding[:-len(environment_info)])
-
         # Converting the thresholds array to a string to be saved
         thresholds_string = ''
         if len(self.agent_thresholds.shape) == 2:
@@ -620,13 +603,33 @@ class SimulationHistory:
         else:
             thresholds_string = '_'.join([str(item) for item in self.agent_thresholds])
 
-        agent_info = [
-            self.agent.name,
-            self.agent.class_name,
-            self.agent.saved_at,
-            thresholds_string
-        ]
-        combined_df['agent'] = (agent_info + padding[:-len(agent_info)])
+        # Adding other useful info # TODO: Make other info col and other info value
+        padding = [None] * len(combined_df)
+        properties_dict = {
+            'horizon': str(self.horizon),
+            'reward_discount': str(self.reward_discount),
+            'distance_metric': self.distance_metric,
+            'environment_name': self.environment.name,
+            'environment_saved_at': self.environment.saved_at,
+            'environment_dimensions': str(self.environment_dimensions), # int
+            'environment_shape': '_'.join(str(axis_size) for axis_size in self.environment_shape),
+            'environment_source_position': '_'.join(str(axis_position) for axis_position in self.environment_source_position),
+            'environment_source_radius': str(self.environment_source_radius), # float
+            'environment_layer_labels': '' if (self.environment_layer_labels is None) else '&'.join(self.environment_layer_labels), # Using '&' as splitter as '_' could be used in the labels themselves
+            'agent_name': self.agent.name,
+            'agent_class_name': self.agent.class_name,
+            'agent_saved_at': self.agent.saved_at,
+            'agent_thresholds': thresholds_string
+        }
+
+        properties_column = []
+        properties_value_column = []
+        for property_name, property_value in properties_dict.items():
+            properties_column.append(property_name)
+            properties_value_column.append(property_value)
+
+        combined_df['property'] = properties_column + padding[:-len(properties_dict)]
+        combined_df['property_value'] = properties_value_column + padding[:-len(properties_dict)]
 
         # Saving csv
         combined_df.to_csv(folder + file, index=False)
@@ -656,7 +659,8 @@ class SimulationHistory:
     def load(cls,
              file: str,
              environment: bool | Environment = False,
-             agent: bool | Agent = False
+             agent: bool | Agent = False,
+             legacy_format: bool = False
              ) -> 'SimulationHistory':
         '''
         Function to load the simulation history from a file.
@@ -668,12 +672,13 @@ class SimulationHistory:
         ----------
         file : str
             A file (with the path) of the simulation histories csv. (the analysis file cannot be used for this)
-        environment : bool or Environment, default=False
+        environment : bool or Environment, default = False
             If set to True, it will try to load the environment that was used for the simulation (if the save path is available).
             Or, an environment instance to be linked with the simulation history object.
-        agent : bool or Agent, default=False
+        agent : bool or Agent, default = False
             If set to True, it will try to load the agent that was used for the simulation (if the save path is available).
             An agent instance to be linked with the simulation history object.
+        legacy_format : bool, default = False
 
         Returns
         -------
@@ -717,9 +722,9 @@ class SimulationHistory:
 
         # Retrieving agent
         if (not isinstance(agent, Agent)) and (agent == True):
-            agent_name = combined_df['environment'][0]
-            agent_class = combined_df['environment'][1]
-            agent_path = combined_df['environment'][2]
+            agent_name = combined_df['agent'][0]
+            agent_class = combined_df['agent'][1]
+            agent_path = combined_df['agent'][2]
 
             agent_path_check = (agent_path is not None) and (not np.isnan(agent_path))
             assert agent_path_check, "Agent was not saved at the time of the saving of the simulation history. Input an agent to the agent parameter or toggle the parameter to False."
@@ -924,7 +929,7 @@ class SimulationHistory:
 
         Parameters
         ----------
-        sim_id : int, default=0
+        sim_id : int, default = 0
             The id of the simulation to plot.
         path_gradient : str, optional
             If provided, will draw the path with a the color gradient specified.
@@ -1136,28 +1141,28 @@ def run_test(agent: Agent,
         The environment to run the simulations in.
         By default, the environment linked to the agent will used.
         This parameter is intended if the environment needs to be modified compared to environment the agent was trained on.
-    time_shift : int or np.ndarray, default=0
+    time_shift : int or np.ndarray, default = 0
         The time at which to start the olfactory simulation array.
         It can be either a single value, or n values.
-    time_loop : bool, default=True
+    time_loop : bool, default = True
         Whether to loop the time if reaching the end. (starts back at 0)
-    horizon : int, default=1000
+    horizon : int, default = 1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    initialization_values : dict, default={}
+    initialization_values : dict, default = {}
         In the case the agent is to be initialized with custom values,
         the paramaters to be passed on the initialize_state function can be set here.
-    reward_discount : float, default=0.99
+    reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
-    print_progress : bool, default=True
+    print_progress : bool, default = True
         Whether to show a progress bar of what step the simulations are at.
-    print_stats : bool, default=True
+    print_stats : bool, default = True
         Whether to print the stats at the end of the run.
-    print_warning : bool, default=True
+    print_warning : bool, default = True
         Whether to print warnings when they occur or not.
-    use_gpu : bool, default=False
+    use_gpu : bool, default = False
         Whether to run the simulations on the GPU or not.
-    batches : int, default=-1
+    batches : int, default = -1
         In how many batches the simulations should be run.
         This is useful in the case there are too many simulations and the memory can fill up.
         The value of batches=-1 will make it that different batches amount are tried in increasing order if a MemoryError is encountered.
