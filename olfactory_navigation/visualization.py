@@ -20,7 +20,7 @@ def plot_shape_robustness_performance(robustness_analysis_df: pd.DataFrame,
         The analysis dataframe from which to plot the comparison plot.
     metric : 'converged' or 'steps_taken' or 'discounted_rewards' or 'extra_steps' or 't_min_over_t', default = 'converged'
         The metric to be used to compare the performance between different multiplier combinations.
-    success_only : bool, default=False
+    success_only : bool, default = False
         Whether to use the results filtered only to the successful trajectories.
     ax : plt.Axes, optional
         A matplotlib axis on which to plot the comparison plot. If not provided, a new one will be created.

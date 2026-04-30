@@ -55,13 +55,13 @@ class Agent:
     environment : Environment
         The olfactory environment the agent is meant to evolve in.
 
-    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default=3e-6
+    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default = 3e-6
         The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
         If a list of thresholds is provided, the agent should be able to detect |thresholds|+1 levels of odor.
         A dictionary of (list of) thresholds can also be provided when the environment is layered.
         In such case, the number of layers provided must match the environment's layers and their labels must match.
         The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
-    space_aware : bool, default=False
+    space_aware : bool, default = False
         Whether the agent is aware of it's own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
         Note: The observation array will have a different shape when returned to the update_state function!
@@ -74,7 +74,7 @@ class Agent:
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name for the agent. If it is not provided it will be named like "<class_name>-thresh_<threshold>".
-    seed : int, default=12131415
+    seed : int, default = 12131415
         For reproducible randomness.
 
     Attributes
@@ -318,7 +318,7 @@ class Agent:
 
         Parameters
         ----------
-        n : int, default=1
+        n : int, default = 1
             How many agents to initialize.
         '''
         raise NotImplementedError('The initialize_state function is not implemented, make an agent subclass to implement the method')
@@ -468,10 +468,10 @@ class Agent:
         ----------
         folder : str, optional
             The folder in which the agent's data should be saved.
-        force : bool, default=False
+        force : bool, default = False
             If the agent is already saved at the folder provided, the saving should fail.
             If the already saved agent should be overwritten, this parameter should be toggled to True.
-        save_environment : bool, default=False
+        save_environment : bool, default = False
             Whether to save the agent's linked environment alongside the agent itself.
         '''
         if self.on_gpu:

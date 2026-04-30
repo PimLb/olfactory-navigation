@@ -34,24 +34,24 @@ def run_all_starts_test(agent: Agent,
         The environment to run the simulations in.
         By default, the environment linked to the agent will used.
         This parameter is intended if the environment needs to be modified compared to environment the agent was trained on.
-    time_shift : int or np.ndarray, default=0
+    time_shift : int or np.ndarray, default = 0
         The time at which to start the olfactory simulation array.
         It can be either a single value, or n values.
-    time_loop : bool, default=True
+    time_loop : bool, default = True
         Whether to loop the time if reaching the end. (starts back at 0)
-    horizon : int, default=1000
+    horizon : int, default = 1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    initialization_values : dict, default={}
+    initialization_values : dict, default = {}
         In the case the agent is to be initialized with custom values,
         the paramaters to be passed on the initialize_state function can be set here.
-    reward_discount : float, default=0.99
+    reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
-    print_progress : bool, default=True
+    print_progress : bool, default = True
         Wheter to show a progress bar of what step the simulations are at.
-    print_stats : bool, default=True
+    print_stats : bool, default = True
         Wheter to print the stats at the end of the run.
-    use_gpu : bool, default=False
+    use_gpu : bool, default = False
         Whether to run the simulations on the GPU or not.
 
     Returns
@@ -107,32 +107,32 @@ def run_n_by_cell_test(agent: Agent,
     ----------
     agent : Agent
         The agent to be tested
-    cell_width : int, default=10
+    cell_width : int, default = 10
         The size of the sides of each cells to be considered.
-    n_by_cell : int, default=10
+    n_by_cell : int, default = 10
         How many simulations should start within each cell.
     environment : Environment, optional
         The environment to run the simulations in.
         By default, the environment linked to the agent will used.
         This parameter is intended if the environment needs to be modified compared to environment the agent was trained on.
-    time_shift : int or np.ndarray, default=0
+    time_shift : int or np.ndarray, default = 0
         The time at which to start the olfactory simulation array.
         It can be either a single value, or n values.
-    time_loop : bool, default=True
+    time_loop : bool, default = True
         Whether to loop the time if reaching the end. (starts back at 0)
-    horizon : int, default=1000
+    horizon : int, default = 1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    initialization_values : dict, default={}
+    initialization_values : dict, default = {}
         In the case the agent is to be initialized with custom values,
         the paramaters to be passed on the initialize_state function can be set here.
-    reward_discount : float, default=0.99
+    reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
-    print_progress : bool, default=True
+    print_progress : bool, default = True
         Wheter to show a progress bar of what step the simulations are at.
-    print_stats : bool, default=True
+    print_stats : bool, default = True
         Wheter to print the stats at the end of the run.
-    use_gpu : bool, default=False
+    use_gpu : bool, default = False
         Whether to run the simulations on the GPU or not.
 
     Returns
@@ -271,42 +271,42 @@ def test_shape_robustness(agent: Agent,
         The environment to run the test in.
         By default, the environment linked to the agent will used.
         This parameter is intended if the environment needs to be modified compared to environment the agent was trained on.
-    time_shift : int or np.ndarray, default=0
+    time_shift : int or np.ndarray, default = 0
         The time at which to start the olfactory simulation array.
         It can be either a single value, or n values.
-    time_loop : bool, default=True
+    time_loop : bool, default = True
         Whether to loop the time if reaching the end. (starts back at 0)
-    horizon : int, default=1000
+    horizon : int, default = 1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    initialization_values : dict, default={}
+    initialization_values : dict, default = {}
         In the case the agent is to be initialized with custom values,
         the paramaters to be passed on the initialize_state function can be set here.
-    reward_discount : float, default=0.99
+    reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
-    step_percentage : int, default=20
+    step_percentage : int, default = 20
         Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
-    min_percentage : int, default=20
+    min_percentage : int, default = 20
         The minimum percentage of deformation to apply on the environment's odor plume.
-    max_percentage : int, default=200
+    max_percentage : int, default = 200
         The maximum percentage of deformation to apply on the environment's odor plume.
         If this value is larger than the maximum shape allowed by the margins, the largest allowed percentage will be used.
     multipliers : list[int], optional
         If provided, the step_percentage, min_percentage and max_percentage parameters will be ignored.
         A list of percentages of deformations to use to deforme the environment's odor plume.
-    use_gpu : bool, default=False
+    use_gpu : bool, default = False
         Whether to use the GPU to speed up the tests.
-    print_progress : bool, default=True
+    print_progress : bool, default = True
         Whether to display a progress bar of how many test have been performed so far.
-    print_stats : bool, default=True
+    print_stats : bool, default = True
         Whether to display statistics at the end of each test.
-    save : bool, default=True
+    save : bool, default = True
         Whether to save the results of each test to a save_folder.
         Each test's result will be under the name 'test_env_y-<y_multiplier>_x-<x_multiplier>.csv'
     save_folder : str, optional
         The path to which the test results are saved.
         If not provided, it will automatically create a new folder './results/<timestamp>_shape_robustness_test_<environment_name>/'
-    save_analysis : bool, default=True
+    save_analysis : bool, default = True
         Whether to save the analysis of the histories.
         It will be saved under a file named '_analysis.csv' in the save_folder.
 
@@ -482,42 +482,42 @@ def test_scale_robustness(agent: Agent,
         The environment to run the test in.
         By default, the environment linked to the agent will used.
         This parameter is intended if the environment needs to be modified compared to environment the agent was trained on.
-    time_shift : int or np.ndarray, default=0
+    time_shift : int or np.ndarray, default = 0
         The time at which to start the olfactory simulation array.
         It can be either a single value, or n values.
-    time_loop : bool, default=True
+    time_loop : bool, default = True
         Whether to loop the time if reaching the end. (starts back at 0)
-    horizon : int, default=1000
+    horizon : int, default = 1000
         The amount of steps to run the simulation for before killing the remaining simulations.
-    initialization_values : dict, default={}
+    initialization_values : dict, default = {}
         In the case the agent is to be initialized with custom values,
         the paramaters to be passed on the initialize_state function can be set here.
-    reward_discount : float, default=0.99
+    reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
-    step_percentage : int, default=20
+    step_percentage : int, default = 20
         Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
-    min_percentage : int, default=20
+    min_percentage : int, default = 20
         The minimum percentage of deformation to apply on the environment's odor plume.
-    max_percentage : int, default=200
+    max_percentage : int, default = 200
         The maximum percentage of deformation to apply on the environment's odor plume.
         If this value is larger than the maximum shape allowed by the margins, the largest allowed percentage will be used.
     multipliers : list[int], optional
         If provided, the step_percentage, min_percentage and max_percentage parameters will be ignored.
         A list of percentages of deformations to use to deforme the environment's odor plume.
-    use_gpu : bool, default=False
+    use_gpu : bool, default = False
         Whether to use the GPU to speed up the tests.
-    print_progress : bool, default=True
+    print_progress : bool, default = True
         Whether to display a progress bar of how many test have been performed so far.
-    print_stats : bool, default=True
+    print_stats : bool, default = True
         Whether to display statistics at the end of each test.
-    save : bool, default=True
+    save : bool, default = True
         Whether to save the results of each test to a save_folder.
         Each test's result will be under the name 'test_env_mult-<multiplier>.csv'
     save_folder : str, optional
         The path to which the test results are saved.
         If not provided, it will automatically create a new folder './results/<timestamp>_scale_robustness_test_<environment_name>/'
-    save_analysis : bool, default=True
+    save_analysis : bool, default = True
         Whether to save the analysis of the histories.
         It will be saved under a file named '_analysis.csv' in the save_folder.
 

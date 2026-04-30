@@ -291,7 +291,7 @@ class ValueFunction:
 
         Parameters
         ----------
-        level : int, default=1
+        level : int, default = 1
             Between 0 and 3, how thorough the alpha vector pruning should be.
         '''
         # GPU support check
@@ -413,9 +413,9 @@ class ValueFunction:
 
         Parameters
         ----------
-        folder : str, default='./ValueFunctions'
+        folder : str, default = './ValueFunctions'
             The path at which the npy file will be saved.
-        file_name : str, default='<current_timestamp>_value_function.npy'
+        file_name : str, default = '<current_timestamp>_value_function.npy'
             The file name used to save in.
         '''
         if self.is_on_gpu:
@@ -477,9 +477,9 @@ class ValueFunction:
 
         Parameters
         ----------
-        as_grid : bool, default=False
+        as_grid : bool, default = False
             Forces the plot to be plot as a grid.
-        size : int, default=5
+        size : int, default = 5
             The actual plot scale.
         belief_set : np.ndarray, optional
             A set of belief to plot the belief points that were explored.

@@ -80,38 +80,38 @@ class Environment:
     data_source_position : list or np.ndarray
         The center point of the source provided as a list or a 1D array with the components being x,y.
         This position is computed in the olfactory data zone (so excluding the margins).
-    source_radius : float, default=1.0
+    source_radius : float, default = 1.0
         The radius from the center point of the source in which we consider the agent has reached the source.
-    layers : bool or list[int] or list[str], default=False
+    layers : bool or list[int] or list[str], default = False
         Whether or not the data provided contains layers or not.
         If a list of strings is provided, it will be either used to name the layers found (if numpy data), or it is used to querry the datasets of the h5 file.
     shape : list or np.ndarray, optional
         A 2-element array or list of how many units should be kept in the final array (including the margins).
         As it should include the margins, the shape should be strictly larger than the sum of the margins in each direction.
         By default, the shape of the olfactory data will be maintained.
-    margins : int or list or np.ndarray, default=0
+    margins : int or list or np.ndarray, default = 0
         How many units have to be added to the data as margins. (Before the multiplier is applied)
         If a unique element is provided, the margin will be this same value on each side.
         If a list or array of 2 elements is provided, the first number will be vertical margins (y-axis), while the other will be on the x-axis (horizontal).
-    multiplier : list or np.ndarray, default=[1.0,1.0]
+    multiplier : list or np.ndarray, default = [1.0,1.0]
         A 2-element array or list of how much the odor field should be streched in each direction.
         If a value larger than 1 is provided, the margins will be reduced to accomodate for the larger size of the olfactory data size.
         And inversly, less than 1 will increase the margins.
         By default, the multipliers will be set to 1.0.
-    interpolation_method : 'Nearest' or 'Linear' or 'Cubic', default='Linear'
+    interpolation_method : 'Nearest' or 'Linear' or 'Cubic', default = 'Linear'
         The interpolation method to be used in the case the data needs to be reshaped to fit the shape, margins and multiplier parameters.
         By default, it uses Bi-linear interpolation. The interpolation is performed using the OpenCV library.
-    preprocess_data : bool, default=False
+    preprocess_data : bool, default = False
         Applicable only for data_file being a path to a h5 file.
         Whether to reshape of the data at the creation of the environment.
         Reshaping the data ahead of time will require more processing at the creation and more memory overall.
         While if this is disabled, when gathering observations, more time will be required but less memory will need to be used at once.
-    boundary_condition : 'stop' or 'wrap' or 'wrap_vertical' or 'wrap_horizontal' or 'clip', default='stop'
+    boundary_condition : 'stop' or 'wrap' or 'wrap_vertical' or 'wrap_horizontal' or 'clip', default = 'stop'
         How the agent should behave at the boundary.
         Stop means for the agent to stop at the boundary, if the agent tries to move north while being on the top edge, it will stay in the same state.
         Wrap means for the borders to be like portals, when entering on one side, it reappears on the other side.
         Wrap can be specified to be only vertically or horizontally
-    start_zone : 'odor_present' or 'data_zone' or np.ndarray, default='data_zone'
+    start_zone : 'odor_present' or 'data_zone' or np.ndarray, default = 'data_zone'
         Either an array or a string representing how the starting probabilities should be constructed.
         - odor_present: The start probabilities will be uniform where odor cues can be found above 0 (or a given odor_present_threshold)
         - data_zone: Uniform over the data zone, so without the margins.
@@ -123,7 +123,7 @@ class Environment:
         A custom name to be given to the agent.
         If it is not provided, by default it will have the format:
         <shape>-marg_<margins>-edge_<boundary_condition>-start_<start_zone>-source_<source_point>_radius<source_radius>
-    seed : int, default=12131415
+    seed : int, default = 12131415
         For reproducible randomness.
 
     Attributes
@@ -495,9 +495,9 @@ class Environment:
 
         Parameters
         ----------
-        frame : int, default=0
+        frame : int, default = 0
             The frame of odor cues to print.
-        layer : int, default=0
+        layer : int, default = 0
             The layer of the odor cues to print. (Ignored if the environment is not layered.)
         ax : plt.Axes, optional
             An ax on which the environment can be plot.
@@ -574,9 +574,9 @@ class Environment:
         ----------
         pos : np.ndarray
             The position or list of positions to get observations at.
-        time : int or np.ndarray, default=0
+        time : int or np.ndarray, default = 0
             A timestamp or list of timestamps to get the observations at.
-        layer : int or np.ndarray, default=0
+        layer : int or np.ndarray, default = 0
             A layer or list of timestamps to get the observations at.
             Note: If the environment doesnt have layers, this parameter will be ignored.
 
@@ -696,7 +696,7 @@ class Environment:
 
         Parameters
         ----------
-        n : int, default=1
+        n : int, default = 1
             How many random starting positions to generate
 
         Returns
@@ -831,9 +831,9 @@ class Environment:
         ----------
         folder : str, optional
             The folder to which to save the environment data. If it is not provided, it will be created in the current folder.
-        save_arrays : bool, default=False
+        save_arrays : bool, default = False
             Whether or not to save the numpy arrays to memory. (The arrays can be heavy)
-        force : bool, default=False
+        force : bool, default = False
             In case an environment of the same name is already saved, it will be overwritten.
         '''
         # If on gpu, use the cpu version to save

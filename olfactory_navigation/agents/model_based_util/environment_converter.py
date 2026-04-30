@@ -159,9 +159,9 @@ def minimal_converter(agent : Agent,
     ----------
     agent : Agent
         The agent to use to get the environment and threshold parameters from.
-    partitions : list or np.ndarray, default=[3,6]
+    partitions : list or np.ndarray, default = [3,6]
         How many partitions to use in respectively the y and x directions.
-    margin_partitions : bool, default=False
+    margin_partitions : bool, default = False
         Whether to have seperate partitions for the margins or not. In the case it is enabled, +2 partitions are added in each dimensions.
 
     Returns

@@ -41,7 +41,7 @@ class Model(MDP_Model):
         If provided, it will be use in combination with the transition matrix to fill to expected rewards.
     observation_table : array-like or function, optional
         The observation matrix, has to be |S| x |A| x |O|. If none is provided, it will be randomly generated.
-    rewards_are_probabilistic: bool, default=False
+    rewards_are_probabilistic: bool, default = False
         Whether the rewards provided are probabilistic or pure rewards. If probabilist 0 or 1 will be the reward with a certain probability.
     state_grid : array-like, optional
         If provided, the model will be converted to a grid model.
@@ -51,9 +51,9 @@ class Model(MDP_Model):
         Entering either state in the list during a simulation will end the simulation.
     end_actions : list, optional
         Playing action of the list during a simulation will end the simulation.
-    print_debug : bool, default=False
+    print_debug : bool, default = False
         Whether to print debug logs about the creation progress of the POMDP Model.
-    seed : int, default=12131415
+    seed : int, default = 12131415
         For reproducible randomness.
 
     Attributes

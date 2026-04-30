@@ -107,7 +107,7 @@ class Belief:
             The most recent action.
         o : int
             The most recent observation.
-        throw_error : bool, default=True
+        throw_error : bool, default = True
             Whether the creation of an impossible belief (sum of probabilities of 0.0) will throw an error or not.
 
         Returns
@@ -195,7 +195,7 @@ class Belief:
 
         Parameters
         ----------
-        size : int, default=5
+        size : int, default = 5
             The scale of the plot.
         '''
         # Plot setup
@@ -324,7 +324,7 @@ class BeliefSet:
             The most recent played actions.
         observations : list or np.ndarray
             The most recent received observations.
-        throw_error : bool, default=True
+        throw_error : bool, default = True
             Whether the throw an error when attempting to generate impossible beliefs.
 
         Returns

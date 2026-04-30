@@ -31,13 +31,13 @@ class Infotaxis_Agent(Agent):
     ----------
     environment : Environment
         The olfactory environment to train the agent with.
-    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default=3e-6
+    thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default = 3e-6
         The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
         If a list of thresholds is provided, the agent should be able to detect |thresholds|+1 levels of odor.
         A dictionary of (list of) thresholds can also be provided when the environment is layered.
         In such case, the number of layers provided must match the environment's layers and their labels must match.
         The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
-    space_aware : bool, default=False
+    space_aware : bool, default = False
         Whether the agent is aware of it's own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
         Note: The observation array will have a different shape when returned to the update_state function!
@@ -50,12 +50,12 @@ class Infotaxis_Agent(Agent):
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
-    seed : int, default=12131415
+    seed : int, default = 12131415
         For reproducible randomness.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
-    environment_converter : Callable, default=exact_converter
+    environment_converter : Callable, default = exact_converter
         A function to convert the olfactory environment instance to a POMDP Model instance.
         By default, we use an exact convertion that keeps the shape of the environment to make the amount of states of the POMDP Model.
         This parameter will be ignored if the model parameter is provided.
@@ -196,7 +196,7 @@ class Infotaxis_Agent(Agent):
 
         Parameters
         ----------
-        n : int, default=1
+        n : int, default = 1
             How many agents are to be used during the simulation.
         belief : BeliefSet, optional
             An optional set of beliefs to initialize the simulations with.

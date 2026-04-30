@@ -61,7 +61,7 @@ class Model:
         The reward matrix, has to be |S| x |A| x |S|.
         A function can also be provided here but it has to be able to deal with np.array arguments.
         If provided, it will be use in combination with the transition matrix to fill to expected rewards.
-    rewards_are_probabilistic : bool, default=False
+    rewards_are_probabilistic : bool, default = False
         Whether the rewards provided are probabilistic or pure rewards. If probabilist 0 or 1 will be the reward with a certain probability.
     state_grid : array-like, optional
         If provided, the model will be converted to a grid model.
@@ -71,9 +71,9 @@ class Model:
         Entering either state in the list during a simulation will end the simulation.
     end_actions : list, optional
         Playing action of the list during a simulation will end the simulation.
-    print_debug : bool, default=False
+    print_debug : bool, default = False
         Whether to print debug logs about the creation progress of the MDP Model.
-    seed : int, default=12131415
+    seed : int, default = 12131415
         For reproducible randomness.
     
     Attributes
@@ -513,7 +513,7 @@ class Model:
         ----------
         file_name : str
             The name of the json file the model will be saved in.
-        path : str, default='./Models'
+        path : str, default = './Models'
             The path at which the model will be saved.
         '''
         if not os.path.exists(path):
