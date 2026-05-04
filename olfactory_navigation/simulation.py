@@ -1164,6 +1164,7 @@ def run_test(agent: Agent,
              print_stats: bool = True,
              print_warning: bool = True,
              use_gpu: bool = False,
+             parallel_agent_simulation: bool = True,
              batches: int = -1
              ) -> SimulationHistory:
     '''
@@ -1221,6 +1222,8 @@ def run_test(agent: Agent,
         Whether to print warnings when they occur or not.
     use_gpu : bool, default = False
         Whether to run the simulations on the GPU or not.
+    parallel_agent_simulation : bool, default = True
+        Runs simulations with batches of size 1.
     batches : int, default = -1
         In how many batches the simulations should be run.
         This is useful in the case there are too many simulations and the memory can fill up.
@@ -1246,6 +1249,13 @@ def run_test(agent: Agent,
     else:
         environment = agent.environment
 
+    # Set start positions
+    if start_points is not None:
+        assert start_points.shape == (n, environment.dimensions), f'The provided start_points are of the wrong shape (expected {environment.dimensions}; received {start_points.shape[1]})'
+    else:
+        # Generating random starts
+        start_points = environment.random_start_points(n)
+
     # Timeshift
     if isinstance(time_shift, int):
         time_shift = np.ones(n) * time_shift
@@ -1253,6 +1263,10 @@ def run_test(agent: Agent,
         time_shift = np.array(time_shift)
         assert time_shift.shape == (n,), f"time_shift array has a wrong shape (Given: {time_shift.shape}, expected ({n},))"
     time_shift = time_shift.astype(int)
+
+    # Processing the request for sequential process
+    if not parallel_agent_simulation:
+        batches = n
 
     # Auto batches selector where the amount of batches increases if a memory error is detected
     if batches < 0:
@@ -1338,14 +1352,8 @@ def run_test(agent: Agent,
         if start_points is not None:
             start_points = cp.array(start_points)
 
-    # Set start positions
-    agent_position = None
-    if start_points is not None:
-        assert start_points.shape == (n, environment.dimensions), f'The provided start_points are of the wrong shape (expected {environment.dimensions}; received {start_points.shape[1]})'
-        agent_position = start_points
-    else:
-        # Generating random starts
-        agent_position = environment.random_start_points(n)
+    # set agent's position to the start_point
+    agent_position = start_points
 
     # Initialize agent's state
     agent.initialize_state(n, **initialization_values)
