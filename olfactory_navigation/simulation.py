@@ -696,21 +696,43 @@ class SimulationHistory:
         if 'layer' in columns:
             column_dtypes['layer'] = int
         column_dtypes['timestamps'] = str
-        column_dtypes['environment'] = str
-        column_dtypes['agent'] = str
+        if legacy_format:
+            column_dtypes['environment'] = str
+            column_dtypes['agent'] = str
+        else:
+            column_dtypes['property'] = str
+            column_dtypes['property_value'] = str
 
         # Retrieving the combined dataframe
         combined_df = pd.read_csv(file, dtype=column_dtypes)
 
+        # Reading properties dict
+        properties_dict = {}
+        if not legacy_format:
+            property_names = combined_df['property']
+            property_values = combined_df['property_value']
+            property_is_na = property_names.isna()
+            for name, value, is_na in zip(property_names, property_values, property_is_na):
+                if is_na:
+                    break
+                properties_dict[name] = value
+
         # Retrieving horizon and reward discount
-        horizon = int(combined_df['horizon'][0])
-        reward_discount = combined_df['reward_discount'][0]
-        distance_metric = combined_df['distance_metric'][0]
+        if legacy_format:
+            horizon = int(combined_df['horizon'][0])
+            reward_discount = combined_df['reward_discount'][0]
+        else:
+            horizon = int(properties_dict['horizon'])
+            reward_discount = float(properties_dict['reward_discount'])
 
         # Retrieving environment
         if (not isinstance(environment, Environment)) and (environment == True):
-            environment_name = combined_df['environment'][0]
-            environment_path = combined_df['environment'][1]
+            if legacy_format:
+                environment_name = combined_df['environment'][0]
+                environment_path = combined_df['environment'][1]
+            else:
+                environment_name = properties_dict['environment_name']
+                environment_path = properties_dict['environment_saved_at']
 
             environment_path_check = (environment_path is not None) and (not np.isnan(environment_path))
             assert environment_path_check, "Environment was not saved at the time of the saving of the simulation history. Input an environment to the environment parameter or toggle the parameter to False."
@@ -722,9 +744,14 @@ class SimulationHistory:
 
         # Retrieving agent
         if (not isinstance(agent, Agent)) and (agent == True):
-            agent_name = combined_df['agent'][0]
-            agent_class = combined_df['agent'][1]
-            agent_path = combined_df['agent'][2]
+            if legacy_format:
+                agent_name = combined_df['agent'][0]
+                agent_class = combined_df['agent'][1]
+                agent_path = combined_df['agent'][2]
+            else:
+                agent_name = properties_dict['agent_name']
+                agent_class = properties_dict['agent_class_name']
+                agent_path = properties_dict['agent_saved_at']
 
             agent_path_check = (agent_path is not None) and (not np.isnan(agent_path))
             assert agent_path_check, "Agent was not saved at the time of the saving of the simulation history. Input an agent to the agent parameter or toggle the parameter to False."
@@ -740,15 +767,23 @@ class SimulationHistory:
                 print(f'Failed to retrieve "{agent_name}" agent from memory')
 
         # Other attributes
-        environment_dimensions = int(combined_df['environment'][2])
-        environment_shape = tuple([int(axis_shape) for axis_shape in combined_df['environment'][3].split('_')])
-        environment_source_position = np.array([float(pos_axis) for pos_axis in combined_df['environment'][4].split('_')])
-        environment_source_radius = float(combined_df['environment'][5])
-        layer_entery = combined_df['environment'][6]
-        environment_layer_labels = (None if ((not isinstance(layer_entery, str)) or (len(layer_entery) == 0)) else layer_entery.split('&'))
+        if legacy_format:
+            environment_dimensions = int(combined_df['environment'][2])
+            environment_shape = tuple([int(axis_shape) for axis_shape in str(combined_df['environment'][3]).split('_')])
+            environment_source_position = np.array([float(pos_axis) for pos_axis in str(combined_df['environment'][4]).split('_')])
+            environment_source_radius = float(combined_df['environment'][5])
+            layers_entry = combined_df['environment'][6]
+        else:
+            environment_dimensions = int(properties_dict['environment_dimensions'])
+            environment_shape = tuple([int(axis_shape) for axis_shape in str(properties_dict['environment_shape']).split('_')])
+            environment_source_position = np.array([float(pos_axis) for pos_axis in str(properties_dict['environment_source_position']).split('_')])
+            environment_source_radius = float(properties_dict['environment_source_radius'])
+            layers_entry = properties_dict['environment_layer_labels']
+
+        environment_layer_labels = (None if ((not isinstance(layers_entry, str)) or (len(layers_entry) == 0)) else layers_entry.split('&'))
 
         # Processing the threshold string
-        thresholds_string = str(combined_df['agent'][3])
+        thresholds_string = str(combined_df['agent'][3]) if legacy_format else properties_dict['agent_thresholds']
         if '&' in thresholds_string:
             rows_thresholds_string = thresholds_string.split('&')
             layer_thresholds = []
@@ -760,11 +795,11 @@ class SimulationHistory:
             agent_thresholds = np.array(np.array(thresholds_string.split('_')).astype(float))
 
         # Columns to retrieve
-        columns = [col for col in columns if col not in ['reward_discount','distance_metric', 'environment', 'agent']]
+        columns = [col for col in columns if col not in ['horizon', 'reward_discount','distance_metric', 'environment', 'agent', 'property', 'property_value']]
 
-        # Checking how many dimensions there are
-        has_layers = (((len(columns) - 5) % 2) == 1)
-        dimensions = int((len(columns) - 5) / 2)
+        # Checking how many dimensions there are (-4 because we remove "time", "o", "reached_source", "timestamps")
+        has_layers = (((len(columns) - 4) % 2) == 1) # If -4 columns, there is a column remaining after diving by 2 (because x's and dx's) it means a "layer" column exists
+        dimensions = int((len(columns) - 4) / 2)
 
         # Recreation of list of simulations
         sim_start_rows = np.argwhere(combined_df[['reached_source']].isnull())[1:,0]
@@ -802,7 +837,7 @@ class SimulationHistory:
         hist.time_shift = time_shift
         hist.horizon = horizon
         hist.reward_discount = reward_discount
-        hist.distance_metric = distance_metric
+        hist.distance_metric = 'l1' if legacy_format else properties_dict['distance_metric'] # This argument didnt exist at the time of the legacy format
 
         hist.start_points = start_points
         hist._running_sims = None
@@ -819,7 +854,7 @@ class SimulationHistory:
         timestamps = {}
 
         # Reading each group of timestamps (representing of each run)
-        for group_i, (group_start, group_end) in enumerate(zip(timestamp_groups[:-1], timestamp_groups[1:])):
+        for (group_start, group_end) in zip(timestamp_groups[:-1], timestamp_groups[1:]):
             timestamp_group = timestamp_column[group_start:group_end]
 
             # Initial read of the group
@@ -833,7 +868,7 @@ class SimulationHistory:
 
             # Reading each timestamp of the list
             for timestamp_string in timestamp_string_list[1:]:
-                timestamp_string = timestamp_day + str(timestamp_string)
+                timestamp_string = timestamp_day + str(timestamp_string) # Adding "%Y%m%d_"
                 timestamp = datetime.strptime(timestamp_string, '%Y%m%d_%H%M%S%f') + day_delta
 
                 # If timestamp is smaller than the previous one, it means it is a new day and the day_delta has to be increased
