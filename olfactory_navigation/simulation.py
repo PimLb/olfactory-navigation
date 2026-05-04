@@ -245,8 +245,6 @@ class SimulationHistory:
             dist = np.sum(np.abs(self.environment_source_position[None,:] - point), axis=-1) - self.environment_source_radius
         elif self.distance_metric == 'l2':
             dist = np.sqrt(np.sum((self.environment_source_position[None, :] - point)**2, axis=-1)) - self.environment_source_radius
-        else:
-            raise Exception('Distance metric not supported')
 
         if dist is None: # Meaning it was not computed
             raise NotImplementedError('This distance metric has not yet been implemented')
@@ -263,7 +261,7 @@ class SimulationHistory:
          - <axis>:              The starting positions at the given axis
          - optimal_steps_count: The minimal amount of steps to reach the source
          - converged:           Whether or not the simulation reached the source
-         - reached_horizon:     Whether the failed simulation reached to horizon
+         - encountered_error:   Whether the failed simulation encountered an error
          - steps_taken:         The amount of steps the agent took to reach the source, (horizon if the simulation did not reach the source)
          - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
          - extra_steps:         The amount of extra steps compared to the optimal trajectory
@@ -280,7 +278,7 @@ class SimulationHistory:
         df = pd.DataFrame(self.start_points, columns=axes_labels)
         df['optimal_steps_count'] = self.compute_distance_to_source()
         df['converged'] = self.reached_source
-        df['reached_horizon'] = np.all(self.positions[-1] != -1, axis=1) & ~self.reached_source & (len(self.positions) == self.horizon)
+        df['encountered_error'] = self.error_simulations
         df['steps_taken'] = np.where(self.done_at_step >= 0, self.done_at_step, len(self.positions))
         df['discounted_rewards'] = self.reward_discount ** df['steps_taken']
         df['extra_steps'] = df['steps_taken'] - df['optimal_steps_count']
@@ -299,19 +297,21 @@ class SimulationHistory:
         A Pandas DataFrame analyzing the results of the simulations.
         Summarizing the performance of all the simulations with the following metrics:
 
+         - count:               The total amount of simulations that have been launched and the amount that were successfull
          - converged:           Whether or not the simulation reached the source
-         - reached_horizon:     Whether the failed simulation reached to horizon
+         - encountered_error:   Whether the failed simulation reached to horizon
          - steps_taken:         The amount of steps the agent took to reach the source, (horizon if the simulation did not reach the source)
          - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
          - extra_steps:         The amount of extra steps compared to the optimal trajectory
          - t_min_over_t:        Normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
 
-        For the measures (converged, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed in rows at the top.
+        For the measures (converged, encountered_error, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed along with the success only average and standard deviations.
+        For the count measure, the "mean" and "success_mean" actually represent the total and success_total
         '''
         df = self.runs_analysis_df
 
         # Analysis aggregations
-        columns_to_analyze = ['converged', 'reached_horizon', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']
+        columns_to_analyze = ['converged', 'encountered_error', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']
         row_names = [['mean', 'standard_deviation', 'success_mean', 'success_standard_deviation']]
         general_analysis_data = [
             df[columns_to_analyze].mean(),
@@ -320,7 +320,14 @@ class SimulationHistory:
             df.loc[df['converged'], columns_to_analyze].std()
         ]
 
-        return pd.DataFrame(data=general_analysis_data, index=row_names, columns=columns_to_analyze)
+        result_df = pd.DataFrame(data=general_analysis_data, index=row_names, columns=columns_to_analyze)
+
+        # Making empty meaningless values and adding a "count" column
+        result_df.loc[['standard_deviation', 'success_mean', 'success_standard_deviation'], ['converged', 'encountered_error']] = None
+        result_df['count'] = [self.n, None, self.success_count, None]
+        result_df = result_df.loc[:, ['count'] + columns_to_analyze]
+
+        return result_df
 
 
     @property
@@ -1236,7 +1243,7 @@ def run_test(agent: Agent,
     '''
     # Gathering n
     if n is None:
-        if (start_points is None) or (len(start_points.shape) == 1):
+        if (start_points is None) or (len(start_points.shape) == 1): # len(start_points.shape) means there is only 1 point in start_points
             n = 1
         else:
             n = len(start_points)
