@@ -103,12 +103,16 @@ class SimulationHistory:
         A Pandas DataFrame analyzing the results of the simulations.
     done_count : int
         How many simulations are terminated (whether they reached the source or not).
-    successful_simulation : np.ndarray
+    successful_simulations : np.ndarray
         A boolean array of which simulations reached the source.
     success_count : int
         How many simulations reached the source.
     simulations_at_horizon : np.ndarray
         A boolean array of which simulations reached the horizon.
+    error_simulations : np.ndarray
+        A boolean array of which simulations encountered an error before reaching the source or the horizon.
+    error_count : int
+        A count of how many simulations encountered an error.
     summary : str
         A string summarizing the performances of all the simulations.
     '''
@@ -328,7 +332,10 @@ class SimulationHistory:
 
 
     @property
-    def successful_simulation(self) -> np.ndarray:
+    def successful_simulations(self) -> np.ndarray:
+        '''
+        Returns a boolean array of which simulations were successfull at reaching the source.
+        '''
         return self.reached_source
 
 
@@ -337,7 +344,7 @@ class SimulationHistory:
         '''
         Returns how many simulations reached the source.
         '''
-        return int(np.sum(self.successful_simulation))
+        return int(np.sum(self.successful_simulations))
 
 
     @property
@@ -348,6 +355,22 @@ class SimulationHistory:
         last_position_exists = np.all(self.positions[-1] != -1, axis=1)
         simulation_reached_horizon = (len(self.positions) == self.horizon)
         return last_position_exists & ~self.reached_source & simulation_reached_horizon
+
+
+    @property
+    def error_simulations(self) -> np.ndarray:
+        '''
+        Returns a boolean array of which simulations encountered an error before reaching the source or the horizon.
+        '''
+        return (self.done_at_step != -1) & ~self.reached_source
+
+
+    @property
+    def error_count(self) -> int:
+        '''
+        Returns a count of how many simulations encountered an error.
+        '''
+        return np.sum(self.error_simulations)
 
 
     @property
@@ -364,9 +387,10 @@ class SimulationHistory:
         Along with the respective the standard deviations and equally for only for the successful simulations.
         '''
         success_sim_count = self.success_count
-        failed_count = self.n - success_sim_count
-        reached_horizon_count = int(np.sum(self.simulations_at_horizon))
-        summary_str = f'Simulations reached goal: {success_sim_count}/{self.n} ({failed_count} failures (reached horizon: {reached_horizon_count})) ({(success_sim_count*100)/self.n:.2f}% success)'
+        summary_str = f'Simulations reached goal: {success_sim_count}/{self.n} ({(success_sim_count*100)/self.n:.2f}% success)'
+
+        if self.error_count > 0:
+            summary_str += f' - {self.error_count} AGENTS ENCOUNTERED ERRORS'
 
         if success_sim_count == 0:
             return summary_str
@@ -603,7 +627,7 @@ class SimulationHistory:
         else:
             thresholds_string = '_'.join([str(item) for item in self.agent_thresholds])
 
-        # Adding other useful info # TODO: Make other info col and other info value
+        # Adding other useful info
         padding = [None] * len(combined_df)
         properties_dict = {
             'horizon': str(self.horizon),
@@ -1113,9 +1137,9 @@ class SimulationHistory:
         start_points_grid = np.zeros(self.environment_shape)
 
         # Compute the successful, failed and the ones that reached the horizon
-        success_points = self.start_points[self.successful_simulation]
-        failed_points = self.start_points[~self.successful_simulation]
-        failed_not_at_horizon_points = self.start_points[~self.successful_simulation & ~self.simulations_at_horizon]
+        success_points = self.start_points[self.successful_simulations]
+        failed_points = self.start_points[~self.successful_simulations]
+        failed_not_at_horizon_points = self.start_points[~self.successful_simulations & ~self.simulations_at_horizon]
 
         start_points_grid[failed_points[:,0], failed_points[:,1]] = -1
         start_points_grid[success_points[:,0], success_points[:,1]] = 1
@@ -1395,12 +1419,10 @@ def run_test(agent: Agent,
         # Update progress bar
         if print_progress:
             done_count = hist.done_count
-            success_count = hist.success_count
-            dead_percentage = ((done_count-success_count)/done_count)*100 if done_count > 0 else 0
 
             postfix_dict = {'done ': f' {done_count}/{n} ({(done_count/n)*100:.1f}%)'}
-            if done_count != success_count:
-                postfix_dict['encountered error '] = f' {done_count-success_count}/{done_count} ({dead_percentage:.1f}%)'
+            if hist.error_count > 0:
+                postfix_dict['ENCOUNTERED ERROR '] = f' {hist.error_count}'
 
             iterator.set_postfix(postfix_dict)
 
