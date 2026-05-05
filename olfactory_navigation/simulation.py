@@ -266,6 +266,8 @@ class SimulationHistory:
          - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
          - extra_steps:         The amount of extra steps compared to the optimal trajectory
          - t_min_over_t:        Normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
+         - time_s:              The amount of clock time in seconds until the agent was done either by reaching the source, encountering an error or reaching the horizon
+         - time_per_it_s:       The amount of clock time in seconds taken on average per step the agent takes
         '''
         # Get axes labels
         axes_labels = None
@@ -273,6 +275,14 @@ class SimulationHistory:
             axes_labels = ['z', 'y', 'x'][-self.environment_dimensions:]
         else:
             axes_labels = [f'x{i}' for i in range(self.environment_dimensions)]
+
+        # Process timestamps
+        run_times = []
+        timestamps_run_bounds = sorted(list(self.timestamps.keys())) + [self.n]
+        for start_run, end_run in zip(timestamps_run_bounds[:-1], timestamps_run_bounds[1:]):
+            step_cumtimes = np.cumsum(np.diff(self.timestamps[start_run]))
+            end_step = self.done_at_step[start_run:end_run]
+            run_times += [run_time.total_seconds() for run_time in step_cumtimes[np.where(end_step > 0, end_step-1, end_step)]]
 
         # Dataframe creation
         df = pd.DataFrame(self.start_points, columns=axes_labels)
@@ -283,6 +293,8 @@ class SimulationHistory:
         df['discounted_rewards'] = self.reward_discount ** df['steps_taken']
         df['extra_steps'] = df['steps_taken'] - df['optimal_steps_count']
         df['t_min_over_t'] = df['optimal_steps_count'] / df['steps_taken']
+        df['time_s'] = run_times
+        df['time_per_it_s'] = df['time_s'] / df['steps_taken']
 
         # Reindex
         runs_list = [f'run_{i}' for i in range(self.n)]
@@ -304,14 +316,16 @@ class SimulationHistory:
          - discounted_rewards:  The discounted reward received by the agent over the course of the simulation
          - extra_steps:         The amount of extra steps compared to the optimal trajectory
          - t_min_over_t:        Normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
+         - time_s:              The amount of clock time in seconds until the agent was done either by reaching the source, encountering an error or reaching the horizon
+         - time_per_it_s:       The amount of clock time in seconds taken on average per step the agent takes
 
-        For the measures (converged, encountered_error, steps_taken, discounted_rewards, extra_steps, t_min_over_t), the average and standard deviations are computed along with the success only average and standard deviations.
+        For the all measures but total, the average and standard deviations are computed along with the success-only average and standard deviations.
         For the count measure, the "mean" and "success_mean" actually represent the total and success_total
         '''
         df = self.runs_analysis_df
 
         # Analysis aggregations
-        columns_to_analyze = ['converged', 'encountered_error', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t']
+        columns_to_analyze = ['converged', 'encountered_error', 'steps_taken', 'discounted_rewards', 'extra_steps', 't_min_over_t', 'time_s', 'time_per_it_s']
         row_names = [['mean', 'standard_deviation', 'success_mean', 'success_standard_deviation']]
         general_analysis_data = [
             df[columns_to_analyze].mean(),
@@ -416,6 +430,12 @@ class SimulationHistory:
 
         summary_str += f"\n - {'Tmin/T:':<35} {df.loc['mean','t_min_over_t'].item():.3f} +- {df.loc['standard_deviation','t_min_over_t'].item():.2f} "
         summary_str += f"(Successful only: {df.loc['success_mean','t_min_over_t'].item():.3f} +- {df.loc['success_standard_deviation','t_min_over_t'].item():.2f})"
+
+        summary_str += f"\n - {'Average time to completion (s):':<35} {df.loc['mean','time_s'].item():.3f} +- {df.loc['standard_deviation','time_s'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','time_s'].item():.3f} +- {df.loc['success_standard_deviation','time_s'].item():.2f})"
+
+        summary_str += f"\n - {'Average time per iteration (s):':<35} {df.loc['mean','time_per_it_s'].item():.3f} +- {df.loc['standard_deviation','time_per_it_s'].item():.2f} "
+        summary_str += f"(Successful only: {df.loc['success_mean','time_per_it_s'].item():.3f} +- {df.loc['success_standard_deviation','time_per_it_s'].item():.2f})"
 
         return summary_str
 
