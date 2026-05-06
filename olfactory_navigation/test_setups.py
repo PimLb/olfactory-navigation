@@ -1060,3 +1060,53 @@ def train_and_test_agents(*agent_classes: type[Agent],
         simulations_comparison_df.to_csv(folder+file)
 
     return simulations_comparison_df
+
+
+def test_agent_memory_scaling(agent: Agent,
+                              initialization_values: dict = {},
+                              use_gpu: bool = False) -> int:
+    '''
+    Function to test the limits of up to how many agents can be simulated at once.
+    For this, a single iteration of run_test will be run.
+
+    The amounts tested will be powers of 2.
+
+    Parameters
+    ----------
+    agent : Agent
+        The agent to be evaluated
+    initialization_values : dict, default = {}
+        In the case the agents are to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
+        If provided, one dict must be provided per agent.
+    use_gpu : bool, default = False
+        Whether to use the gpu to speedup testing.
+
+    Returns
+    -------
+    failure_amount : int
+        The power of 2 of agents that led to a memory full error.
+    '''
+    n_exp = 0
+    while True:
+        try:
+            print(f'Attempt with {2**n_exp} agents')
+            run_test(
+                agent = agent,
+                n = 2**n_exp,
+                horizon = 1, # Single iteration
+                initialization_values = initialization_values,
+                print_progress = False,
+                print_stats = False,
+                print_warning = False,
+                use_gpu = use_gpu,
+                batches = 1
+            )
+
+            # If successfull grow
+            n_exp += 1
+
+        except MemoryError as e:
+            print(f'Reached full memory with {2**n_exp} agents')
+            print(f'Memory full: {e}')
+            return 2**n_exp
