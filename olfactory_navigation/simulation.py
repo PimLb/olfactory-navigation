@@ -1,7 +1,6 @@
 import math
 import os
 import inspect
-from typing import Literal
 import pandas as pd
 import sys
 
@@ -11,6 +10,7 @@ from matplotlib import colors
 from matplotlib.collections import LineCollection
 from matplotlib.patches import Circle
 from tqdm.auto import trange, tqdm
+from typing import Literal
 
 from olfactory_navigation import Agent
 from olfactory_navigation.environment import Environment
@@ -56,7 +56,7 @@ class SimulationHistory:
     reward_discount : float, default = 0.99
         A discount to be applied to the rewards received by the agent. (eg: reward of 1 received at time n would be: 1 * reward_discount^n)
     distance_metric : "l1" or "l2", default = "l1"
-        The distance metric used to compute to compute for example the distance between the starting points and the goal.
+        The distance metric used to compute for example the distance between the starting points and the goal.
 
     Attributes
     ----------
@@ -1187,6 +1187,7 @@ def run_test(agent: Agent,
              horizon: int = 1000,
              initialization_values: dict = {},
              reward_discount: float = 0.99,
+             distance_metric: Literal['l1', 'l2'] = 'l1',
              print_progress: bool = True,
              print_stats: bool = True,
              print_warning: bool = True,
@@ -1241,6 +1242,9 @@ def run_test(agent: Agent,
     reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
+    distance_metric : "l1" or "l2", default = "l1"
+        The distance metric used to compute for example the distance between the starting points and the goal after the simulation.
+        This is done in order to compute the extra steps and t_min over t metrics for example.
     print_progress : bool, default = True
         Whether to show a progress bar of what step the simulations are at.
     print_stats : bool, default = True
@@ -1250,7 +1254,7 @@ def run_test(agent: Agent,
     use_gpu : bool, default = False
         Whether to run the simulations on the GPU or not.
     parallel_agent_simulation : bool, default = True
-        Runs simulations with batches of size 1.
+        Whether to run the agent simulations in parallel or sequentially (ie in batches of 1).
     batches : int, default = -1
         In how many batches the simulations should be run.
         This is useful in the case there are too many simulations and the memory can fill up.
@@ -1392,7 +1396,8 @@ def run_test(agent: Agent,
         agent=agent,
         time_shift=time_shift,
         horizon=horizon,
-        reward_discount=reward_discount
+        reward_discount=reward_discount,
+        distance_metric=distance_metric
     )
 
     # Track begin of simulation ts

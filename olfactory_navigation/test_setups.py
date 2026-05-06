@@ -6,6 +6,7 @@ import time
 
 from datetime import datetime
 from tqdm.auto import tqdm
+from typing import Literal
 
 from olfactory_navigation.agent import Agent
 from olfactory_navigation.environment import Environment
@@ -19,9 +20,13 @@ def run_all_starts_test(agent: Agent,
                         horizon: int = 1000,
                         initialization_values: dict = {},
                         reward_discount: float = 0.99,
+                        distance_metric: Literal['l1', 'l2'] = 'l1',
                         print_progress: bool = True,
                         print_stats: bool = True,
-                        use_gpu: bool = False
+                        print_warning: bool = True,
+                        use_gpu: bool = False,
+                        parallel_agent_simulation: bool = True,
+                        batches: int = -1
                         ) -> SimulationHistory:
     '''
     Function to run a test with all the available starting positions based on the environment provided (or the environmnent of the agent).
@@ -47,12 +52,23 @@ def run_all_starts_test(agent: Agent,
     reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
+    distance_metric : "l1" or "l2", default = "l1"
+        The distance metric used to compute for example the distance between the starting points and the goal after the simulation.
+        This is done in order to compute the extra steps and t_min over t metrics for example.
     print_progress : bool, default = True
         Wheter to show a progress bar of what step the simulations are at.
     print_stats : bool, default = True
         Wheter to print the stats at the end of the run.
+    print_warning : bool, default = True
+        Whether to print warnings when they occur or not.
     use_gpu : bool, default = False
         Whether to run the simulations on the GPU or not.
+    parallel_agent_simulation : bool, default = True
+        Whether to run the agent simulations in parallel or sequentially (ie in batches of 1).
+    batches : int, default = -1
+        In how many batches the simulations should be run.
+        This is useful in the case there are too many simulations and the memory can fill up.
+        The value of batches=-1 will make it that different batches amount are tried in increasing order if a MemoryError is encountered.
 
     Returns
     -------
@@ -80,9 +96,13 @@ def run_all_starts_test(agent: Agent,
         horizon = horizon,
         initialization_values = initialization_values,
         reward_discount = reward_discount,
+        distance_metric = distance_metric,
         print_progress = print_progress,
         print_stats = print_stats,
-        use_gpu = use_gpu
+        print_warning = print_warning,
+        use_gpu = use_gpu,
+        parallel_agent_simulation = parallel_agent_simulation,
+        batches = batches
     )
 
 
@@ -95,9 +115,13 @@ def run_n_by_cell_test(agent: Agent,
                        horizon: int = 1000,
                        initialization_values: dict = {},
                        reward_discount: float = 0.99,
+                       distance_metric: Literal['l1', 'l2'] = 'l1',
                        print_progress: bool = True,
                        print_stats: bool = True,
-                       use_gpu: bool = False
+                       print_warning: bool = True,
+                       use_gpu: bool = False,
+                       parallel_agent_simulation: bool = True,
+                       batches: int = -1
                        ) -> SimulationHistory:
     '''
     Function to run a test with simulations starting in different cells across the available starting zones.
@@ -128,12 +152,23 @@ def run_n_by_cell_test(agent: Agent,
     reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
+    distance_metric : "l1" or "l2", default = "l1"
+        The distance metric used to compute for example the distance between the starting points and the goal after the simulation.
+        This is done in order to compute the extra steps and t_min over t metrics for example.
     print_progress : bool, default = True
         Wheter to show a progress bar of what step the simulations are at.
     print_stats : bool, default = True
         Wheter to print the stats at the end of the run.
+    print_warning : bool, default = True
+        Whether to print warnings when they occur or not.
     use_gpu : bool, default = False
         Whether to run the simulations on the GPU or not.
+    parallel_agent_simulation : bool, default = True
+        Whether to run the agent simulations in parallel or sequentially (ie in batches of 1).
+    batches : int, default = -1
+        In how many batches the simulations should be run.
+        This is useful in the case there are too many simulations and the memory can fill up.
+        The value of batches=-1 will make it that different batches amount are tried in increasing order if a MemoryError is encountered.
 
     Returns
     -------
@@ -178,9 +213,13 @@ def run_n_by_cell_test(agent: Agent,
         horizon = horizon,
         initialization_values = initialization_values,
         reward_discount = reward_discount,
+        distance_metric = distance_metric,
         print_progress = print_progress,
         print_stats = print_stats,
-        use_gpu = use_gpu
+        print_warning = print_warning,
+        use_gpu = use_gpu,
+        parallel_agent_simulation = parallel_agent_simulation,
+        batches = batches
     )
 
 
@@ -244,13 +283,17 @@ def test_shape_robustness(agent: Agent,
                           horizon: int = 1000,
                           initialization_values: dict = {},
                           reward_discount: float = 0.99,
+                          distance_metric: Literal['l1', 'l2'] = 'l1',
                           step_percentage: int = 20,
                           min_percentage:int = 20,
                           max_percentage:int = 200,
                           multipliers: list[int] = None,
-                          use_gpu: bool = False,
                           print_progress: bool = True,
                           print_stats: bool = True,
+                          print_warning: bool = True,
+                          use_gpu: bool = False,
+                          parallel_agent_simulation: bool = True,
+                          batches: int = -1,
                           save: bool = True,
                           save_folder: str = None,
                           save_analysis: bool = True
@@ -284,6 +327,9 @@ def test_shape_robustness(agent: Agent,
     reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
+    distance_metric : "l1" or "l2", default = "l1"
+        The distance metric used to compute for example the distance between the starting points and the goal after the simulation.
+        This is done in order to compute the extra steps and t_min over t metrics for example.
     step_percentage : int, default = 20
         Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
     min_percentage : int, default = 20
@@ -294,12 +340,20 @@ def test_shape_robustness(agent: Agent,
     multipliers : list[int], optional
         If provided, the step_percentage, min_percentage and max_percentage parameters will be ignored.
         A list of percentages of deformations to use to deforme the environment's odor plume.
-    use_gpu : bool, default = False
-        Whether to use the GPU to speed up the tests.
     print_progress : bool, default = True
         Whether to display a progress bar of how many test have been performed so far.
     print_stats : bool, default = True
         Whether to display statistics at the end of each test.
+    print_warning : bool, default = True
+        Whether to print warnings when they occur or not.
+    use_gpu : bool, default = False
+        Whether to use the GPU to speed up the tests.
+    parallel_agent_simulation : bool, default = True
+        Whether to run the agent simulations in parallel or sequentially (ie in batches of 1).
+    batches : int, default = -1
+        In how many batches the simulations should be run.
+        This is useful in the case there are too many simulations and the memory can fill up.
+        The value of batches=-1 will make it that different batches amount are tried in increasing order if a MemoryError is encountered.
     save : bool, default = True
         Whether to save the results of each test to a save_folder.
         Each test's result will be under the name 'test_env_y-<y_multiplier>_x-<x_multiplier>.csv'
@@ -369,9 +423,13 @@ def test_shape_robustness(agent: Agent,
             horizon = horizon,
             initialization_values = initialization_values,
             reward_discount = reward_discount,
+            distance_metric = distance_metric,
             print_progress = False,
             print_stats = print_stats,
-            use_gpu = use_gpu
+            print_warning = print_warning,
+            use_gpu = use_gpu,
+            parallel_agent_simulation = parallel_agent_simulation,
+            batches = batches
         )
 
         all_histories.append(hist)
@@ -455,13 +513,17 @@ def test_scale_robustness(agent: Agent,
                           horizon: int = 1000,
                           initialization_values: dict = {},
                           reward_discount: float = 0.99,
+                          distance_metric: Literal['l1', 'l2'] = 'l1',
                           step_percentage: int = 20,
                           min_percentage:int = 20,
                           max_percentage:int = 200,
                           multipliers: list[int] = None,
-                          use_gpu: bool = False,
                           print_progress: bool = True,
                           print_stats: bool = True,
+                          print_warning: bool = True,
+                          use_gpu: bool = False,
+                          parallel_agent_simulation: bool = True,
+                          batches: int = -1,
                           save: bool = True,
                           save_folder: str = None,
                           save_analysis: bool = True
@@ -495,6 +557,9 @@ def test_scale_robustness(agent: Agent,
     reward_discount : float, default = 0.99
         How much a given reward is discounted based on how long it took to get it.
         It is purely used to compute the Average Discount Reward (ADR) after the simulation.
+    distance_metric : "l1" or "l2", default = "l1"
+        The distance metric used to compute for example the distance between the starting points and the goal after the simulation.
+        This is done in order to compute the extra steps and t_min over t metrics for example.
     step_percentage : int, default = 20
         Starting at 100%, how much of a percentage step to do to reach the min and max percentages.
     min_percentage : int, default = 20
@@ -505,12 +570,20 @@ def test_scale_robustness(agent: Agent,
     multipliers : list[int], optional
         If provided, the step_percentage, min_percentage and max_percentage parameters will be ignored.
         A list of percentages of deformations to use to deforme the environment's odor plume.
-    use_gpu : bool, default = False
-        Whether to use the GPU to speed up the tests.
     print_progress : bool, default = True
         Whether to display a progress bar of how many test have been performed so far.
     print_stats : bool, default = True
         Whether to display statistics at the end of each test.
+    print_warning : bool, default = True
+        Whether to print warnings when they occur or not.
+    use_gpu : bool, default = False
+        Whether to use the GPU to speed up the tests.
+    parallel_agent_simulation : bool, default = True
+        Whether to run the agent simulations in parallel or sequentially (ie in batches of 1).
+    batches : int, default = -1
+        In how many batches the simulations should be run.
+        This is useful in the case there are too many simulations and the memory can fill up.
+        The value of batches=-1 will make it that different batches amount are tried in increasing order if a MemoryError is encountered.
     save : bool, default = True
         Whether to save the results of each test to a save_folder.
         Each test's result will be under the name 'test_env_mult-<multiplier>.csv'
@@ -575,9 +648,13 @@ def test_scale_robustness(agent: Agent,
             horizon = horizon,
             initialization_values = initialization_values,
             reward_discount = reward_discount,
+            distance_metric = distance_metric,
             print_progress = False,
             print_stats = print_stats,
-            use_gpu = use_gpu
+            print_warning = print_warning,
+            use_gpu = use_gpu,
+            parallel_agent_simulation = parallel_agent_simulation,
+            batches = batches
         )
 
         all_histories.append(hist)
@@ -603,13 +680,18 @@ def test_scale_robustness(agent: Agent,
 
 def test_agents(*agents: Agent,
                 environments: list[Environment],
-                simulation_time_shift: int | np.ndarray = 0,
-                simulation_time_loop: bool = True,
-                simulation_horizon: int = 1000,
+                time_shift: int | np.ndarray = 0,
+                time_loop: bool = True,
+                horizon: int = 1000,
+                initialization_values: list[dict] = None,
                 reward_discount: float = 0.99,
+                distance_metric: Literal['l1', 'l2'] = 'l1',
                 print_progress: bool = False,
                 print_stats: bool = True,
+                print_warning: bool = True,
                 use_gpu: bool = False,
+                parallel_agent_simulation: bool = True,
+                batches: int = -1,
                 save_histories_path: str = None,
                 save_result_table: bool = True
                 ) -> pd.DataFrame:
@@ -624,21 +706,36 @@ def test_agents(*agents: Agent,
         The agents to test. They must be already trained.
     environments : list[Environment]
         The environment to test the agents in.
-    simulation_time_shift : int | np.ndarray, default = 0
+    time_shift : int | np.ndarray, default = 0
         By how many steps to shift the t0 of the environment.
         It can be fixed or for each starting point of the simulation (in such case the amount of starting points must be same in each environments).
-    simulation_time_loop : bool, default = True
+    time_loop : bool, default = True
         Whether the simulation t should loop back to 0 when reaching the max t of the given environment.
-    simulation_horizon : int, default = 1000
+    horizon : int, default = 1000
         For how many steps the simulation should run for.
+    initialization_values : dict, optional
+        In the case the agents are to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
+        If provided, one dict must be provided per agent.
     reward_discount : float, default = 0.99
         The reward discount that is used to compare the cummulative discounted reward.
+    distance_metric : "l1" or "l2", default = "l1"
+        The distance metric used to compute for example the distance between the starting points and the goal after the simulation.
+        This is done in order to compute the extra steps and t_min over t metrics for example.
     print_progress : bool, default = False
         Whether to show a progress bar for the simulations.
     print_stats : bool, default = True
         Whether to print the stats (results) after each simulation.
+    print_warning : bool, default = True
+        Whether to print warnings when they occur or not.
     use_gpu : bool, default = False
         Whether to use the gpu to speedup testing.
+    parallel_agent_simulation : bool, default = True
+        Whether to run the agent simulations in parallel or sequentially (ie in batches of 1).
+    batches : int, default = -1
+        In how many batches the simulations should be run.
+        This is useful in the case there are too many simulations and the memory can fill up.
+        The value of batches=-1 will make it that different batches amount are tried in increasing order if a MemoryError is encountered.
     save_histories_path : str, optional
         If the details of the simulation histories are to be saved, a path can be provided here.
     save_result_table : bool, default = True
@@ -650,7 +747,13 @@ def test_agents(*agents: Agent,
         A table with as row indices (agent, environment) pairs and columns the same columns as the output of SimulationHistory.compare_all.
     '''
     simulation_histories = []
-    for i_agent, agent in enumerate(agents):
+
+    # Processing the initialization_values parameter
+    if initialization_values is None:
+        initialization_values = [{}] * len(agents)
+
+    # Loop over the provided agents
+    for i_agent, (agent, agent_initialization_values) in enumerate(zip(agents, initialization_values)):
         print(f'Testing Agent {i_agent}:')
 
         if not agent.trained:
@@ -661,15 +764,22 @@ def test_agents(*agents: Agent,
         for i_environment, environment in enumerate(environments):
 
             print(f'- Environment {i_environment}')
-            hist = run_all_starts_test(agent=agent,
-                                       environment=environment,
-                                       time_shift=simulation_time_shift,
-                                       time_loop=simulation_time_loop,
-                                       horizon=simulation_horizon,
-                                       reward_discount=reward_discount,
-                                       print_progress=print_progress,
-                                       print_stats=print_stats,
-                                       use_gpu=use_gpu)
+            hist = run_all_starts_test(
+                agent = agent,
+                environment = environment,
+                time_shift = time_shift,
+                time_loop = time_loop,
+                horizon = horizon,
+                initialization_values = agent_initialization_values,
+                reward_discount = reward_discount,
+                distance_metric = distance_metric,
+                print_progress = print_progress,
+                print_warning = print_warning,
+                print_stats = print_stats,
+                use_gpu = use_gpu,
+                parallel_agent_simulation = parallel_agent_simulation,
+                batches = batches
+            )
 
             agent_histories.append(hist)
             print('')
@@ -710,13 +820,18 @@ def train_and_test_agents(*agent_classes: type[Agent],
                           agent_additional_parameters: list[dict] = None, # Has to be as long the agents
                           training_environment: Environment = None,
                           training_parameters: list[dict] = None, # Has to be as long the agents
-                          simulation_time_shift: int | np.ndarray = 0,
-                          simulation_time_loop: bool = True,
-                          simulation_horizon: int = 1000,
+                          time_shift: int | np.ndarray = 0,
+                          time_loop: bool = True,
+                          horizon: int = 1000,
+                          initialization_values: list[dict] = None, # Has to be as long the agents
                           reward_discount: float = 0.99,
+                          distance_metric: Literal['l1', 'l2'] = 'l1',
                           print_progress: bool = False,
                           print_stats: bool = True,
+                          print_warning: bool = True,
                           use_gpu: bool = False,
+                          parallel_agent_simulation: bool = True,
+                          batches: int = -1,
                           save_histories_path: str = None,
                           save_result_table: bool = True
                           ) -> pd.DataFrame:
@@ -749,21 +864,36 @@ def train_and_test_agents(*agent_classes: type[Agent],
     training_parameters : list[dict], optional
         Any additional parameters to pass over to the agent's training process.
         The list needs to be as long as the amount of agents provided.
-    simulation_time_shift : int | np.ndarray, default = 0
+    time_shift : int | np.ndarray, default = 0
         By how many steps to shift the t0 of the environment.
         It can be fixed or for each starting point of the simulation (in such case the amount of starting points must be same in each environments).
-    simulation_time_loop : bool, default = True
+    time_loop : bool, default = True
         Whether the simulation t should loop back to 0 when reaching the max t of the given environment.
-    simulation_horizon : int, default = 1000
+    horizon : int, default = 1000
         For how many steps the simulation should run for.
+    initialization_values : dict, optional
+        In the case the agents are to be initialized with custom values,
+        the paramaters to be passed on the initialize_state function can be set here.
+        If provided, one dict must be provided per agent.
     reward_discount : float, default = 0.99
         The reward discount that is used to compare the cummulative discounted reward.
+    distance_metric : "l1" or "l2", default = "l1"
+        The distance metric used to compute for example the distance between the starting points and the goal after the simulation.
+        This is done in order to compute the extra steps and t_min over t metrics for example.
     print_progress : bool, default = False
         Whether to show a progress bar for the simulations.
     print_stats : bool, default = True
         Whether to print the stats (results) after each simulation.
+    print_warning : bool, default = True
+        Whether to print warnings when they occur or not.
     use_gpu : bool, default = False
         Whether to use the gpu to speedup testing.
+    parallel_agent_simulation : bool, default = True
+        Whether to run the agent simulations in parallel or sequentially (ie in batches of 1).
+    batches : int, default = -1
+        In how many batches the simulations should be run.
+        This is useful in the case there are too many simulations and the memory can fill up.
+        The value of batches=-1 will make it that different batches amount are tried in increasing order if a MemoryError is encountered.
     save_histories_path : str, optional
         If the details of the simulation histories are to be saved, a path can be provided here.
     save_result_table : bool, default = True
@@ -777,23 +907,27 @@ def train_and_test_agents(*agent_classes: type[Agent],
     training_stats = []
     simulation_histories = []
 
+    # Processing the initialization_values parameter
+    if initialization_values is None:
+        initialization_values = [{}] * len(agent_classes)
+
     # Print warning in case no training environment is set because the agent will be retrained for each environment
-    if training_environment is None:
+    if training_environment is None and print_warning:
         print('[Warning] The training environment has not been provided so the agent will be re-trained for each environment provided...')
 
     # Loop through all agents
-    for i_agent, agent_class, agent_additional_params, training_params in enumerate(zip(agent_classes, agent_additional_parameters, training_parameters)):
+    for i_agent, (agent_class, agent_additional_params, training_params, agent_initialization_values) in enumerate(zip(agent_classes, agent_additional_parameters, training_parameters, initialization_values)):
         print(f'Agent {i_agent} ({agent_class.__name__}):')
 
         if training_environment is not None:
             print(f'- Training...')
 
             agent: Agent = agent_class(
-                environment=training_environment,
-                thresholds=agent_thresholds,
-                space_aware=agent_space_aware,
-                spatial_subdivisions=agent_spacial_subdivisions,
-                actions=agent_actions,
+                environment = training_environment,
+                thresholds = agent_thresholds,
+                space_aware = agent_space_aware,
+                spatial_subdivisions = agent_spacial_subdivisions,
+                actions = agent_actions,
                 **agent_additional_params)
 
             # Tracking
@@ -817,15 +951,22 @@ def train_and_test_agents(*agent_classes: type[Agent],
             for i_environment, environment in enumerate(environments):
                 print(f'- Testing environment {i_environment}')
 
-                hist = run_all_starts_test(agent=agent,
-                                           environment=environment,
-                                           time_shift=simulation_time_shift,
-                                           time_loop=simulation_time_loop,
-                                           horizon=simulation_horizon,
-                                           reward_discount=reward_discount,
-                                           print_progress=print_progress,
-                                           print_stats=print_stats,
-                                           use_gpu=use_gpu)
+                hist = run_all_starts_test(
+                    agent = agent,
+                    environment = environment,
+                    time_shift = time_shift,
+                    time_loop = time_loop,
+                    horizon = horizon,
+                    initialization_values = agent_initialization_values,
+                    reward_discount = reward_discount,
+                    distance_metric = distance_metric,
+                    print_progress = print_progress,
+                    print_stats = print_stats,
+                    print_warning = print_warning,
+                    use_gpu = use_gpu,
+                    parallel_agent_simulation = parallel_agent_simulation,
+                    batches = batches
+                )
 
                 agent_simulation_histories.append(hist)
                 print('')
@@ -847,11 +988,11 @@ def train_and_test_agents(*agent_classes: type[Agent],
                 print(f'- Environment {i_environment}')
 
                 agent: Agent = agent_class(
-                    environment=environment,
-                    thresholds=agent_thresholds,
-                    space_aware=agent_space_aware,
-                    spatial_subdivisions=agent_spacial_subdivisions,
-                    actions=agent_actions,
+                    environment = environment,
+                    thresholds = agent_thresholds,
+                    space_aware = agent_space_aware,
+                    spatial_subdivisions = agent_spacial_subdivisions,
+                    actions = agent_actions,
                     **agent_additional_params
                     )
 
@@ -870,14 +1011,21 @@ def train_and_test_agents(*agent_classes: type[Agent],
                 agent_training_stats.append({'memory_used': memory_after - memory_before,
                                              'time_taken': end_time - start_time})
 
-                hist = run_all_starts_test(agent=agent,
-                                           time_shift=simulation_time_shift,
-                                           time_loop=simulation_time_loop,
-                                           horizon=simulation_horizon,
-                                           reward_discount=reward_discount,
-                                           print_progress=print_progress,
-                                           print_stats=print_stats,
-                                           use_gpu=use_gpu)
+                hist = run_all_starts_test( # No environment provided because it will use the same environment is trained on
+                    agent = agent,
+                    time_shift = time_shift,
+                    time_loop = time_loop,
+                    horizon = horizon,
+                    initialization_values = agent_initialization_values,
+                    reward_discount = reward_discount,
+                    distance_metric = distance_metric,
+                    print_progress = print_progress,
+                    print_stats = print_stats,
+                    print_warning = print_warning,
+                    use_gpu = use_gpu,
+                    parallel_agent_simulation = parallel_agent_simulation,
+                    batches = batches
+                )
 
                 agent_histories.append(hist)
                 print('')
