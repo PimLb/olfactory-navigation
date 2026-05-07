@@ -3,6 +3,7 @@ import numpy as np
 import os
 import pickle
 import shutil
+import sys
 
 from olfactory_navigation.environment import Environment
 
@@ -14,6 +15,32 @@ try:
     gpu_support = True
 except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
+
+
+def _deep_getsizeof(obj, seen=None):
+    if seen is None:
+        seen = set()
+
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    seen.add(obj_id)
+
+    size = sys.getsizeof(obj)
+
+    if isinstance(obj, dict):
+        size += sum(
+            _deep_getsizeof(k, seen) + _deep_getsizeof(v, seen)
+            for k, v in obj.items()
+        )
+    elif hasattr(obj, '__dict__'):
+        size += _deep_getsizeof(vars(obj), seen)
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum(_deep_getsizeof(i, seen) for i in obj)
+    elif isinstance(obj, np.ndarray) or (gpu_support and isinstance(obj, cp.ndarray)):
+        size += obj.nbytes
+
+    return size
 
 
 class Agent:
@@ -668,3 +695,16 @@ class Agent:
                 return self._alternate_version
             else: # Generate an alternate version on the cpu
                 return self.to_cpu()
+
+
+    def size_on_memory(self) -> int:
+        '''
+        Function to return the size (in bytes) on memory of the current agent and its components.
+        It accounts for both the ram and GPU ram if any object is on the GPU with cupy arrays.
+
+        Returns
+        -------
+        memory_used : int
+            The size on memory used.
+        '''
+        return _deep_getsizeof(self)
