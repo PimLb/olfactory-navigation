@@ -1,0 +1,5 @@
+to view the website in local browser:
+mkdocs serve
+
+To publish the documentation on hithub pages:
+mkdocs gh-deploy
