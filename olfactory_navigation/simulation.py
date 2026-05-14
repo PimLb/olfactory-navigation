@@ -341,6 +341,41 @@ class SimulationHistory:
         result_df['count'] = [self.n, None, self.success_count, None]
         result_df = result_df.loc[:, ['count'] + columns_to_analyze]
 
+        # Compute t1 (time to 1st agent done) and t2 (time to all agents done)
+        all_time_first_end_per_it = []
+        all_time_last_end_per_it = []
+        all_agent_counts = []
+
+        timestamps_run_bounds = sorted(list(self.timestamps.keys())) + [self.n]
+        for start_run, end_run in zip(timestamps_run_bounds[:-1], timestamps_run_bounds[1:]):
+            step_cumtimes = np.cumsum(np.diff(self.timestamps[start_run]))
+
+            end_step = self.done_at_step[start_run:end_run]
+            end_step = np.where(end_step > 0, end_step, self.horizon)
+
+            # t1
+            first_end_step = min(end_step)
+            time_first_end = step_cumtimes[first_end_step].total_seconds()
+            time_first_end_per_it = time_first_end / first_end_step
+            # time_first_end_per_it_per_agent = time_first_end_per_it / (end_run - start_run)
+            all_time_first_end_per_it.append(time_first_end_per_it)
+
+            # t2
+            last_end_step = max(end_step)
+            time_last_end = step_cumtimes[last_end_step].total_seconds()
+            time_last_end_per_it = time_last_end / first_end_step
+            # time_last_end_per_it_per_agent = time_last_end_per_it / (end_run - start_run)
+            all_time_last_end_per_it.append(time_last_end_per_it)
+
+            all_agent_counts.append((end_run-start_run))
+
+        all_agent_counts = np.array(all_agent_counts)
+        avg_t1 = (np.array(all_time_first_end_per_it) * all_agent_counts) / all_agent_counts.sum()
+        avg_t2 = (np.array(all_time_last_end_per_it) * all_agent_counts) / all_agent_counts.sum()
+
+        result_df['avg_t1'] = [avg_t1] + [None] * 3
+        result_df['avg_t2'] = [avg_t2] + [None] * 3
+
         return result_df
 
 
