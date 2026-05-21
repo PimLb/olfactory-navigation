@@ -17,7 +17,7 @@ except:
     print('[Warning] Cupy could not be loaded: GPU support is not available.')
 
 
-def _deep_getsizeof(obj, seen=None):
+def _deep_getsizeof(obj, seen=None, exclude_attrs=[]):
     if seen is None:
         seen = set()
 
@@ -30,15 +30,20 @@ def _deep_getsizeof(obj, seen=None):
 
     if isinstance(obj, dict):
         size += sum(
-            _deep_getsizeof(k, seen) + _deep_getsizeof(v, seen)
+            _deep_getsizeof(k, seen, exclude_attrs) + _deep_getsizeof(v, seen, exclude_attrs)
             for k, v in obj.items()
         )
-    elif hasattr(obj, '__dict__'):
-        size += _deep_getsizeof(vars(obj), seen)
-    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
-        size += sum(_deep_getsizeof(i, seen) for i in obj)
     elif isinstance(obj, np.ndarray) or (gpu_support and isinstance(obj, cp.ndarray)):
         size += obj.nbytes
+    elif hasattr(obj, '__dict__'):
+        for attr_name, attr_value in vars(obj).items():
+            # Skip selected attributes
+            if attr_name in exclude_attrs:
+                continue
+
+            size += _deep_getsizeof(attr_value, seen, exclude_attrs)
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum(_deep_getsizeof(i, seen, exclude_attrs) for i in obj)
 
     return size
 
@@ -707,4 +712,4 @@ class Agent:
         memory_used : int
             The size on memory used.
         '''
-        return _deep_getsizeof(self)
+        return _deep_getsizeof(self, exclude_attrs=["_alternate_version"])
