@@ -57,6 +57,8 @@ class SimulationHistory:
         A discount to be applied to the rewards received by the agent. (eg: reward of 1 received at time n would be: 1 * reward_discount^n)
     distance_metric : "l1" or "l2", default = "l1"
         The distance metric used to compute for example the distance between the starting points and the goal.
+    using_gpu : bool, default = False
+        Whether the associated simulation ran on the GPU or not.
 
     Attributes
     ----------
@@ -123,7 +125,8 @@ class SimulationHistory:
                  time_shift: np.ndarray,
                  horizon: int,
                  reward_discount: float = 0.99,
-                 distance_metric: Literal['l1', 'l2'] = 'l1'
+                 distance_metric: Literal['l1', 'l2'] = 'l1',
+                 used_gpu: bool = False
                  ) -> None:
         # If only on state is provided, we make it a 1x2 vector
         if len(start_points.shape) == 1:
@@ -137,6 +140,7 @@ class SimulationHistory:
         self.horizon = horizon
         self.reward_discount = reward_discount
         self.distance_metric = distance_metric
+        self.used_gpu = used_gpu
 
         # Simulation Tracking
         self.start_points = start_points if gpu_support and cp.get_array_module(start_points) == np else cp.asnumpy(start_points)
@@ -318,6 +322,8 @@ class SimulationHistory:
          - t_min_over_t:        Normalized version of the extra steps measure, where it tends to 1 the least amount of time the agent took to reach the source compared to an optimal trajectory.
          - time_s:              The amount of clock time in seconds until the agent was done either by reaching the source, encountering an error or reaching the horizon
          - time_per_it_s:       The amount of clock time in seconds taken on average per step the agent takes
+         - delta_t1_s:          The average time in seconds per agent per step until a or more agent reaches the goal
+         - delta_t2_s:          The average time in seconds per agent per step until all agents are done
 
         For the all measures but total, the average and standard deviations are computed along with the success-only average and standard deviations.
         For the count measure, the "mean" and "success_mean" actually represent the total and success_total
@@ -342,39 +348,39 @@ class SimulationHistory:
         result_df = result_df.loc[:, ['count'] + columns_to_analyze]
 
         # Compute t1 (time to 1st agent done) and t2 (time to all agents done)
-        all_time_first_end_per_it = []
-        all_time_last_end_per_it = []
-        all_agent_counts = []
+        total_time_t1 = 0.0
+        total_time_t2 = 0.0
+
+        total_steps_t1 = 0
+        total_steps_t2 = 0
 
         timestamps_run_bounds = sorted(list(self.timestamps.keys())) + [self.n]
-        for start_run, end_run in zip(timestamps_run_bounds[:-1], timestamps_run_bounds[1:]):
-            step_cumtimes = np.cumsum(np.diff(self.timestamps[start_run]))
+        for start_agent_i, end_agent_i in zip(timestamps_run_bounds[:-1], timestamps_run_bounds[1:]): # Looping through the batches
 
-            end_step = self.done_at_step[start_run:end_run]
+            n_agents = end_agent_i - start_agent_i
+            step_cumtimes = np.cumsum(np.diff(self.timestamps[start_agent_i])) # Computing the delta times from t0
+
+            # Computing the finishing step of each agent
+            end_step = self.done_at_step[start_agent_i:end_agent_i]
             end_step = np.where(end_step > 0, end_step, self.horizon)
 
             # t1
             first_end_step = min(end_step)
-            time_first_end = step_cumtimes[first_end_step].total_seconds()
-            time_first_end_per_it = time_first_end / first_end_step
-            # time_first_end_per_it_per_agent = time_first_end_per_it / (end_run - start_run)
-            all_time_first_end_per_it.append(time_first_end_per_it)
+            time_first_end = step_cumtimes[first_end_step-1].total_seconds()
+            total_time_t1 += time_first_end
+            total_steps_t1 += (n_agents * first_end_step)
 
             # t2
             last_end_step = max(end_step)
-            time_last_end = step_cumtimes[last_end_step].total_seconds()
-            time_last_end_per_it = time_last_end / first_end_step
-            # time_last_end_per_it_per_agent = time_last_end_per_it / (end_run - start_run)
-            all_time_last_end_per_it.append(time_last_end_per_it)
+            time_last_end = step_cumtimes[last_end_step-1].total_seconds()
+            total_time_t2 += time_last_end
+            total_steps_t2 += end_step.sum()
 
-            all_agent_counts.append((end_run-start_run))
+        delta_t1 = total_time_t1 / total_steps_t1
+        delta_t2 = total_time_t2 / total_steps_t1
 
-        all_agent_counts = np.array(all_agent_counts)
-        avg_t1 = (np.array(all_time_first_end_per_it) * all_agent_counts) / all_agent_counts.sum()
-        avg_t2 = (np.array(all_time_last_end_per_it) * all_agent_counts) / all_agent_counts.sum()
-
-        result_df['avg_t1'] = [avg_t1] + [None] * 3
-        result_df['avg_t2'] = [avg_t2] + [None] * 3
+        result_df['delta_t1_s'] = [delta_t1] + [None] * 3
+        result_df['delta_t2_s'] = [delta_t2] + [None] * 3
 
         return result_df
 
@@ -627,7 +633,7 @@ class SimulationHistory:
         ----------
         file : str, optional
             The name of the file the simulation histories will be saved to.
-            If it is not provided, it will be by default "Simulations-<env_name>-n_<sim_count>-<sim_start_timestamp>-horizon_<max_sim_length>.csv"
+            If it is not provided, it will be by default "Simulations-<env_name>-n_<sim_count>-<sim_start_timestamp>-horizon_<sim_horizon>.csv"
         folder : str, optional
             Folder to save the simulation histories to.
             If the folder name is not provided the current folder will be used.
@@ -644,7 +650,7 @@ class SimulationHistory:
         # Handle file name
         if file is None:
             env_name = f's_' + '_'.join([str(axis_shape) for axis_shape in self.environment_shape])
-            file = f'Simulations-{env_name}-n_{self.n}-{self.timestamps[0][0].strftime("%Y%m%d_%H%M%S")}-horizon_{len(self.positions)}.csv'
+            file = f'Simulations-{env_name}-n_{self.n}-{self.timestamps[0][0].strftime("%Y%m%d_%H%M%S")}-horizon_{self.horizon}.csv'
 
         if not file.endswith('.csv'):
             file += '.csv'
@@ -695,6 +701,7 @@ class SimulationHistory:
             'horizon': str(self.horizon),
             'reward_discount': str(self.reward_discount),
             'distance_metric': self.distance_metric,
+            'used_gpu': str(self.used_gpu),
             'environment_name': self.environment.name,
             'environment_saved_at': self.environment.saved_at,
             'environment_dimensions': str(self.environment_dimensions), # int
@@ -924,6 +931,7 @@ class SimulationHistory:
         hist.horizon = horizon
         hist.reward_discount = reward_discount
         hist.distance_metric = 'l1' if legacy_format else properties_dict['distance_metric'] # This argument didnt exist at the time of the legacy format
+        hist.used_gpu = False if legacy_format else bool(properties_dict['used_gpu'])
 
         hist.start_points = start_points
         hist._running_sims = None
@@ -1432,7 +1440,8 @@ def run_test(agent: Agent,
         time_shift=time_shift,
         horizon=horizon,
         reward_discount=reward_discount,
-        distance_metric=distance_metric
+        distance_metric=distance_metric,
+        used_gpu=use_gpu
     )
 
     # Track begin of simulation ts
