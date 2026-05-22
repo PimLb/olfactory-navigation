@@ -1062,9 +1062,99 @@ def train_and_test_agents(*agent_classes: type[Agent],
     return simulations_comparison_df
 
 
-def test_agents_in_void(*agent: Agent) -> pd.DataFrame:
-    # TODO
-    return 0.0
+def test_agent_in_void(agent: Agent,
+                       horizon: int = 1000,
+                       initialization_values: dict = {},
+                       reward_discount: float = 0.99,
+                       distance_metric: Literal['l1', 'l2'] = 'l1',
+                       print_progress: bool = True,
+                       print_stats: bool = True,
+                       print_warning: bool = True,
+                       use_gpu: bool = False,
+                       parallel_agent_simulation: bool = True,
+                       batches: int = -1
+                       ) -> SimulationHistory:
+    """
+    Function to run a test in a void environment, i.e. an environment with no odor cues.
+
+    The void environment is built as a copy of the provided environment
+    (or the environment attached to the agent), then its odor data is zeroed out.
+    A single trajectory is launched from the start position that is farthest
+    from the source while still having a non-zero start probability.
+
+    Parameters
+    ----------
+    agent : Agent
+        The agent to be tested.
+    environment : Environment, optional
+        The environment to run the simulation in.
+        By default, the environment linked to the agent will be used.
+        This parameter is intended if the environment needs to be modified compared to the environment the agent was trained on.
+    time_shift : int or np.ndarray, default = 0
+        The time at which to start the olfactory simulation array.
+        It can be either a single value, or n values.
+    time_loop : bool, default = True
+        Whether to loop the time if reaching the end. (starts back at 0)
+    horizon : int, default = 1000
+        The amount of steps to run the simulation for before killing the remaining simulations.
+    initialization_values : dict, default = {}
+        In the case the agent is to be initialized with custom values,
+        the parameters to be passed on the initialize_state function can be set here.
+    reward_discount : float, default = 0.99
+        How much a given reward is discounted based on how long it took to get it.
+    distance_metric : "l1" or "l2", default = "l1"
+        The distance metric used to compute for example the distance between the starting point and the goal after the simulation.
+    print_progress : bool, default = True
+        Whether to show a progress bar for the simulation.
+    print_stats : bool, default = True
+        Whether to print the stats at the end of the run.
+    print_warning : bool, default = True
+        Whether to print warnings when they occur or not.
+    use_gpu : bool, default = False
+        Whether to run the simulation on the GPU or not.
+    parallel_agent_simulation : bool, default = True
+        Whether to run the agent simulations in parallel or sequentially.
+    batches : int, default = -1
+        In how many batches the simulation should be run.
+
+    Returns
+    -------
+    hist : SimulationHistory
+        A SimulationHistory object tracking the single void-environment trajectory.
+    """
+    assert agent.trained, "Agent must be trained..."
+
+    # Clone the environment, then zero out odor cues while preserving the start zone
+    void_environment = agent.environment.modify()
+    void_environment._data = void_environment.data * 0
+    void_environment.data_processed = True
+
+    # Pick the valid starting point farthest from the source
+    start_points = np.argwhere(void_environment.start_probabilities > 0)
+    if len(start_points) == 0:
+        raise ValueError("No valid starting positions are available in the void environment.")
+
+    distances = void_environment.distance_to_source(start_points, metric='manhattan')
+    start_point = start_points[int(np.argmax(distances))]
+    start_points = start_point[None, :]
+    n = 1
+
+    return run_test(
+        agent=agent,
+        n=n,
+        start_points=start_points,
+        environment=void_environment,
+        horizon=horizon,
+        initialization_values=initialization_values,
+        reward_discount=reward_discount,
+        distance_metric=distance_metric,
+        print_progress=print_progress,
+        print_stats=print_stats,
+        print_warning=print_warning,
+        use_gpu=use_gpu,
+        parallel_agent_simulation=parallel_agent_simulation,
+        batches=batches
+    )
 
 
 def test_agent_memory_scaling(agent: Agent,
@@ -1099,7 +1189,7 @@ def test_agent_memory_scaling(agent: Agent,
             start_time = datetime.now()
 
             print(f'Attempt with {2**n_exp} agents')
-            hist = run_test(
+            _ = run_test(
                 agent = agent,
                 n = 2**n_exp,
                 horizon = 1, # Single iteration
