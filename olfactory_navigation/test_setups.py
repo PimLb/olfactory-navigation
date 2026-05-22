@@ -1062,6 +1062,11 @@ def train_and_test_agents(*agent_classes: type[Agent],
     return simulations_comparison_df
 
 
+def test_agents_in_void(*agent: Agent) -> pd.DataFrame:
+    # TODO
+    return 0.0
+
+
 def test_agent_memory_scaling(agent: Agent,
                               initialization_values: dict = {},
                               use_gpu: bool = False) -> int:
@@ -1084,14 +1089,17 @@ def test_agent_memory_scaling(agent: Agent,
 
     Returns
     -------
-    failure_amount : int
-        The power of 2 of agents that led to a memory full error.
+    result_df : pd.DataFrame
+        A table with rows being the amount of agents than ran in parallel along with the elapsed time in seconds.
     '''
     n_exp = 0
+    trials = []
     while True:
         try:
+            start_time = datetime.now()
+
             print(f'Attempt with {2**n_exp} agents')
-            run_test(
+            hist = run_test(
                 agent = agent,
                 n = 2**n_exp,
                 horizon = 1, # Single iteration
@@ -1106,7 +1114,47 @@ def test_agent_memory_scaling(agent: Agent,
             # If successfull grow
             n_exp += 1
 
+            # Saving results of the trial
+            elapsed_time_s = (start_time - datetime.now()).total_seconds()
+            trials.append({
+                'n_exp': n_exp,
+                'time_s': elapsed_time_s,
+                'time_s_per_agent': elapsed_time_s / (2**n_exp)
+            })
+
         except MemoryError as e:
             print(f'Reached full memory with {2**n_exp} agents')
             print(f'Memory full: {e}')
-            return 2**n_exp
+
+            # Saving results of the trial
+            elapsed_time_s = (datetime.now() - start_time).total_seconds()
+            trials.append({
+                'n_exp': n_exp,
+                'time_s': elapsed_time_s,
+                'time_s_per_agent': elapsed_time_s / (2**n_exp)
+            })
+
+            # Returning the df
+            return pd.DataFrame(trials)
+
+
+def complete_test(*agent_classes,
+                  environments: list[Environment],
+                  training_environment: Environment = None
+
+                  ) -> pd.DataFrame:
+
+    # For each agent
+
+    # Step 1: Train agent
+
+    # Step 1.2: Get agent size on disk
+
+    # Step 2: Test agent
+
+    # Step 3: Test in void
+
+    # Step 4: Test memory scaling
+
+    # TODO
+    return 0.0
