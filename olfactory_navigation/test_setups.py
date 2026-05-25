@@ -1228,23 +1228,159 @@ def test_agent_memory_scaling(agent: Agent,
             return pd.DataFrame(trials)
 
 
-def complete_test(*agent_classes,
+def complete_test(*agent_classes: type[Agent],
                   environments: list[Environment],
-                  training_environment: Environment = None
-
+                  training_environment: Environment = None,
+                  agent_thresholds: float | list[float] = 3e-6,
+                  agent_space_aware: bool = False,
+                  agent_spacial_subdivisions: np.ndarray = None,
+                  agent_actions: dict[str, np.ndarray] | np.ndarray = None,
+                  agent_additional_parameters: list[dict] = None,
+                  training_parameters: list[dict] = None,
+                  time_shift: int | np.ndarray = 0,
+                  time_loop: bool = True,
+                  horizon: int = 1000,
+                  initialization_values: list[dict] = None,
+                  reward_discount: float = 0.99,
+                  distance_metric: Literal['l1', 'l2'] = 'l1',
+                  print_progress: bool = False,
+                  print_stats: bool = True,
+                  print_warning: bool = True,
+                  use_gpu: bool = False,
+                  parallel_agent_simulation: bool = True,
+                  batches: int = -1
                   ) -> pd.DataFrame:
+    '''
+    Master function that trains, measures, and evaluates a list of agent classes.
 
-    # For each agent
+    It reuses the already built tests in this file:
+    - train the agent
+    - measure agent size on disk
+    - run the all-starts test on each environment
+    - run the void test
+    - run the memory scaling test
 
-    # Step 1: Train agent
+    Returns
+    -------
+    complete_results_df : pd.DataFrame
+        One row per agent/environment pair with flattened summary metrics.
+    '''
+    if initialization_values is None:
+        initialization_values = [{}] * len(agent_classes)
 
-    # Step 1.2: Get agent size on disk
+    if agent_additional_parameters is None:
+        agent_additional_parameters = [{}] * len(agent_classes)
 
-    # Step 2: Test agent
+    if training_parameters is None:
+        training_parameters = [{}] * len(agent_classes)
 
-    # Step 3: Test in void
+    assert len(initialization_values) == len(agent_classes), 'initialization_values must have the same length as agent_classes'
+    assert len(agent_additional_parameters) == len(agent_classes), 'agent_additional_parameters must have the same length as agent_classes'
+    assert len(training_parameters) == len(agent_classes), 'training_parameters must have the same length as agent_classes'
 
-    # Step 4: Test memory scaling
+    def _history_summary(hist: SimulationHistory, prefix: str) -> dict:
+        summary_df = SimulationHistory.compare_all(hist)
+        return {f'{prefix}{col}': summary_df.iloc[0][col] for col in summary_df.columns}
 
-    # TODO
-    return 0.0
+    rows = []
+
+    for i_agent, (agent_class, agent_additional_params, training_params, agent_initialization_values) in enumerate(zip(agent_classes, agent_additional_parameters, training_parameters, initialization_values)):
+        print(f'Agent {i_agent} ({agent_class.__name__}):')
+
+        # Get the 1st provided environment if the training environment was not provided
+        if training_environment is None:
+            print('Using environment 0 as the training_environment was not provided')
+            training_environment = environments[0]
+
+        # Build agent
+        agent: Agent = agent_class(
+            environment=training_environment,
+            thresholds=agent_thresholds,
+            space_aware=agent_space_aware,
+            spatial_subdivisions=agent_spacial_subdivisions,
+            actions=agent_actions,
+            **agent_additional_params
+        )
+
+        # Step 1: Train agent
+        process = psutil.Process(os.getpid())
+        memory_before = process.memory_info().rss
+        start_time = time.perf_counter()
+
+        if not agent.trained:
+            agent.train(**training_params)
+
+        training_memory_used = process.memory_info().rss - memory_before
+        training_time_taken = time.perf_counter() - start_time
+
+        # Step 2: Get trained agent size
+        agent_size_bytes = agent.size_on_memory()
+
+        # Step 3: Test in void
+        void_hist = test_agent_in_void(
+            agent=agent,
+            horizon=horizon,
+            initialization_values=agent_initialization_values,
+            reward_discount=reward_discount,
+            distance_metric=distance_metric,
+            print_progress=print_progress,
+            print_stats=print_stats,
+            print_warning=print_warning,
+            use_gpu=use_gpu,
+            parallel_agent_simulation=parallel_agent_simulation,
+            batches=batches
+        )
+        void_summary = _history_summary(void_hist, prefix='void_')
+
+        # Step 4: Test memory scaling
+        memory_scaling_df = test_agent_memory_scaling(
+            agent=agent,
+            initialization_values=agent_initialization_values,
+            use_gpu=use_gpu
+        )
+        memory_scaling_last = memory_scaling_df.iloc[-1].to_dict()
+
+        # Step 5: Test in all the other environments
+        for i_environment, environment in enumerate(environments):
+            print(f'- Environment {i_environment}')
+
+            hist = run_all_starts_test(
+                agent=agent,
+                environment=environment,
+                time_shift=time_shift,
+                time_loop=time_loop,
+                horizon=horizon,
+                initialization_values=agent_initialization_values,
+                reward_discount=reward_discount,
+                distance_metric=distance_metric,
+                print_progress=print_progress,
+                print_warning=print_warning,
+                print_stats=print_stats,
+                use_gpu=use_gpu,
+                parallel_agent_simulation=parallel_agent_simulation,
+                batches=batches
+            )
+
+            row = {
+                'agent_index': i_agent,
+                'agent_name': agent_class.__name__,
+                'environment_index': i_environment,
+                'environment_name': environment.name,
+                'training_environment_name': training_environment.name if training_environment is not None else None,
+                'agent_size_bytes': agent_size_bytes,
+                'training_memory_used': training_memory_used,
+                'training_time_taken': training_time_taken,
+                'memory_scaling_n_exp': memory_scaling_last['n_exp'],
+                'memory_scaling_time_s': memory_scaling_last['time_s'],
+                'memory_scaling_time_s_per_agent': memory_scaling_last['time_s_per_agent'],
+            }
+            row.update(_history_summary(hist, prefix='all_starts_'))
+            row.update(void_summary)
+            rows.append(row)
+
+            print('')
+
+        print('--------------------------------------')
+
+    result_df = pd.DataFrame(rows)
+    return result_df
