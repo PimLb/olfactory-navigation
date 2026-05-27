@@ -1,14 +1,8 @@
-from olfactory_navigation.agents.pbvi_agent import PBVI_Agent, TrainingHistory
-from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
-from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
+from datetime import datetime
 
-import numpy as np
-gpu_support = False
-try:
-    import cupy as cp
-    gpu_support = True
-except:
-    print('[Warning] Cupy could not be loaded: GPU support is not available.')
+from olfactory_navigation.agents.pbvi_agent import PBVI_Agent, TrainingHistory
+from pomdp_toolkit import ValueFunction, Belief, BeliefSet
+from pomdp_toolkit.solvers import Perseus
 
 
 class Perseus_Agent(PBVI_Agent):
@@ -97,64 +91,19 @@ class Perseus_Agent(PBVI_Agent):
         Part of the Agent's status. Records what action was last played by the agent.
         A list of n actions played based on how many simulations are running at once.
     '''
-    def expand(self,
-               belief_set: BeliefSet,
-               value_function: ValueFunction,
-               max_generation: int
-               ) -> BeliefSet:
-        '''
-        # TODO
-
-        Parameters
-        ----------
-        belief_set : BeliefSet
-            List of beliefs to expand on.
-        value_function : ValueFunction
-            The current value function. (NOT USED)
-        max_generation : int, default = 10
-            The max amount of beliefs that can be added to the belief set at once.
-
-        Returns
-        -------
-        belief_set : BeliefSet
-            A new sequence of beliefs.
-        '''
-        # GPU support
-        xp = np if not self.on_gpu else cp
-        model = self.model
-
-        b = belief_set.belief_list[0]
-        belief_sequence = []
-
-        for i in range(max_generation):
-            # Choose random action
-            a = int(self.rnd_state.choice(model.actions, size=1)[0])
-
-            # Choose random observation based on prob: P(o|b,a)
-            obs_prob = xp.einsum('sor,s->o', model.reachable_transitional_observation_table[:,a,:,:], b.values)
-            o = int(self.rnd_state.choice(model.observations, size=1, p=obs_prob)[0])
-
-            # Update belief
-            bao = b.update(a,o)
-
-            # Finalization
-            belief_sequence.append(bao)
-            b = bao
-
-        return BeliefSet(model, belief_sequence)
-
-
     def train(self,
               expansions: int,
               update_passes: int = 1,
               max_belief_growth: int = 10,
               initial_belief: BeliefSet | Belief = None,
               initial_value_function: ValueFunction = None,
+              use_policy_to_choose_actions: bool = False, # Perseus params
               prune_level: int = 1,
               prune_interval: int = 10,
               limit_value_function_size: int = -1,
               gamma: float = 0.99,
               eps: float = 1e-6,
+              convergence_stop: bool = False,
               use_gpu: bool = False,
               history_tracking_level: int = 1,
               overwrite_training: bool = False,
@@ -182,6 +131,9 @@ class Perseus_Agent(PBVI_Agent):
             An initial list of beliefs to start with.
         initial_value_function : ValueFunction, optional
             An initial value function to start the solving process with.
+        use_policy_to_choose_actions : bool, default = False
+            Whether to use the value_function in the expand operation for the action selection.
+            If set to False, the actions are chosen randomly.
         prune_level : int, default = 1
             Parameter to prune the value function further before the expand function.
         prune_interval : int, default = 10
@@ -197,6 +149,9 @@ class Perseus_Agent(PBVI_Agent):
         eps : float, default = 1e-6
             The smallest allowed changed for the value function.
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+            convergence_stop : bool, default = False
+        convergence_stop : bool, default = False
+            Whether to compute to compute the change in the value function and stop early if this change is smaller than eps.
         history_tracking_level : int, default = 1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
         overwrite_training : bool, default = False
@@ -211,19 +166,49 @@ class Perseus_Agent(PBVI_Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        return super().train(expansions = expansions,
-                             full_backup = False,
-                             update_passes = update_passes,
-                             max_belief_growth = max_belief_growth,
-                             initial_belief = initial_belief,
-                             initial_value_function = initial_value_function,
-                             prune_level = prune_level,
-                             prune_interval = prune_interval,
-                             limit_value_function_size = limit_value_function_size,
-                             gamma = gamma,
-                             eps = eps,
-                             use_gpu = use_gpu,
-                             history_tracking_level = history_tracking_level,
-                             overwrite_training = overwrite_training,
-                             print_progress = print_progress,
-                             print_stats = print_stats)
+        # Handeling the case where the agent is already trained
+        if (self.value_function is not None):
+            if overwrite_training:
+                self.trained_at = None
+                self.name = '-'.join(self.name.split('-')[:-1])
+                self.value_function = None
+            else:
+                initial_value_function = self.value_function
+
+        # Run the solving algorithm
+        value_function, hist = value_function, hist = Perseus.solve(
+            model = self.model,
+            expansions = expansions,
+            update_passes = update_passes,
+            max_belief_growth = max_belief_growth,
+            initial_belief = initial_belief,
+            initial_value_function = initial_value_function,
+            prune_level = prune_level,
+            prune_interval = prune_interval,
+            limit_value_function_size = limit_value_function_size,
+            gamma = gamma,
+            eps = eps,
+            convergence_stop = convergence_stop,
+            use_gpu = use_gpu,
+            use_reachability = self.use_reachability,
+            rng = self.rnd_state,
+            history_tracking_level = history_tracking_level,
+            print_progress = print_progress,
+            print_stats = print_stats,
+            use_policy_to_choose_actions = use_policy_to_choose_actions
+            )
+
+        # Record when it was trained
+        self.trained_at = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.name += f'-trained_{self.trained_at}'
+
+        self.value_function = value_function.on_cpu if not self.on_gpu else value_function.on_gpu
+
+        # Print stats if requested
+        if print_stats:
+            print(hist.summary)
+
+        # Validate training
+        self.trained = True
+
+        return hist

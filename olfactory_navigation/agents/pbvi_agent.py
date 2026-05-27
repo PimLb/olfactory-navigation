@@ -10,11 +10,9 @@ from typing import Callable
 
 from olfactory_navigation.environment import Environment
 from olfactory_navigation.agent import Agent
-from olfactory_navigation.agents.model_based_util.pomdp import Model
-from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
-from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
 from olfactory_navigation.agents.model_based_util.environment_converter import exact_converter
 from olfactory_navigation.simulation import SimulationHistory
+from pomdp_toolkit import POMDP, ValueFunction, Belief, BeliefSet
 
 import numpy as np
 
@@ -81,7 +79,7 @@ class TrainingHistory:
     '''
     def __init__(self,
                  tracking_level: int,
-                 model: Model,
+                 model: POMDP,
                  gamma: float,
                  eps: float,
                  expand_append: bool,
@@ -277,9 +275,11 @@ class PBVI_Agent(Agent):
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
     seed : int, default = 12131415
         For reproducible randomness.
-    model : Model, optional
+    model : POMDP, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
+    use_reachability : bool, default = False
+            Whether or not to use the reachable states as a shortcut to find the posterior state(s).
     environment_converter : Callable, default = exact_converter
         A function to convert the olfactory environment instance to a POMDP Model instance.
         By default, we use an exact convertion that keeps the shape of the environment to make the amount of states of the POMDP Model.
@@ -302,8 +302,8 @@ class PBVI_Agent(Agent):
         The actions allowed of the agent. Formulated as movement vectors as [(layer,) (dz,) dy, dx].
     action_labels : list[str]
         The labels associated to the action vectors present in the action set.
-    model : Model
-        The environment converted to a POMDP model using the "from_environment" constructor of the Model class.
+    model : POMDP
+        The environment converted to a POMDP model using the "from_environment" constructor of the POMDP class.
     saved_at : str
         The place on disk where the agent has been saved (None if not saved yet).
     on_gpu : bool
@@ -339,7 +339,8 @@ class PBVI_Agent(Agent):
                  actions: dict[str, np.ndarray] | np.ndarray = None,
                  name: str = None,
                  seed: int = 12131415,
-                 model: Model = None,
+                 model: POMDP = None,
+                 use_reachability: bool = False,
                  environment_converter: Callable = None,
                  **converter_parameters
                  ) -> None:
@@ -361,15 +362,18 @@ class PBVI_Agent(Agent):
         else:
             # Using the exact converter
             loaded_model = exact_converter(agent=self)
-        self.model:Model = loaded_model
+        self.model:POMDP = loaded_model
+
+        self.use_reachability = use_reachability
 
         # Trainable variables
         self.trained_at = None
-        self.value_function = None
+        self.value_function: ValueFunction = None
 
         # Status variables
-        self.belief = None
+        self.belief: BeliefSet = None
         self.action_played = None
+        self.succeeded_update = None
 
 
     def to_gpu(self) -> 'PBVI_Agent':
@@ -403,12 +407,12 @@ class PBVI_Agent(Agent):
                 setattr(gpu_agent, arg, cp.array(val))
             elif arg == 'rnd_state':
                 setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
-            elif isinstance(val, Model):
-                setattr(gpu_agent, arg, val.gpu_model)
+            elif isinstance(val, POMDP):
+                setattr(gpu_agent, arg, val.on_gpu)
             elif isinstance(val, ValueFunction):
-                setattr(gpu_agent, arg, val.to_gpu())
+                setattr(gpu_agent, arg, val.on_gpu)
             elif isinstance(val, BeliefSet) or isinstance(val, Belief):
-                setattr(gpu_agent, arg, val.to_gpu())
+                setattr(gpu_agent, arg, val.on_gpu)
             else:
                 setattr(gpu_agent, arg, val)
 
@@ -448,12 +452,12 @@ class PBVI_Agent(Agent):
                 setattr(cpu_agent, arg, cp.asnumpy(val))
             elif arg == 'rnd_state':
                 setattr(cpu_agent, arg, np.random.RandomState(self.seed))
-            elif isinstance(val, Model):
-                setattr(cpu_agent, arg, val.cpu_model)
+            elif isinstance(val, POMDP):
+                setattr(cpu_agent, arg, val.on_cpu)
             elif isinstance(val, ValueFunction):
-                setattr(cpu_agent, arg, val.to_cpu())
+                setattr(cpu_agent, arg, val.on_cpu)
             elif isinstance(val, BeliefSet) or isinstance(val, Belief):
-                setattr(cpu_agent, arg, val.to_cpu())
+                setattr(cpu_agent, arg, val.on_cpu)
             else:
                 setattr(cpu_agent, arg, val)
 
@@ -613,6 +617,7 @@ class PBVI_Agent(Agent):
               limit_value_function_size: int = -1,
               gamma: float = 0.99,
               eps: float = 1e-6,
+              convergence_stop: bool = False,
               use_gpu: bool = False,
               history_tracking_level: int = 1,
               overwrite_training: bool = False,
@@ -655,6 +660,9 @@ class PBVI_Agent(Agent):
         eps : float, default = 1e-6
             The smallest allowed changed for the value function.
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+            convergence_stop : bool, default = False
+        convergence_stop : bool, default = False
+            Whether to compute to compute the change in the value function and stop early if this change is smaller than eps.
         history_tracking_level : int, default = 1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
         overwrite_training : bool, default = False
@@ -671,352 +679,7 @@ class PBVI_Agent(Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        # GPU support
-        if use_gpu and not self.on_gpu:
-            gpu_agent = self.to_gpu()
-            solver_history = super(self.__class__, gpu_agent).train(
-                expansions=expansions,
-                full_backup=full_backup,
-                update_passes=update_passes,
-                max_belief_growth=max_belief_growth,
-                initial_belief=initial_belief,
-                initial_value_function=initial_value_function,
-                prune_level=prune_level,
-                prune_interval=prune_interval,
-                limit_value_function_size=limit_value_function_size,
-                gamma=gamma,
-                eps=eps,
-                use_gpu=use_gpu,
-                history_tracking_level=history_tracking_level,
-                overwrite_training=overwrite_training,
-                print_progress=print_progress,
-                print_stats=print_stats,
-                **expand_arguments
-            )
-
-            # Setting parameters of CPU agent after the training
-            self.value_function = gpu_agent.value_function.to_cpu()
-            self.trained_at = gpu_agent.trained_at
-            self.name = gpu_agent.name
-
-            return solver_history
-
-        xp = np if not self.on_gpu else cp
-
-        # Getting model
-        model = self.model
-
-        # Initial belief
-        if initial_belief is None:
-            belief_set = BeliefSet(model, [Belief(model)])
-        elif isinstance(initial_belief, BeliefSet):
-            belief_set = initial_belief.to_gpu() if self.on_gpu else initial_belief
-        else:
-            initial_belief = Belief(model, xp.array(initial_belief.values))
-            belief_set = BeliefSet(model, [initial_belief])
-
-        # Handeling the case where the agent is already trained
-        if (self.value_function is not None):
-            if overwrite_training:
-                print('[warning] The value function is being overwritten')
-                self.trained_at = None
-                self.name = '-'.join(self.name.split('-')[:-1])
-                self.value_function = None
-            else:
-                initial_value_function = self.value_function
-
-        # Initial value function
-        if initial_value_function is None:
-            value_function = ValueFunction(model, model.expected_rewards_table.T, model.actions)
-        else:
-            value_function = initial_value_function.to_gpu() if self.on_gpu else initial_value_function
-
-        # Convergence check boundary
-        max_allowed_change = eps * (gamma / (1-gamma))
-
-        # History tracking
-        training_history = TrainingHistory(tracking_level=history_tracking_level,
-                                           model=model,
-                                           gamma=gamma,
-                                           eps=eps,
-                                           expand_append=full_backup,
-                                           initial_value_function=value_function,
-                                           initial_belief_set=belief_set)
-
-        # Loop
-        iteration = 0
-        expand_value_function = value_function
-        old_value_function = value_function
-
-        try:
-            iterator = trange(expansions, desc='Expansions') if print_progress else range(expansions)
-            iterator_postfix = {}
-            for expansion_i in iterator:
-
-                # 1: Expand belief set
-                start_ts = datetime.now()
-
-                new_belief_set = self.expand(belief_set=belief_set,
-                                             value_function=value_function,
-                                             max_generation=max_belief_growth,
-                                             **expand_arguments)
-
-                # Add new beliefs points to the total belief_set
-                belief_set = belief_set.union(new_belief_set)
-
-                expand_time = (datetime.now() - start_ts).total_seconds()
-                training_history.add_expand_step(expansion_time=expand_time, belief_set=belief_set)
-
-                # 2: Backup, update value function (alpha vector set)
-                for _ in range(update_passes) if (not print_progress or update_passes <= 1) else trange(update_passes, desc=f'Backups {expansion_i}'):
-                    start_ts = datetime.now()
-
-                    # Backup step
-                    value_function = self.backup(belief_set if full_backup else new_belief_set,
-                                                 value_function,
-                                                 gamma=gamma,
-                                                 append=(not full_backup),
-                                                 belief_dominance_prune=False)
-                    backup_time = (datetime.now() - start_ts).total_seconds()
-
-                    # Additional pruning
-                    if (iteration % prune_interval) == 0 and iteration > 0:
-                        start_ts = datetime.now()
-                        vf_len = len(value_function)
-
-                        value_function.prune(prune_level)
-
-                        prune_time = (datetime.now() - start_ts).total_seconds()
-                        alpha_vectors_pruned = len(value_function) - vf_len
-                        training_history.add_prune_step(prune_time, alpha_vectors_pruned)
-
-                    # Check if value function size is above threshold
-                    if limit_value_function_size >= 0 and len(value_function) > limit_value_function_size:
-                        # Compute matrix multiplications between avs and beliefs
-                        alpha_value_per_belief = xp.matmul(value_function.alpha_vector_array, belief_set.belief_array.T)
-
-                        # Select the useful alpha vectors
-                        best_alpha_vector_per_belief = xp.argmax(alpha_value_per_belief, axis=0)
-                        useful_alpha_vectors = xp.unique(best_alpha_vector_per_belief)
-
-                        # Select a random selection of vectors to delete
-                        unuseful_alpha_vectors = xp.delete(xp.arange(len(value_function)), useful_alpha_vectors)
-                        random_vectors_to_delete = self.rnd_state.choice(unuseful_alpha_vectors,
-                                                                         size=max_belief_growth,
-                                                                         p=(xp.arange(len(unuseful_alpha_vectors))[::-1] / xp.sum(xp.arange(len(unuseful_alpha_vectors)))))
-                                                                         # replace=False,
-                                                                         # p=1/len(unuseful_alpha_vectors))
-
-                        value_function = ValueFunction(model=model,
-                                                       alpha_vectors=xp.delete(value_function.alpha_vector_array, random_vectors_to_delete, axis=0),
-                                                       action_list=xp.delete(value_function.actions, random_vectors_to_delete))
-
-                        iterator_postfix['|useful|'] = useful_alpha_vectors.shape[0]
-
-                    # Compute the change between value functions
-                    max_change = self.compute_change(value_function, old_value_function, belief_set)
-
-                    # History tracking
-                    training_history.add_backup_step(backup_time, max_change, value_function)
-
-                    # Convergence check
-                    if max_change < max_allowed_change:
-                        break
-
-                    old_value_function = value_function
-
-                    # Update iteration counter
-                    iteration += 1
-
-                # Compute change with old expansion value function
-                expand_max_change = self.compute_change(expand_value_function, value_function, belief_set)
-
-                if expand_max_change < max_allowed_change:
-                    if print_progress:
-                        print('Converged!')
-                    break
-
-                expand_value_function = value_function
-
-                iterator_postfix['|V|'] = len(value_function)
-                iterator_postfix['|B|'] = len(belief_set)
-
-                if print_progress:
-                    iterator.set_postfix(iterator_postfix)
-
-        except MemoryError as e:
-            print(f'Memory full: {e}')
-            print('Returning value function and history as is...\n')
-
-        # Final pruning
-        start_ts = datetime.now()
-        vf_len = len(value_function)
-
-        value_function.prune(prune_level)
-
-        # History tracking
-        prune_time = (datetime.now() - start_ts).total_seconds()
-        alpha_vectors_pruned = len(value_function) - vf_len
-        training_history.add_prune_step(prune_time, alpha_vectors_pruned)
-
-        # Record when it was trained
-        self.trained_at = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.name += f'-trained_{self.trained_at}'
-
-        # Saving value function
-        self.value_function = value_function
-
-        # Print stats if requested
-        if print_stats:
-            print(training_history.summary)
-
-        # Validate training
-        self.trained = True
-
-        return training_history
-
-
-    def compute_change(self,
-                       value_function: ValueFunction,
-                       new_value_function: ValueFunction,
-                       belief_set: BeliefSet
-                       ) -> float:
-        '''
-        Function to compute whether the change between two value functions can be considered as having converged based on the eps parameter of the Solver.
-        It check for each belief, the maximum value and take the max change between believe's value functions.
-        If this max change is lower than eps * (gamma / (1 - gamma)).
-
-        Parameters
-        ----------
-        value_function : ValueFunction
-            The first value function to compare.
-        new_value_function : ValueFunction
-            The second value function to compare.
-        belief_set : BeliefSet
-            The set of believes to check the values on to compute the max change on.
-
-        Returns
-        -------
-        max_change : float
-            The maximum change between value functions at belief points.
-        '''
-        # Get numpy corresponding to the arrays
-        xp = np if not gpu_support else cp.get_array_module(value_function.alpha_vector_array)
-
-        # Computing Delta for each beliefs
-        max_val_per_belief = xp.max(xp.matmul(belief_set.belief_array, value_function.alpha_vector_array.T), axis=1)
-        new_max_val_per_belief = xp.max(xp.matmul(belief_set.belief_array, new_value_function.alpha_vector_array.T), axis=1)
-        max_change = xp.max(xp.abs(new_max_val_per_belief - max_val_per_belief))
-
-        return max_change
-
-
-    def expand(self,
-               belief_set: BeliefSet,
-               value_function: ValueFunction,
-               max_generation: int,
-               **kwargs
-               ) -> BeliefSet:
-        '''
-        Abstract function!
-        This function should be implemented in subclasses.
-        The expand function consists in the exploration of the belief set.
-        It takes as input a belief set and generates at most 'max_generation' beliefs from it.
-
-        The current value function is also passed as an argument as it is used in some PBVI techniques to guide the belief exploration.
-
-        Parameters
-        ----------
-        belief_set : BeliefSet
-            The belief or set of beliefs to be used as a starting point for the exploration.
-        value_function : ValueFunction
-            The current value function. To be used to guide the exploration process.
-        max_generation : int
-            How many beliefs to be generated at most.
-        kwargs
-            Special parameters for the particular flavors of the PBVI Agent.
-
-        Returns
-        -------
-        new_belief_set : BeliefSet
-            A new (or expanded) set of beliefs.
-        '''
-        raise NotImplementedError('PBVI class is abstract so expand function is not implemented, make an PBVI_agent subclass to implement the method')
-
-
-    def backup(self,
-               belief_set: BeliefSet,
-               value_function: ValueFunction,
-               gamma: float = 0.99,
-               append: bool = False,
-               belief_dominance_prune: bool = True
-               ) -> ValueFunction:
-        '''
-        This function has purpose to update the set of alpha vectors. It does so in 3 steps:
-        1. It creates projections from each alpha vector for each possible action and each possible observation
-        2. It collapses this set of generated alpha vectors by taking the weighted sum of the alpha vectors weighted by the observation probability and this for each action and for each belief.
-        3. Then it further collapses the set to take the best alpha vector and action per belief
-        In the end we have a set of alpha vectors as large as the amount of beliefs.
-
-        The alpha vectors are also pruned to avoid duplicates and remove dominated ones.
-
-        Parameters
-        ----------
-        belief_set : BeliefSet
-            The belief set to use to generate the new alpha vectors with.
-        value_function : ValueFunction
-            The alpha vectors to generate the new set from.
-        gamma : float, default = 0.99
-            The discount factor to value immediate rewards more than long term rewards.
-            The learning rate is 1/gamma.
-        append : bool, default = False
-            Whether to append the new alpha vectors generated to the old alpha vectors before pruning.
-        belief_dominance_prune : bool, default = True
-            Whether, before returning the new value function, checks what alpha vectors have a supperior value, if so it adds it.
-
-        Returns
-        -------
-        new_alpha_set : ValueFunction
-            A list of updated alpha vectors.
-        '''
-        xp = np if not self.on_gpu else cp
-        model = self.model
-
-        # Step 1
-        vector_array = value_function.alpha_vector_array
-        vectors_array_reachable_states = vector_array[xp.arange(vector_array.shape[0])[:,None,None,None], model.reachable_states[None,:,:,:]]
-
-        gamma_a_o_t = gamma * xp.einsum('saor,vsar->aovs', model.reachable_transitional_observation_table, vectors_array_reachable_states)
-
-        # Step 2
-        belief_array = belief_set.belief_array # bs
-        best_alpha_ind = xp.argmax(xp.tensordot(belief_array, gamma_a_o_t, (1,3)), axis=3) # argmax(bs,aovs->baov) -> bao
-
-        best_alphas_per_o = gamma_a_o_t[model.actions[None,:,None,None], model.observations[None,None,:,None], best_alpha_ind[:,:,:,None], model.states[None,None,None,:]] # baos
-
-        alpha_a = model.expected_rewards_table.T + xp.sum(best_alphas_per_o, axis=2) # as + bas
-
-        # Step 3
-        best_actions = xp.argmax(xp.einsum('bas,bs->ba', alpha_a, belief_array), axis=1)
-        alpha_vectors = xp.take_along_axis(alpha_a, best_actions[:,None,None],axis=1)[:,0,:]
-
-        # Belief domination
-        if belief_dominance_prune:
-            best_value_per_belief = xp.sum((belief_array * alpha_vectors), axis=1)
-            old_best_value_per_belief = xp.max(xp.matmul(belief_array, vector_array.T), axis=1)
-            dominating_vectors = best_value_per_belief > old_best_value_per_belief
-
-            best_actions = best_actions[dominating_vectors]
-            alpha_vectors = alpha_vectors[dominating_vectors]
-
-        # Creation of value function
-        new_value_function = ValueFunction(model, alpha_vectors, best_actions)
-
-        # Union with previous value function
-        if append:
-            new_value_function.extend(value_function)
-
-        return new_value_function
+        raise NotImplementedError('The train function is not implemented, make a PBVI agent subclass to implement the method')
 
 
     def modify_environment(self,
@@ -1080,9 +743,9 @@ class PBVI_Agent(Agent):
             assert len(belief) == n, f"The amount of beliefs provided ({len(belief)}) to initialize the state need to match the amount of stimulations to initialize (n={n})."
 
             if self.on_gpu and not belief.is_on_gpu:
-                self.belief = belief.to_gpu()
+                self.belief = belief.on_gpu
             elif not self.on_gpu and belief.is_on_gpu:
-                self.belief = belief.to_cpu()
+                self.belief = belief.on_cpu
             else:
                 self.belief = belief
 
@@ -1134,15 +797,22 @@ class PBVI_Agent(Agent):
             Else, a boolean np.ndarray of size n can be returned confirming for each agent whether the update has been successful or not.
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
+        # GPU support
+        xp = np if not self.on_gpu else cp
 
         # Discretizing observations
         observation_ids = self.discretize_observations(observation=observation, action=action, source_reached=source_reached)
 
         # Update the set of beliefs
-        self.belief = self.belief.update(actions=self.action_played, observations=observation_ids, throw_error=False)
+        self.belief, provenance = self.belief.update(actions = self.action_played,
+                                                     observations = observation_ids,
+                                                     raise_on_impossible_belief = False,
+                                                     use_reachability = True,
+                                                     return_provenance = True)
 
         # Check for failed updates
-        update_successful = (self.belief.belief_array.sum(axis=1) != 0.0)
+        update_successful = xp.isin(xp.arange(len(self.belief)), provenance[:,0])
+        self.succeeded_update = update_successful
 
         return update_successful
 
@@ -1151,7 +821,7 @@ class PBVI_Agent(Agent):
              simulations_to_kill: np.ndarray
              ) -> None:
         '''
-        Function to kill any simulations that have not reached the source but can't continue further
+        Function to kill any simulations that have not reached the source but can't continue further.
 
         Parameters
         ----------
@@ -1161,7 +831,8 @@ class PBVI_Agent(Agent):
         if all(simulations_to_kill):
             self.belief = None
         else:
-            self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~simulations_to_kill])
+            filtered_simulations_to_kill = simulations_to_kill[self.succeeded_update]
+            self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~filtered_simulations_to_kill])
 
 
     def generate_beliefs_from_trajectory(self,
@@ -1219,7 +890,7 @@ class PBVI_Agent(Agent):
 
             try:
                 # Update belief
-                belief = belief.update(a=a, o=discrete_o)
+                belief = belief.update(a=a, o=discrete_o, use_reachability=self.use_reachability)
                 belief_sequence.append(belief)
             except:
                 print(f'[Warning] Update of belief failed at step {row_id}...')

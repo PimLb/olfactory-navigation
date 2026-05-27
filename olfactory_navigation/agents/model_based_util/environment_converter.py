@@ -1,10 +1,10 @@
 from olfactory_navigation import Agent, Environment
-from olfactory_navigation.agents.model_based_util.pomdp import Model
+from pomdp_toolkit import POMDP
 
 import numpy as np
 
 
-def exact_converter(agent : Agent) -> Model:
+def exact_converter(agent : Agent) -> POMDP:
     '''
     Method to create a POMDP model based on an olfactory environment object.
 
@@ -25,7 +25,7 @@ def exact_converter(agent : Agent) -> Model:
 
     Returns
     -------
-    model : Model
+    model : POMDP
         A generate POMDP model from the environment.
     '''
     # Agent's parameters
@@ -74,27 +74,27 @@ def exact_converter(agent : Agent) -> Model:
         odor_fields[*data_bounds_slices, :] = data_odor_fields
 
     # Building observation matrix
-    observations = np.empty((state_count, action_count, observation_count), dtype=float)
+    observation_table = np.empty((state_count, action_count, observation_count), dtype=float)
     for o in range(observation_count-1): # Skipping the goal observation
         for a, action_vector in enumerate(action_set):
             if environment.has_layers:
                 action_layer = action_vector[0]
-                observations[:,a,o] = odor_fields[action_layer][:,:,o].ravel()
+                observation_table[:,a,o] = odor_fields[action_layer][:,:,o].ravel()
             else:
-                observations[:,a,o] = odor_fields[:,:,o].ravel()
+                observation_table[:,a,o] = odor_fields[:,:,o].ravel()
 
     # Setting 'Nothing' observation in the margins to 1
     data_margins_mask = np.ones(environment.shape, dtype=bool)
     data_margins_mask[data_bounds_slices] = False
-    observations[data_margins_mask.ravel(),:,0] = 1.0
+    observation_table[data_margins_mask.ravel(),:,0] = 1.0
 
     # Goal observation
-    observations[:,:,-1] = 0.0
-    observations[end_states,:,:] = 0.0
-    observations[end_states,:,-1] = 1.0
+    observation_table[:,:,-1] = 0.0
+    observation_table[end_states,:,:] = 0.0
+    observation_table[end_states,:,-1] = 1.0
 
     # Assert observations sum to 1
-    assert np.all(np.sum(observations, axis=2) == 1.0), "Observation table malformed, something is wrong..."
+    assert np.all(np.sum(observation_table, axis=2) == 1.0), "Observation table malformed, something is wrong..."
 
     # Observation labels
     observation_labels = ['nothing']
@@ -119,18 +119,17 @@ def exact_converter(agent : Agent) -> Model:
         action_new_states.append(new_states)
 
     # Forming it the reachable states array from the new states for each action
-    reachable_states = np.array(action_new_states).T[:,:,None]
+    reachable_states_table = np.array(action_new_states).T[:,:,None]
 
     # Instantiate the model object
-    model = Model(
-        states=state_grid,
-        actions=agent.action_labels,
-        observations=observation_labels,
-        reachable_states=reachable_states,
-        observation_table=observations,
-        end_states=end_states,
-        start_probabilities=environment.start_probabilities.ravel(),
-        seed=agent.seed
+    model = POMDP(
+        states = state_grid,
+        actions = agent.action_labels,
+        observations = observation_labels,
+        reachable_states_table = reachable_states_table,
+        observation_table = observation_table,
+        end_states = end_states,
+        start_probabilities = environment.start_probabilities.ravel()
     )
     return model
 
@@ -138,7 +137,7 @@ def exact_converter(agent : Agent) -> Model:
 def minimal_converter(agent : Agent,
                       partitions: list | np.ndarray = [3,6],
                       margin_partitions: bool = False
-                      ) -> Model:
+                      ) -> POMDP:
     '''
     Method to create a POMDP Model based on an olfactory environment  object.
 
@@ -166,7 +165,7 @@ def minimal_converter(agent : Agent,
 
     Returns
     -------
-    model : Model
+    model : POMDP
         A generated POMDP model from the environment.
     '''
     # Agent's parameters
@@ -236,7 +235,7 @@ def minimal_converter(agent : Agent,
     observation_labels.append('goal')
 
     # Observation probabilities
-    observations = np.zeros((cell_counts+1, len(action_set), len(observation_labels)))
+    observation_probabilities = np.zeros((cell_counts+1, len(action_set), len(observation_labels)))
 
     # Recomputing bounds for data zone only
     data_cell_bounds = [np.array([*(np.arange(ax_part+1) * cell_shape[ax_i])]) for ax_i, ax_part in enumerate(partitions)]
@@ -261,18 +260,18 @@ def minimal_converter(agent : Agent,
 
     # Placing observation probabilities in observation matrix
     data_cell_ids = np.arange(cell_counts).reshape(partitions+2)[1:-1,1:-1].ravel()
-    observations[:-1,:,0] = 1.0 # Nothing at 1 everywhere
+    observation_probabilities[:-1,:,0] = 1.0 # Nothing at 1 everywhere
     if environment.has_layers:
         action_layers = action_set[:,0]
         actions = np.arange(len(action_layers))
         for i, cell_id in enumerate(data_cell_ids):
             for o in range(len(observation_labels) - 1):
-                observations[cell_id,actions,o] = cell_observations[i][o][action_layers]
+                observation_probabilities[cell_id,actions,o] = cell_observations[i][o][action_layers]
     else:
         for i, cell_id in enumerate(data_cell_ids):
-            observations[cell_id,:,:-1] = cell_observations[i]
+            observation_probabilities[cell_id,:,:-1] = cell_observations[i]
 
-    observations[-1,:,-1] = 1.0 # Goal
+    observation_probabilities[-1,:,-1] = 1.0 # Goal
 
     # Start probabilities # TODO Match data zone
     start_probabilities = np.ones(cell_counts+1, dtype=float)
@@ -280,15 +279,14 @@ def minimal_converter(agent : Agent,
     start_probabilities /= np.sum(start_probabilities)
 
     # Creation of the Model
-    model = Model(
+    model = POMDP(
         states = [f'cell_{cell}' for cell in range(cell_counts)] + ['goal'],
         actions = agent.action_labels,
         observations = observation_labels,
-        transitions = transition_probabilities,
-        observation_table = observations,
+        transition_table = transition_probabilities,
+        observation_table = observation_probabilities,
         end_states = [cell_counts], # The very last state is the goal state
-        start_probabilities = start_probabilities,
-        seed=agent.seed
+        start_probabilities = start_probabilities
     )
 
     return model
