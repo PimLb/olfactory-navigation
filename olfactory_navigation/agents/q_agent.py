@@ -31,7 +31,7 @@ class QAgent(Agent):
                  ) -> None:
         assert checkpoint_folder is None or (checkpoint_folder is not None and checkpoint_frequency is not None and checkpoint_frequency > 0)
         super().__init__(environment, threshold, "QAgent")
-        self.xp = cp if self.on_gpu else np
+        self.xp = cp if self.is_on_gpu else np
         self.learning_rate = learning_rate
         self.horizon = horizon
         self.eps_greedy = eps_greedy
@@ -51,14 +51,14 @@ class QAgent(Agent):
         self.checkpoint_folder = checkpoint_folder
         self.checkpoint_frequency = checkpoint_frequency
         if checkpoint_folder is not None:
-            os.makedirs(checkpoint_folder, exist_ok=True)        
+            os.makedirs(checkpoint_folder, exist_ok=True)
 
 
     def initialize_state(self, n:int=1) -> None:
         self.current_state = self.xp.zeros((n, ), dtype=np.int32)
 
 
-    def to_gpu(self) -> Agent:
+    def on_gpu(self) -> Agent:
         cls = self.__class__
         gpu_agent = cls.__new__(cls)
 
@@ -73,7 +73,7 @@ class QAgent(Agent):
         self._alternate_version = gpu_agent
         gpu_agent._alternate_version = self
 
-        gpu_agent.on_gpu = True
+        gpu_agent.is_on_gpu = True
         return gpu_agent
 
 
@@ -98,18 +98,18 @@ class QAgent(Agent):
     def choose_action(self) -> np.ndarray:
         if self.deterministic:
             return self.action_set[self.Q[self.current_state, :].argmax(axis=1)]
-        eps_mask = (self.rnd_state.rand(self.memory.shape[0]) < self.eps_greedy(self.episode) ).astype(bool)    
+        eps_mask = (self.rng.random(self.memory.shape[0]) < self.eps_greedy(self.episode) ).astype(bool)
         if np.any(eps_mask):
             action_indices = self.xp.zeros((self.memory.shape[0], ), dtype=np.int32)
-            action_indices[eps_mask] = self.rnd_state.randint(0, 4, eps_mask.sum())
+            action_indices[eps_mask] = self.rng.integers(0, 4, eps_mask.sum())
             action_indices[~eps_mask] = self.Q[self.current_state[~eps_mask], :].argmax(axis=1)
             return self.action_set[action_indices]
 
         return self.action_set[self.Q[self.current_state, :].argmax(axis=1)]
-    
+
     def _get_agent_state(self):
-        return dict(threshold=self.threshold, 
-                    horizon = self.horizon, 
+        return dict(threshold=self.threshold,
+                    horizon = self.horizon,
                     gamma=self.gamma,
                     episode = self.episode,
                     num_episodes = self.num_episodes)
@@ -122,9 +122,9 @@ class QAgent(Agent):
     def _perform_single_step(self, pos : np.ndarray, time_idx : int):
         if self.current_state[0] == 0:
             a = 0
-        elif self.rnd_state.rand() < self.eps_greedy(self.episode):
-            a = self.rnd_state.choice(4, size=1)[0]
-        else: 
+        elif self.rng.random() < self.eps_greedy(self.episode):
+            a = self.rng.choice(4, size=1)[0]
+        else:
             a = self.Q[self.current_state[0], :].argmax()
         new_pos = self.environment.move(pos, self.action_set[a])
         terminated = self.environment.source_reached(new_pos)
@@ -164,10 +164,10 @@ class QAgent(Agent):
         for _ in iterator:
             # Initialization
             self.initialize_state(1)
-            
-            init_time_idx = self.rnd_state.randint(0, self.environment.timesteps)
+
+            init_time_idx = self.rng.integers(0, self.environment.timesteps)
             time_idx = init_time_idx
-            init_pos = self.environment.random_start_points(1)
+            init_pos = self.environment.random_start_points(1, self.rng)
             pos = init_pos.copy()
             obs = self.environment.get_observation(pos, time_idx)
             self.update_state(obs, source_reached=self.environment.source_reached(pos))
@@ -176,7 +176,7 @@ class QAgent(Agent):
             alpha = self.learning_rate(self.episode)
             for t in range(self.horizon):
                 pos, a, r, terminated, s_prime, time_idx = self._perform_single_step(pos, time_idx)
-                c_reward += r * (self.gamma**t) if t > 0 else r        
+                c_reward += r * (self.gamma**t) if t > 0 else r
                 self.Q[s, a] = (1 - alpha) * self.Q[s, a] + alpha * (r + self.gamma * self.Q[s_prime].max())
                 if terminated:
                     break
@@ -189,7 +189,7 @@ class QAgent(Agent):
                                 'episode' : self.episode,
                                 'init_pos' : init_pos.flatten(),
                                 'init time slice' : init_time_idx,
-                                'avg R_t' : np.mean(cumulative_rewards[-self.delta:]), 
+                                'avg R_t' : np.mean(cumulative_rewards[-self.delta:]),
                                 'eps' : f'{self.eps_greedy(self.episode)}',
                                 'alpha' : f'{self.learning_rate(self.episode )}'})
             average_crewards.append(np.mean(cumulative_rewards[-self.delta:]))

@@ -1328,7 +1328,7 @@ def run_test(agent: Agent,
         assert start_points.shape == (n, environment.dimensions), f'The provided start_points are of the wrong shape (expected {environment.dimensions}; received {start_points.shape[1]})'
     else:
         # Generating random starts
-        start_points = environment.random_start_points(n)
+        start_points = environment.random_start_points(n, agent.rng)
 
     # Timeshift
     if isinstance(time_shift, int):

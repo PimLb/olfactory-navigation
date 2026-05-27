@@ -8,6 +8,7 @@ import shutil
 import sys
 
 from olfactory_navigation.environment import Environment
+from olfactory_navigation.util import get_rng
 
 import numpy as np
 
@@ -109,8 +110,8 @@ class Agent:
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name for the agent. If it is not provided it will be named like "<class_name>-thresh_<threshold>".
-    seed : int, default = 12131415
-        For reproducible randomness.
+    rng : int or np.random.Generator, default = np.random.default_rng()
+        A seed for random generation or directly a numpy random generator.
 
     Attributes
     ----------
@@ -133,10 +134,8 @@ class Agent:
         Whether the arrays are on the GPU memory or not. For this, the support for Cupy needs to be enabled and the agent needs to have been moved to the GPU using the on_gpu attribute.
     class_name : str
         The name of the class of the agent.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
+    rng : np.random.Generator
+        A random number generator.
     on_cpu : Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
     on_gpu : Agent
@@ -149,7 +148,7 @@ class Agent:
                  spacial_subdivisions: np.ndarray = None,
                  actions: dict[str, np.ndarray] | np.ndarray = None,
                  name: str = None,
-                 seed: int = 12131415
+                 rng: int | np.random.Generator = None
                  ) -> None:
         self.environment = environment
         self.space_aware = space_aware
@@ -315,9 +314,8 @@ class Agent:
         self.is_on_gpu = False
         self._alternate_version = None
 
-        # random state
-        self.seed = seed
-        self.rnd_state = np.random.RandomState(seed = seed)
+        # RNG
+        self.rng = get_rng(rng)
 
 
     @property
@@ -615,8 +613,6 @@ class Agent:
             for arg, val in self.__dict__.items():
                 if isinstance(val, np.ndarray):
                     setattr(gpu_agent, arg, cp.array(val))
-                elif arg == 'rnd_state':
-                    setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
                 else:
                     setattr(gpu_agent, arg, val)
 
@@ -646,8 +642,6 @@ class Agent:
             for arg, val in self.__dict__.items():
                 if isinstance(val, cp.ndarray):
                     setattr(cpu_agent, arg, cp.asnumpy(val))
-                elif arg == 'rnd_state':
-                    setattr(cpu_agent, arg, np.random.RandomState(self.seed))
                 else:
                     setattr(cpu_agent, arg, val)
 

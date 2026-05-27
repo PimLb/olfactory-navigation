@@ -272,8 +272,8 @@ class PBVI_Agent(Agent):
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
-    seed : int, default = 12131415
-        For reproducible randomness.
+    rng : int or np.random.Generator, default = np.random.default_rng()
+        A seed for random generation or directly a numpy random generator.
     model : POMDP, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -309,10 +309,8 @@ class PBVI_Agent(Agent):
         Whether the agent has been sent to the gpu or not.
     class_name : str
         The name of the class of the agent.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
+    rng : np.random.Generator
+        A random number generator.
     on_cpu : PBVI_Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
     on_gpu : PBVI_Agent
@@ -337,7 +335,6 @@ class PBVI_Agent(Agent):
                  spacial_subdivisions: np.ndarray = None,
                  actions: dict[str, np.ndarray] | np.ndarray = None,
                  name: str = None,
-                 seed: int = 12131415,
                  model: POMDP = None,
                  use_reachability: bool = False,
                  environment_converter: Callable = None,
@@ -349,8 +346,7 @@ class PBVI_Agent(Agent):
             space_aware = space_aware,
             spacial_subdivisions = spacial_subdivisions,
             actions = actions,
-            name = name,
-            seed = seed
+            name = name
         )
 
         # Converting the olfactory environment to a POMDP Model
@@ -397,8 +393,6 @@ class PBVI_Agent(Agent):
             for arg, val in self.__dict__.items():
                 if isinstance(val, np.ndarray):
                     setattr(gpu_agent, arg, cp.array(val))
-                elif arg == 'rnd_state':
-                    setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
                 elif isinstance(val, POMDP):
                     setattr(gpu_agent, arg, val.on_gpu)
                 elif isinstance(val, ValueFunction):
@@ -436,8 +430,6 @@ class PBVI_Agent(Agent):
             for arg, val in self.__dict__.items():
                 if isinstance(val, cp.ndarray):
                     setattr(cpu_agent, arg, cp.asnumpy(val))
-                elif arg == 'rnd_state':
-                    setattr(cpu_agent, arg, np.random.RandomState(self.seed))
                 elif isinstance(val, POMDP):
                     setattr(cpu_agent, arg, val.on_cpu)
                 elif isinstance(val, ValueFunction):
@@ -522,7 +514,6 @@ class PBVI_Agent(Agent):
         arguments['action_labels'] = self.action_labels
         arguments['action_set'] = self.action_set.tolist()
         arguments['trained_at'] = self.trained_at
-        arguments['seed'] = self.seed
 
         # Output the arguments to a METADATA file
         with open(folder + '/METADATA.json', 'w') as json_file:
@@ -576,8 +567,7 @@ class PBVI_Agent(Agent):
             space_aware = arguments['space_aware'],
             spacial_subdivisions = np.array(arguments['spacial_subdivisions']),
             actions = {a_label: a_vector for a_label, a_vector in zip(arguments['action_labels'], arguments['action_set'])},
-            name = arguments['name'],
-            seed = arguments['seed']
+            name = arguments['name']
         )
 
         # Load and set the value function on the instance

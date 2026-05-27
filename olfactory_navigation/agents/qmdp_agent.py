@@ -36,8 +36,8 @@ class QMDP_Agent(PBVI_Agent):
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
-    seed : int, default = 12131415
-        For reproducible randomness.
+    rng : int or np.random.Generator, default = np.random.default_rng()
+        A seed for random generation or directly a numpy random generator.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -71,10 +71,8 @@ class QMDP_Agent(PBVI_Agent):
         Whether the agent has been sent to the gpu or not.
     class_name : str
         The name of the class of the agent.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
+    rng : np.random.Generator
+        A random number generator.
     on_cpu : PBVI_Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
     on_gpu : PBVI_Agent

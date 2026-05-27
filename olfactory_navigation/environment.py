@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from olfactory_navigation.util import get_rng, random_choice
+
 import h5py
 import json
 import os
@@ -124,8 +126,6 @@ class Environment:
         A custom name to be given to the agent.
         If it is not provided, by default it will have the format:
         <shape>-marg_<margins>-edge_<boundary_condition>-start_<start_zone>-source_<source_point>_radius<source_radius>
-    seed : int, default = 12131415
-        For reproducible randomness.
 
     Attributes
     ----------
@@ -176,10 +176,6 @@ class Environment:
         If the environment is saved, the path at which it is saved will be recorded here.
     is_on_gpu : bool
         Whether the environment's arrays are on the gpu's memory or not.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
     on_cpu : Environment
         An instance of the environment on the CPU. If it already is, it returns itself.
     on_gpu : Environment
@@ -198,8 +194,7 @@ class Environment:
                  boundary_condition: Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip', 'no'] = 'stop',
                  start_zone: Literal['odor_present', 'data_zone'] | np.ndarray = 'data_zone',
                  odor_present_threshold: float = None,
-                 name: str = None,
-                 seed: int = 12131415,
+                 name: str = None
                  ) -> None:
         self.saved_at: str = None
 
@@ -439,10 +434,6 @@ class Environment:
         # gpu support
         self._alternate_version = None
         self.is_on_gpu = False
-
-        # random state
-        self.seed = seed
-        self.rnd_state = np.random.RandomState(seed = seed)
 
 
     @property
@@ -690,7 +681,8 @@ class Environment:
 
 
     def random_start_points(self,
-                            n: int = 1
+                            n: int = 1,
+                            rng: int | np.random.Generator = None
                             ) -> np.ndarray:
         '''
         Function to generate n starting positions following the starting probabilities.
@@ -709,7 +701,9 @@ class Environment:
 
         assert (n > 0), "n has to be a strictly positive number (>0)"
 
-        random_states = self.rnd_state.choice(xp.arange(int(np.prod(self.shape))), size=n, replace=True, p=self.start_probabilities.ravel())
+        rng = get_rng(rng)
+
+        random_states = random_choice(rng, xp.arange(int(np.prod(self.shape))), size=n, replace=True, p=self.start_probabilities.ravel())
         random_states_2d = xp.array(xp.unravel_index(random_states, self.shape)).T
         return random_states_2d
 
@@ -888,7 +882,6 @@ class Environment:
         arguments['data_processed']                = self.data_processed
         arguments['boundary_condition']            = self.boundary_condition
         arguments['start_type']                    = self.start_type
-        arguments['seed']                          = self.seed
 
         # Check how the start probabilities were built
         if self.start_type.startswith('custom') and len(self.start_type.split('_')) == 1 and not save_arrays:
@@ -965,9 +958,7 @@ class Environment:
             loaded_env._preprocess_data              = arguments['preprocess_data']
             loaded_env.data_processed                = arguments['data_processed']
             loaded_env.boundary_condition            = arguments['boundary_condition']
-            loaded_env.is_on_gpu                        = False
-            loaded_env.seed                          = arguments['seed']
-            loaded_env.rnd_state                     = np.random.RandomState(arguments['seed'])
+            loaded_env.is_on_gpu                     = False
 
             # Optional arguments
             loaded_env.data_file_path                = arguments.get('data_file_path')
@@ -997,7 +988,6 @@ class Environment:
                 start_zone             = (start_zone_boundaries if start_zone_boundaries is not None else start_zone),
                 odor_present_threshold = arguments.get('odor_present_threshold'),
                 name                   = arguments['name'],
-                seed                   = arguments['seed']
             )
 
         # Folder where the environment was pulled from
@@ -1027,8 +1017,6 @@ class Environment:
             for arg, val in self.__dict__.items():
                 if isinstance(val, np.ndarray):
                     setattr(gpu_environment, arg, cp.array(val))
-                elif arg == 'rnd_state':
-                    setattr(gpu_environment, arg, cp.random.RandomState(self.seed))
                 else:
                     setattr(gpu_environment, arg, val)
 
@@ -1059,8 +1047,6 @@ class Environment:
             for arg, val in self.__dict__.items():
                 if isinstance(val, cp.ndarray):
                     setattr(cpu_environment, arg, cp.asnumpy(val))
-                elif arg == 'rnd_state':
-                    setattr(cpu_environment, arg, np.random.RandomState(self.seed))
                 else:
                     setattr(cpu_environment, arg, val)
 
@@ -1133,7 +1119,6 @@ class Environment:
             start_zone             = self.start_type,
             odor_present_threshold = self.odor_present_threshold,
             name                   = self.name,
-            seed                   = self.seed
         )
         return modified_environment
 
@@ -1173,6 +1158,5 @@ class Environment:
             start_zone             = self.start_type,
             odor_present_threshold = self.odor_present_threshold,
             name                   = self.name,
-            seed                   = self.seed
         )
         return modified_environment
