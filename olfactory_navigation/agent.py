@@ -86,7 +86,6 @@ class Agent:
     ----------
     environment : Environment
         The olfactory environment the agent is meant to evolve in.
-
     thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default = 3e-6
         The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
         If a list of thresholds is provided, the agent should be able to detect |thresholds|+1 levels of odor.

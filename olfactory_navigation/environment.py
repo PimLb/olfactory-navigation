@@ -1,7 +1,6 @@
 import h5py
 import json
 import os
-import scipy
 import shutil
 
 from matplotlib import pyplot as plt
@@ -862,7 +861,7 @@ class Environment:
                 shutil.rmtree(folder)
                 os.mkdir(folder)
             else:
-                raise Exception(f'{folder} is not empty. If you want to overwrite the saved model, enable "force".')
+                raise Exception(f'{folder} is not empty. If you want to overwrite the saved environment, enable "force".')
 
         # Generating the metadata arguments dictionary
         arguments = {}
@@ -938,7 +937,7 @@ class Environment:
         with open(folder + '/METADATA.json', 'r') as json_file:
             arguments = json.load(json_file)
 
-        # Check if numpy arrays are provided, if not, recreate a new environment model
+        # Check if numpy arrays are provided, if not, recreate a new environment
         if os.path.exists(folder + '/data.npy') and os.path.exists(folder + '/start_probabilities.npy'):
             data = np.load(folder + '/data.npy')
             start_probabilities = np.load(folder + '/start_probabilities.npy')
