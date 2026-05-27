@@ -134,8 +134,8 @@ class SimulationHistory:
 
         # Fixed parameters
         self.n = len(start_points)
-        self.environment = environment.cpu_version
-        self.agent = agent.cpu_version
+        self.environment = environment.on_cpu
+        self.agent = agent.on_cpu
         self.time_shift = time_shift if gpu_support and cp.get_array_module(time_shift) == np else cp.asnumpy(time_shift)
         self.horizon = horizon
         self.reward_discount = reward_discount
@@ -589,8 +589,8 @@ class SimulationHistory:
         combined_hist = SimulationHistory.__new__(SimulationHistory)
 
         combined_hist.n = self.n + other_hist.n
-        combined_hist.environment = self.environment.cpu_version if self.environment is not None else (other_hist.environment.cpu_version if other_hist.environment is not None else None)
-        combined_hist.agent = self.agent.cpu_version if self.agent is not None else (other_hist.agent.cpu_version if other_hist.agent is not None else None)
+        combined_hist.environment = self.environment.on_cpu if self.environment is not None else (other_hist.environment.on_cpu if other_hist.environment is not None else None)
+        combined_hist.agent = self.agent.on_cpu if self.agent is not None else (other_hist.agent.on_cpu if other_hist.agent is not None else None)
         combined_hist.time_shift = combined_time_shifts
         combined_hist.horizon = self.horizon
         combined_hist.reward_discount = self.reward_discount
@@ -925,8 +925,8 @@ class SimulationHistory:
         hist = cls.__new__(cls)
 
         hist.n = len(start_points)
-        hist.environment = environment.cpu_version if isinstance(environment, Environment) else None
-        hist.agent = agent.cpu_version if isinstance(agent, Agent) else None
+        hist.environment = environment.on_cpu if isinstance(environment, Environment) else None
+        hist.agent = agent.on_cpu if isinstance(agent, Agent) else None
         hist.time_shift = time_shift
         hist.horizon = horizon
         hist.reward_discount = reward_discount
@@ -1419,8 +1419,8 @@ def run_test(agent: Agent,
         xp = cp
 
         # Move instances to GPU
-        agent = agent.gpu_version
-        environment = environment.gpu_version
+        agent = agent.on_gpu
+        environment = environment.on_gpu
         time_shift = cp.array(time_shift)
 
         if start_points is not None:

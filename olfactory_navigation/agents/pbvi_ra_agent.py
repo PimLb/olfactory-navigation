@@ -71,10 +71,10 @@ class PBVI_RA_Agent(PBVI_Agent):
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
-    cpu_version : Agent
+    on_cpu : PBVI_Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
-    gpu_version : Agent
-        An instance of the agent on the CPU. If it already is, it returns itself.
+    on_gpu : PBVI_Agent
+        An instance of the agent on the GPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -194,7 +194,7 @@ class PBVI_RA_Agent(PBVI_Agent):
         self.trained_at = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.name += f'-trained_{self.trained_at}'
 
-        self.value_function = value_function.on_cpu if not self.on_gpu else value_function.on_gpu
+        self.value_function = value_function.on_cpu if not self.is_on_gpu else value_function.on_gpu
 
         # Print stats if requested
         if print_stats:

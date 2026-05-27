@@ -5,8 +5,7 @@ import os
 import shutil
 
 from datetime import datetime
-from tqdm.auto import trange
-from typing import Callable
+from typing import Callable, Self
 
 from olfactory_navigation.environment import Environment
 from olfactory_navigation.agent import Agent
@@ -156,7 +155,7 @@ class TrainingHistory:
             self.beliefs_counts.append(len(belief_set))
 
         if self.tracking_level >= 2:
-            self.belief_sets.append(belief_set if not belief_set.is_on_gpu else belief_set.to_cpu())
+            self.belief_sets.append(belief_set.on_cpu)
 
 
     def add_backup_step(self,
@@ -182,7 +181,7 @@ class TrainingHistory:
             self.value_function_changes.append(float(value_function_change))
 
         if self.tracking_level >= 2:
-            self.value_functions.append(value_function if not value_function.is_on_gpu else value_function.to_cpu())
+            self.value_functions.append(value_function.on_cpu)
 
 
     def add_prune_step(self,
@@ -314,10 +313,10 @@ class PBVI_Agent(Agent):
         The seed used for the random operations (to allow for reproducability).
     rnd_state : np.random.RandomState
         The random state variable used to generate random values.
-    cpu_version : Agent
+    on_cpu : PBVI_Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
-    gpu_version : Agent
-        An instance of the agent on the CPU. If it already is, it returns itself.
+    on_gpu : PBVI_Agent
+        An instance of the agent on the GPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -376,97 +375,84 @@ class PBVI_Agent(Agent):
         self.succeeded_update = None
 
 
-    def to_gpu(self) -> 'PBVI_Agent':
+    @property
+    def on_gpu(self) -> Self:
         '''
-        Function to send the numpy arrays of the agent to the gpu.
-        It returns a new instance of the Agent class with the arrays on the gpu.
-
-        Returns
-        -------
-        gpu_agent : Agent
-            A copy of the agent with the arrays on the GPU.
+        A version of the Agent on the GPU.
+        If the agent is already on the GPU it returns itself, otherwise a new one is generated.
         '''
         # Check whether the agent is already on the gpu or not
-        if self.on_gpu:
+        if self.is_on_gpu:
             return self
-
-        # Warn and overwrite alternate_version in case it already exists
-        if self._alternate_version is not None:
-            print('[warning] A GPU instance already existed and is being recreated.')
-            self._alternate_version = None
 
         assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
 
-        # Generating a new instance
-        cls = self.__class__
-        gpu_agent = cls.__new__(cls)
+        # Check if an alternate version doesnt exists create a new one
+        if self._alternate_version is None:
+            # Generating a new instance
+            cls = self.__class__
+            gpu_agent = cls.__new__(cls)
 
-        # Copying arguments to gpu
-        for arg, val in self.__dict__.items():
-            if isinstance(val, np.ndarray):
-                setattr(gpu_agent, arg, cp.array(val))
-            elif arg == 'rnd_state':
-                setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
-            elif isinstance(val, POMDP):
-                setattr(gpu_agent, arg, val.on_gpu)
-            elif isinstance(val, ValueFunction):
-                setattr(gpu_agent, arg, val.on_gpu)
-            elif isinstance(val, BeliefSet) or isinstance(val, Belief):
-                setattr(gpu_agent, arg, val.on_gpu)
-            else:
-                setattr(gpu_agent, arg, val)
+            # Copying arguments to gpu
+            for arg, val in self.__dict__.items():
+                if isinstance(val, np.ndarray):
+                    setattr(gpu_agent, arg, cp.array(val))
+                elif arg == 'rnd_state':
+                    setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
+                elif isinstance(val, POMDP):
+                    setattr(gpu_agent, arg, val.on_gpu)
+                elif isinstance(val, ValueFunction):
+                    setattr(gpu_agent, arg, val.on_gpu)
+                elif isinstance(val, BeliefSet) or isinstance(val, Belief):
+                    setattr(gpu_agent, arg, val.on_gpu)
+                else:
+                    setattr(gpu_agent, arg, val)
 
-        # Self reference instances
-        self._alternate_version = gpu_agent
-        gpu_agent._alternate_version = self
+            # Self reference instances
+            self._alternate_version = gpu_agent
+            gpu_agent._alternate_version = self
+            gpu_agent.is_on_gpu = True
 
-        gpu_agent.on_gpu = True
-        return gpu_agent
+        return self._alternate_version
 
 
-    def to_cpu(self) -> 'PBVI_Agent':
+    @property
+    def on_cpu(self) -> Self:
         '''
-        Function to send the numpy arrays of the agent to the cpu.
-        It returns a new instance of the Agent class with the arrays on the cpu.
-
-        Returns
-        -------
-        cpu_agent : Agent
-            A new environment instance where the arrays are on the cpu memory.
+        A version of the Agent on the CPU.
+        If the agent is already on the CPU it returns itself, otherwise a new one is generated.
         '''
         # Check whether the agent is already on the cpu or not
-        if not self.on_gpu:
+        if not self.is_on_gpu:
             return self
 
-        if self._alternate_version is not None:
-            print('[warning] A CPU instance already existed and is being recreated.')
-            self._alternate_version = None
+        # Check if an alternate version doesnt exists create a new one
+        if self._alternate_version is None:
+            # Generating a new instance
+            cls = self.__class__
+            cpu_agent = cls.__new__(cls)
 
-        # Generating a new instance
-        cls = self.__class__
-        cpu_agent = cls.__new__(cls)
+            # Copying arguments to gpu
+            for arg, val in self.__dict__.items():
+                if isinstance(val, cp.ndarray):
+                    setattr(cpu_agent, arg, cp.asnumpy(val))
+                elif arg == 'rnd_state':
+                    setattr(cpu_agent, arg, np.random.RandomState(self.seed))
+                elif isinstance(val, POMDP):
+                    setattr(cpu_agent, arg, val.on_cpu)
+                elif isinstance(val, ValueFunction):
+                    setattr(cpu_agent, arg, val.on_cpu)
+                elif isinstance(val, BeliefSet) or isinstance(val, Belief):
+                    setattr(cpu_agent, arg, val.on_cpu)
+                else:
+                    setattr(cpu_agent, arg, val)
 
-        # Copying arguments to gpu
-        for arg, val in self.__dict__.items():
-            if isinstance(val, cp.ndarray):
-                setattr(cpu_agent, arg, cp.asnumpy(val))
-            elif arg == 'rnd_state':
-                setattr(cpu_agent, arg, np.random.RandomState(self.seed))
-            elif isinstance(val, POMDP):
-                setattr(cpu_agent, arg, val.on_cpu)
-            elif isinstance(val, ValueFunction):
-                setattr(cpu_agent, arg, val.on_cpu)
-            elif isinstance(val, BeliefSet) or isinstance(val, Belief):
-                setattr(cpu_agent, arg, val.on_cpu)
-            else:
-                setattr(cpu_agent, arg, val)
+            # Self reference instances
+            self._alternate_version = cpu_agent
+            cpu_agent._alternate_version = self
+            cpu_agent.is_on_gpu = False
 
-        # Self reference instances
-        self._alternate_version = cpu_agent
-        cpu_agent._alternate_version = self
-
-        cpu_agent.on_gpu = True
-        return cpu_agent
+        return self._alternate_version
 
 
     def save(self,
@@ -496,8 +482,8 @@ class PBVI_Agent(Agent):
         assert self.trained_at is not None, "The agent is not trained, there is nothing to save."
 
         # GPU support
-        if self.on_gpu:
-            self.cpu_version.save(folder=folder, force=force, save_environment=save_environment)
+        if self.is_on_gpu:
+            self.on_cpu.save(folder=folder, force=force, save_environment=save_environment)
             return
 
         # Adding env name to folder path
@@ -701,8 +687,8 @@ class PBVI_Agent(Agent):
         '''
         # TODO: Fix this to account for other init parameters
         # GPU support
-        if self.on_gpu:
-            return self.to_cpu().modify_environment(new_environment=new_environment)
+        if self.is_on_gpu:
+            return self.on_cpu.modify_environment(new_environment=new_environment)
 
         # Creating a new agent instance
         modified_agent = self.__class__(environment = new_environment,
@@ -742,9 +728,9 @@ class PBVI_Agent(Agent):
         else:
             assert len(belief) == n, f"The amount of beliefs provided ({len(belief)}) to initialize the state need to match the amount of stimulations to initialize (n={n})."
 
-            if self.on_gpu and not belief.is_on_gpu:
+            if self.is_on_gpu and not belief.is_on_gpu:
                 self.belief = belief.on_gpu
-            elif not self.on_gpu and belief.is_on_gpu:
+            elif not self.is_on_gpu and belief.is_on_gpu:
                 self.belief = belief.on_cpu
             else:
                 self.belief = belief
@@ -798,7 +784,7 @@ class PBVI_Agent(Agent):
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
         # GPU support
-        xp = np if not self.on_gpu else cp
+        xp = np if not self.is_on_gpu else cp
 
         # Discretizing observations
         observation_ids = self.discretize_observations(observation=observation, action=action, source_reached=source_reached)
