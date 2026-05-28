@@ -4,4 +4,4 @@ matplotlib>=3.7.2
 pandas>=2.0.3
 scipy>=1.14.0
 h5py>=3.11.0
-pomdp-toolkit>=0.0.3
+pomdp-toolkit>=0.0.4
