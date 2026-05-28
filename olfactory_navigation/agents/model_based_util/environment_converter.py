@@ -9,7 +9,7 @@ def exact_converter(agent : Agent) -> POMDP:
     Method to create a POMDP model based on an olfactory environment object.
 
     This version of the converter converts the environment in an exact manner.
-    This mean the amount of states is equal to the grid points in the olfactory environment object.
+    This mean the number  of states is equal to the grid points in the olfactory environment object.
 
     It supports an environment in 2D, with or without layers. It supports a variety of different action sets from the agent.
 
@@ -161,7 +161,7 @@ def minimal_converter(agent : Agent,
     partitions : list or np.ndarray, default = [3,6]
         How many partitions to use in respectively the y and x directions.
     margin_partitions : bool, default = False
-        Whether to have seperate partitions for the margins or not. In the case it is enabled, +2 partitions are added in each dimensions.
+        Whether to have separate partitions for the margins or not. In the case it is enabled, +2 partitions are added in each dimensions.
 
     Returns
     -------

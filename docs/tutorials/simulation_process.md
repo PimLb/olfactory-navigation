@@ -14,7 +14,7 @@ Once the simulation process is over, a [SimulationHistory](../reference/simulati
 
 ![run_test function diagram](img/diagram_run_test_flat_bg.png)
 
-We can see that the simulation process of the olfactory navigation is mostly an interaction between an agent and the environment it lives in. The simulation (*run_test()*) function simply works as an interface between the agent and its environment. In the diagram the actions performed by the agent are in blue while the one of the environment are in green. We can also note that the position of the agent is never sent to the agent, representing the fact the agent is unaware of it's relative position to the odor source.
+We can see that the simulation process of the olfactory navigation is mostly an interaction between an agent and the environment it lives in. The simulation (*run_test()*) function simply works as an interface between the agent and its environment. In the diagram the actions performed by the agent are in blue while the one of the environment are in green. We can also note that the position of the agent is never sent to the agent, representing the fact the agent is unaware of its relative position to the odor source.
 
 
 ## Pseudocode

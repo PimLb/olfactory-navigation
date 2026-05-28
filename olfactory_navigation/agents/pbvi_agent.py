@@ -245,7 +245,7 @@ class PBVI_Agent(Agent):
 
     The belief points are probability distributions over the state space and are therefore vectors of |S| elements.
 
-    Actions are chosen based on a value function. A value function is a set of alpha vectors of dimentionality |S|.
+    Actions are chosen based on a value function. A value function is a set of alpha vectors of dimensionality |S|.
     Each alpha vector is associated to a single action but multiple alpha vectors can be associated to the same action.
     To choose an action at a given belief point, a dot product is taken between each alpha vector and the belief point and the action associated with the highest result is chosen.
 
@@ -260,7 +260,7 @@ class PBVI_Agent(Agent):
         In such case, the number of layers provided must match the environment's layers and their labels must match.
         The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
     space_aware : bool, default = False
-        Whether the agent is aware of it's own position in space.
+        Whether the agent is aware of its own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
         Note: The observation array will have a different shape when returned to the update_state function!
     spacial_subdivisions : np.ndarray, optional
@@ -635,7 +635,7 @@ class PBVI_Agent(Agent):
             The learning rate is 1/gamma.
         eps : float, default = 1e-6
             The smallest allowed changed for the value function.
-            Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+            Below the amount of change, the value function is considered converged and the value iteration process will end early.
             convergence_stop : bool, default = False
         convergence_stop : bool, default = False
             Whether to compute to compute the change in the value function and stop early if this change is smaller than eps.
@@ -701,7 +701,7 @@ class PBVI_Agent(Agent):
                          ) -> None:
         '''
         To use an agent within a simulation, the agent's state needs to be initialized.
-        The initialization consists of setting the agent's initial belief.
+        The initialization consists in setting the agent's initial belief.
         Multiple agents can be used at once for simulations, for this reason, the belief parameter is a BeliefSet by default.
 
         Parameters

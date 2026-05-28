@@ -10,7 +10,7 @@ class QMDP_Agent(PBVI_Agent):
     An agent that relies on Model-Based Reinforcement Learning. It is a simplified version of the PBVI_Agent.
     It runs the a Value Iteration solver, assuming full observability. The value function that comes out from this is therefore used to make choices.
 
-    As stated, during simulations, the agent will choose actions based on an argmax of what action has the highest matrix product of the value function with the belief vector.
+    As stated, during simulations, the agent will choose actions based on an argmax of what action has the highest matrix product of the expected action-values obtained by applying the full-observability value function to the belief (i.e., QMDP approximation).
 
 
     Parameters
@@ -24,7 +24,7 @@ class QMDP_Agent(PBVI_Agent):
         In such case, the number of layers provided must match the environment's layers and their labels must match.
         The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
     space_aware : bool, default = False
-        Whether the agent is aware of it's own position in space.
+        Whether the agent is aware of its own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
         Note: The observation array will have a different shape when returned to the update_state function!
     spacial_subdivisions : np.ndarray, optional
@@ -115,7 +115,7 @@ class QMDP_Agent(PBVI_Agent):
             The learning rate is 1/gamma.
         eps : float, default = 1e-6
             The smallest allowed changed for the value function.
-            Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+            Below the amount of change, the value function is considered converged and the value iteration process will end early.
         use_gpu : bool, default = False
             Whether to use the GPU with cupy array to accelerate solving.
         history_tracking_level : int, default = 1
@@ -132,7 +132,7 @@ class QMDP_Agent(PBVI_Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        # Handeling the case where the agent is already trained
+        # Handling the case where the agent is already trained
         if (self.value_function is not None):
             if overwrite_training:
                 self.trained_at = None

@@ -56,7 +56,7 @@ class Agent:
     A generic agent class.
 
     It is meant to define the general structure for an agent meant to evolve in a environment of olfactory cues.
-    To define such agent, a set of methods need to be implemented. This methods can be seperated into 3 categories:
+    To define such agent, a set of methods need to be implemented. This methods can be separated into 3 categories:
 
     1. Training methods
     2. Simulation methods
@@ -98,7 +98,7 @@ class Agent:
         In such case, the number of layers provided must match the environment's layers and their labels must match.
         The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
     space_aware : bool, default = False
-        Whether the agent is aware of it's own position in space.
+        Whether the agent is aware of its own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
         Note: The observation array will have a different shape when returned to the update_state function!
     spacial_subdivisions : np.ndarray, optional
@@ -381,7 +381,7 @@ class Agent:
         Function to convert a set of observations to discrete observation ids.
         It uses the olfaction thresholds of the agent to discretize the odor concentrations.
 
-        In the case where the agent is also aware of it's own position in space, in which case the observation matrix is of size n by 1 + environment.dimensions,
+        In the case where the agent is also aware of its own position in space, in which case the observation matrix is of size n by 1 + environment.dimensions,
         the agent first converts the points on the grid to position ids and then multiply the id by olfactory observation id.
 
         Parameters

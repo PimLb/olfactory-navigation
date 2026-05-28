@@ -2,7 +2,7 @@ The concept of an agent within the olfactory navigation framework is a an abstra
 
 Fundamentally, to create an agent, the user has to create a [subclass](https://www.w3schools.com/python/python_inheritance.asp) of the generic [Agent](../reference/agent.md) class. Along with this, the various functions need to be overwritten as needed. This article will describe the various components of the Agent class and how to make one for yourself with some examples.
 
-The various components can be seperated between the [attributes](#attributes) and [methods or functions](#functions). The functions can be grouped in the following categories [training](#training), [testing](#testing), and [general](#general) functions. As part of the testing function, the functions required to interact with the [*run_test()*](../reference/simulation.md#olfactory_navigation.simulation.run_test) function.
+The various components can be separated between the [attributes](#attributes) and [methods or functions](#functions). The functions can be grouped in the following categories [training](#training), [testing](#testing), and [general](#general) functions. As part of the testing function, the functions required to interact with the [*run_test()*](../reference/simulation.md#olfactory_navigation.simulation.run_test) function.
 
 Table Of Content:
 
@@ -87,7 +87,7 @@ This function is therefore meant for the agent to update its internal state base
 
 Function: *kill(simulations_to_kill)* <sub>[reference](../reference/agent.md#olfactory_navigation.agent.Agent.kill)</sub>
 
-When a agent reached the source, the simulation will not keep track if it anymore and will prune it's position its memory. This is done to speed up the simulation as more and more agents reach the source. The simulation therefore returns to agent which is to so the states of the agents that have reached the source can also be pruned.
+When a agent reached the source, the simulation will not keep track if it anymore and will prune its position its memory. This is done to speed up the simulation as more and more agents reach the source. The simulation therefore returns to agent which is to so the states of the agents that have reached the source can also be pruned.
 
 This is done by sending a boolean array of which agent's states are the be pruned/killed to the *kill()* function.
 

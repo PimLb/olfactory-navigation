@@ -1450,7 +1450,7 @@ def run_test(agent: Agent,
     # Simulation loop
     iterator = trange(horizon) if print_progress else range(horizon)
     for i in iterator:
-        # Letting agent choose the action to take based on it's curent state
+        # Letting agent choose the action to take based on its curent state
         action = agent.choose_action()
 
         # Updating the agent's actual position (hidden to him)

@@ -643,7 +643,7 @@ def buildWindow():
     # PREVIEW WINDOW
     def createPreviewWindow():
         '''
-        Create a seperate preview window of the environment
+        Create a separate preview window of the environment
         '''
         preview_frame = tk.Frame(root_panel)
         preview_frame.grid(row=4, columnspan=4, sticky="nw", padx=frame_padding, pady=frame_padding)

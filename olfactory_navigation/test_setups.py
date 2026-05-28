@@ -850,7 +850,7 @@ def train_and_test_agents(*agent_classes: type[Agent],
         The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
         If a list of thresholds is provided, the agent should be able to detect |thresholds|+1 levels of odor.
     agent_space_aware : bool, default = False
-        Whether the agent is aware of it's own position in space.
+        Whether the agent is aware of its own position in space.
     agent_spacial_subdivisions : np.ndarray, optional
         How many spacial compartments the agent has to internally represent the space it lives in.
         By default, it will be as many as there are grid points in the environment.

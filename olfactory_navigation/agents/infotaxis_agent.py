@@ -21,9 +21,9 @@ class Infotaxis_Agent(Agent):
     An agent following the Infotaxis principle.
     It is a Model-Based approach that aims to make steps towards where the agent has the greatest likelihood to minimize the entropy of the belief.
     The belief is (as for the PBVI agent) a probability distribution over the state space of how much the agent is to be confident in each state.
-    The technique was developped and described in the following article: Vergassola, M., Villermaux, E., & Shraiman, B. I. (2007). 'Infotaxis' as a strategy for searching without gradients.
+    The technique was developed and described in the following article: Vergassola, M., Villermaux, E., & Shraiman, B. I. (2007). 'Infotaxis' as a strategy for searching without gradients.
 
-    It does not need to be trained to the train(), save() and load() function are not implemented.
+    This agent does not require training; train(), save() and load() function are not implemented.
 
 
     Parameters
@@ -37,7 +37,7 @@ class Infotaxis_Agent(Agent):
         In such case, the number of layers provided must match the environment's layers and their labels must match.
         The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
     space_aware : bool, default = False
-        Whether the agent is aware of it's own position in space.
+        Whether the agent is aware of its own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
         Note: The observation array will have a different shape when returned to the update_state function!
     spacial_subdivisions : np.ndarray, optional
@@ -218,7 +218,7 @@ class Infotaxis_Agent(Agent):
                          ) -> None:
         '''
         To use an agent within a simulation, the agent's state needs to be initialized.
-        The initialization consists of setting the agent's initial belief.
+        The initialization consists in setting the agent's initial belief.
         Multiple agents can be used at once for simulations, for this reason, the belief parameter is a BeliefSet by default.
 
         Parameters

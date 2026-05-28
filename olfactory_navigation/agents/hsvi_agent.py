@@ -9,8 +9,7 @@ class HSVI_Agent(PBVI_Agent):
     '''
     A flavor of the PBVI Agent.
 
-    # TODO: Do document of HSVI agent
-    # TODO: FIX HSVI expand
+    Heuristic Search Value Iteration (HSVI) PBVI variant; uses upper/lower bound heuristics to direct search.
 
     Parameters
     ----------
@@ -23,7 +22,7 @@ class HSVI_Agent(PBVI_Agent):
         In such case, the number of layers provided must match the environment's layers and their labels must match.
         The thresholds provided will be converted to an array where the levels start with -inf and end with +inf.
     space_aware : bool, default = False
-        Whether the agent is aware of it's own position in space.
+        Whether the agent is aware of its own position in space.
         This is to be used in scenarios where, for example, the agent is an enclosed container and the source is the variable.
         Note: The observation array will have a different shape when returned to the update_state function!
     spacial_subdivisions : np.ndarray, optional
@@ -154,7 +153,7 @@ class HSVI_Agent(PBVI_Agent):
             The learning rate is 1/gamma.
         eps : float, default = 1e-6
             The smallest allowed changed for the value function.
-            Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+            Below the amount of change, the value function is considered converged and the value iteration process will end early.
             convergence_stop : bool, default = False
         convergence_stop : bool, default = False
             Whether to compute to compute the change in the value function and stop early if this change is smaller than eps.
@@ -172,7 +171,7 @@ class HSVI_Agent(PBVI_Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        # Handeling the case where the agent is already trained
+        # Handling the case where the agent is already trained
         if (self.value_function is not None):
             if overwrite_training:
                 self.trained_at = None
