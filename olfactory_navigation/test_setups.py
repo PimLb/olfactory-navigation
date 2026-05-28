@@ -794,13 +794,13 @@ def test_agents(*agents: Agent,
     # Generating comparison result table
     all_agent_comparison_dfs = []
     for agent_simulation_histories in simulation_histories:
-        agent_comparison_df = SimulationHistory.compare_all(agent_simulation_histories)
+        agent_comparison_df = SimulationHistory.compare_all(*agent_simulation_histories)
         agent_comparison_df['environment'] = [f'environment_{i}' for i in range(len(environments))]
         agent_comparison_df.set_index('environment')
 
         all_agent_comparison_dfs.append(agent_comparison_df)
 
-    simulations_comparison_df: pd.DataFrame = pd.concat(all_agent_comparison_dfs, keys=[f'agent_{i}' for i in range(len(agents))], names='agent')
+    simulations_comparison_df: pd.DataFrame = pd.concat(all_agent_comparison_dfs, keys=[f'agent_{i}' for i in range(len(agents))], names=['agent'])
 
     # Save comparison table if needed
     if save_result_table:
@@ -1043,7 +1043,7 @@ def train_and_test_agents(*agent_classes: type[Agent],
     all_agent_comparison_dfs = []
     n_environment = len(environments)
     for agent_simulation_histories, agent_training_stats in zip(simulation_histories, training_stats):
-        agent_comparison_df = SimulationHistory.compare_all(agent_simulation_histories)
+        agent_comparison_df = SimulationHistory.compare_all(*agent_simulation_histories)
         agent_comparison_df['environment'] = [f'environment_{i}' for i in range(len(environments))]
         agent_comparison_df['training_memory_usage'] = [agent_training_stats['memory_used']] * n_environment if isinstance(agent_training_stats, dict) else [env_training_stats['memory_used'] for env_training_stats in agent_training_stats]
         agent_comparison_df['training_time_taken'] = [agent_training_stats['time_taken']] * n_environment if isinstance(agent_training_stats, dict) else [env_training_stats['time_taken'] for env_training_stats in agent_training_stats]
@@ -1051,7 +1051,7 @@ def train_and_test_agents(*agent_classes: type[Agent],
 
         all_agent_comparison_dfs.append(agent_comparison_df)
 
-    simulations_comparison_df: pd.DataFrame = pd.concat(all_agent_comparison_dfs, keys=[f'agent_{i}' for i in range(len(agent_classes))], names='agent')
+    simulations_comparison_df: pd.DataFrame = pd.concat(all_agent_comparison_dfs, keys=[f'agent_{i}' for i in range(len(agent_classes))], names=['agent'])
 
     # Save comparison table if needed
     if save_result_table:
