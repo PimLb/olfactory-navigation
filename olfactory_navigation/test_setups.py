@@ -1256,8 +1256,9 @@ def complete_test(*agent_classes: type[Agent],
                   print_warning: bool = True,
                   use_gpu: bool = False,
                   parallel_agent_simulation: bool = True,
-                  batches: int = -1
-                  ) -> pd.DataFrame:
+                  batches: int = -1,
+                  return_histories: bool = True
+                  ) -> pd.DataFrame | tuple[pd.DataFrame, list[dict[str, object]]]:
     '''
     Master function that trains, measures, and evaluates a list of agent classes.
 
@@ -1272,6 +1273,9 @@ def complete_test(*agent_classes: type[Agent],
     -------
     complete_results_df : pd.DataFrame
         One row per agent/environment pair with flattened summary metrics.
+    complete_test_histories : list[dict[str, object]], optional
+        A nested structure organized per agent and then per environment.
+        Each agent entry contains the void-environment history and the histories for every tested environment.
     '''
     if initialization_values is None:
         initialization_values = [{}] * len(agent_classes)
@@ -1291,6 +1295,7 @@ def complete_test(*agent_classes: type[Agent],
         return {f'{prefix}{col}': summary_df.iloc[0][col] for col in summary_df.columns}
 
     rows = []
+    complete_test_histories = []
 
     for i_agent, (agent_class, agent_additional_params, training_params, agent_initialization_values) in enumerate(zip(agent_classes, agent_additional_parameters, training_parameters, initialization_values)):
         print(f'Agent {i_agent} ({agent_class.__name__}):')
@@ -1345,6 +1350,12 @@ def complete_test(*agent_classes: type[Agent],
             batches=batches
         )
         void_summary = _history_summary(void_hist, prefix='void_')
+        agent_histories = {
+            'agent_index': i_agent,
+            'agent_name': agent_class.__name__,
+            'void_environment_history': void_hist,
+            'environment_histories': [],
+        }
 
         # Step 4: Test memory scaling
         print('\n4 - Testing agent memory scaling')
@@ -1392,6 +1403,11 @@ def complete_test(*agent_classes: type[Agent],
             row.update(_history_summary(hist, prefix='all_starts_'))
             row.update(void_summary)
             rows.append(row)
+            agent_histories['environment_histories'].append({
+                'environment_index': i_environment,
+                'environment_name': environment.name,
+                'history': hist,
+            })
 
             if use_gpu:
                 # Refresh memory
@@ -1400,6 +1416,9 @@ def complete_test(*agent_classes: type[Agent],
             print('')
 
         print('------------------------------------------')
+        complete_test_histories.append(agent_histories)
 
     result_df = pd.DataFrame(rows)
+    if return_histories:
+        return result_df, complete_test_histories
     return result_df
