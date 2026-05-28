@@ -582,7 +582,7 @@ class PBVI_Agent(Agent):
 
 
     def train(self,
-              expansions: int,
+              expansions: int = 10,
               full_backup: bool = True,
               update_passes: int = 1,
               max_belief_growth: int = 10,
@@ -609,7 +609,7 @@ class PBVI_Agent(Agent):
 
         Parameters
         ----------
-        expansions : int
+        expansions : int, default = 10
             How many times the algorithm has to expand the belief set. (the size will be doubled every time, eg: for 5, the belief set will be of size 32)
         full_backup : bool, default = True
             Whether to force the backup function has to be run on the full set beliefs uncovered since the beginning or only on the new points.

@@ -87,7 +87,7 @@ class PBVI_SSEA_Agent(PBVI_Agent):
         A list of n actions played based on how many simulations are running at once.
     '''
     def train(self,
-              expansions: int,
+              expansions: int = 10,
               update_passes: int = 1,
               max_belief_growth: int = 10,
               initial_belief: BeliefSet | Belief = None,
@@ -115,7 +115,7 @@ class PBVI_SSEA_Agent(PBVI_Agent):
 
         Parameters
         ----------
-        expansions : int
+        expansions : int, default = 10
             How many times the algorithm has to expand the belief set. (the size will be doubled every time, eg: for 5, the belief set will be of size 32)
         update_passes : int, default = 1
             How many times the backup function has to be run every time the belief set is expanded.

@@ -91,7 +91,7 @@ class QMDP_Agent(PBVI_Agent):
         A list of n actions played based on how many simulations are running at once.
     '''
     def train(self,
-              expansions: int,
+              expansions: int = 10,
               initial_value_function: ValueFunction = None,
               gamma: float = 0.99,
               eps: float = 1e-6,
@@ -106,7 +106,7 @@ class QMDP_Agent(PBVI_Agent):
 
         Parameters
         ----------
-        expansions : int
+        expansions : int, default = 10
             How many iterations to run the Value Iteration process for.
         initial_value_function : ValueFunction, optional
             An initial value function to start the solving process with.
