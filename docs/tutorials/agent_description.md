@@ -106,11 +106,11 @@ By default, the agent can be saved as a [pickle](https://realpython.com/python-p
 
 #### GPU support
 
-To speedup large operations, the arrays associated to the agent can be sent to the GPU for the operations to be performed there. Related functions:
+To speedup large operations, the arrays associated to the agent can be sent to the GPU for the operations to be performed there. Related attributes:
 
-- *to_gpu()* <sub>[reference](../reference/agent.md#olfactory_navigation.agent.Agent.to_gpu)</sub>
-- *to_cpu()* <sub>[reference](../reference/agent.md#olfactory_navigation.agent.Agent.to_cpu)</sub>
+- *on_gpu* <sub>[reference](../reference/agent.md#olfactory_navigation.agent.Agent.on_gpu)</sub>
+- *on_cpu* <sub>[reference](../reference/agent.md#olfactory_navigation.agent.Agent.on_cpu)</sub>
 
-These functions are to be defined to send the various componenents to and from the gpu memory. If some components are not directly Numpy arrays but contain Numpy arrays, these components should be handled specifically by overwriting the *to_gpu()* function.
+These functions are to be defined to send the various componenents to and from the gpu memory. If some components are not directly Numpy arrays but contain Numpy arrays, these components should be handled specifically by overwriting the *on_gpu* property.
 
-By default, the *to_cpu()* function returns the instance of the agent before it was sent to GPU using the *to_gpu()* function. If a different behavior is expected, it can be defined explicitly by overwriting the *to_cpu()* function.
+By default, the *on_cpu* attribute returns the instance of the agent before it was sent to GPU using the *oo_gpu* attribute. If a different behavior is expected, it can be defined explicitly by overwriting the *on_cpu* property.

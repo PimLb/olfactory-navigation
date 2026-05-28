@@ -1,12 +1,11 @@
-import warnings
+from __future__ import annotations
 
 from typing import Callable
 
 from olfactory_navigation.environment import Environment
 from olfactory_navigation.agent import Agent
-from olfactory_navigation.agents.model_based_util.pomdp import Model
-from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
 from olfactory_navigation.agents.model_based_util.environment_converter import exact_converter
+from pomdp_toolkit import POMDP, ValueFunction, Belief, BeliefSet
 
 import numpy as np
 gpu_support = False
@@ -50,8 +49,8 @@ class Infotaxis_Agent(Agent):
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
-    seed : int, default = 12131415
-        For reproducible randomness.
+    rng : int or np.random.Generator, default = np.random.default_rng()
+        A seed for random generation or directly a numpy random generator.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -85,14 +84,12 @@ class Infotaxis_Agent(Agent):
         Whether the agent has been sent to the gpu or not.
     class_name : str
         The name of the class of the agent.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
-    cpu_version : Agent
+    rng : np.random.Generator
+        A random number generator.
+    on_cpu : Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
-    gpu_version : Agent
-        An instance of the agent on the CPU. If it already is, it returns itself.
+    on_gpu : Agent
+        An instance of the agent on the GPU. If it already is, it returns itself.
     belief : BeliefSet
         Used only during simulations.
         Part of the Agent's status. Where the agent believes he is over the state space.
@@ -109,9 +106,9 @@ class Infotaxis_Agent(Agent):
                  spacial_subdivisions: np.ndarray = None,
                  actions: dict[str, np.ndarray] | np.ndarray = None,
                  name: str = None,
-                 seed: int = 12131415,
-                 model: Model = None,
+                 model: POMDP = None,
                  environment_converter: Callable = None,
+                 use_reachability: bool = False,
                  **converter_parameters
                  ) -> None:
         super().__init__(
@@ -120,8 +117,7 @@ class Infotaxis_Agent(Agent):
             space_aware = space_aware,
             spacial_subdivisions = spacial_subdivisions,
             actions = actions,
-            name = name,
-            seed = seed
+            name = name
         )
 
         # Converting the olfactory environment to a POMDP Model
@@ -132,57 +128,88 @@ class Infotaxis_Agent(Agent):
         else:
             # Using the exact converter
             loaded_model = exact_converter(agent=self)
-        self.model:Model = loaded_model
+        self.model:POMDP = loaded_model
+
+        self.use_reachability = use_reachability
 
         # Status variables
-        self.belief = None
+        self.belief: BeliefSet = None
         self.action_played = None
         self.trained = True
 
 
-    def to_gpu(self) -> Agent:
+    @property
+    def on_gpu(self) -> Infotaxis_Agent:
         '''
-        Function to send the numpy arrays of the agent to the gpu.
-        It returns a new instance of the Agent class with the arrays on the gpu.
-
-        Returns
-        -------
-        gpu_agent
+        A version of the Agent on the GPU.
+        If the agent is already on the GPU it returns itself, otherwise a new one is generated.
         '''
         # Check whether the agent is already on the gpu or not
-        if self.on_gpu:
+        if self.is_on_gpu:
             return self
-
-        # Warn and overwrite alternate_version in case it already exists
-        if self._alternate_version is not None:
-            print('[warning] A GPU instance already existed and is being recreated.')
-            self._alternate_version = None
 
         assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
 
-        # Generating a new instance
-        cls = self.__class__
-        gpu_agent = cls.__new__(cls)
+        # Warn and overwrite alternate_version in case it already exists
+        if self._alternate_version is None:
+            # Generating a new instance
+            cls = self.__class__
+            gpu_agent = cls.__new__(cls)
 
-        # Copying arguments to gpu
-        for arg, val in self.__dict__.items():
-            if isinstance(val, np.ndarray):
-                setattr(gpu_agent, arg, cp.array(val))
-            elif arg == 'rnd_state':
-                setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
-            elif isinstance(val, Model):
-                setattr(gpu_agent, arg, val.gpu_model)
-            elif isinstance(val, BeliefSet) or isinstance(val, Belief):
-                setattr(gpu_agent, arg, val.to_gpu())
-            else:
-                setattr(gpu_agent, arg, val)
+            # Copying arguments to gpu
+            for arg, val in self.__dict__.items():
+                if isinstance(val, np.ndarray):
+                    setattr(gpu_agent, arg, cp.array(val))
+                elif isinstance(val, POMDP):
+                    setattr(gpu_agent, arg, val.on_gpu)
+                elif isinstance(val, BeliefSet) or isinstance(val, Belief):
+                    setattr(gpu_agent, arg, val.on_gpu)
+                else:
+                    setattr(gpu_agent, arg, val)
 
-        # Self reference instances
-        self._alternate_version = gpu_agent
-        gpu_agent._alternate_version = self
+            # Self reference instances
+            self._alternate_version = gpu_agent
+            gpu_agent._alternate_version = self
+            gpu_agent.is_on_gpu = True
 
-        gpu_agent.on_gpu = True
-        return gpu_agent
+        return self._alternate_version
+
+
+    @property
+    def on_cpu(self) -> Infotaxis_Agent:
+        '''
+        A version of the Agent on the CPU.
+        If the agent is already on the CPU it returns itself, otherwise a new one is generated.
+        '''
+        # Check whether the agent is already on the cpu or not
+        if not self.is_on_gpu:
+            return self
+
+        # Check if an alternate version doesnt exists create a new one
+        if self._alternate_version is None:
+            # Generating a new instance
+            cls = self.__class__
+            cpu_agent = cls.__new__(cls)
+
+            # Copying arguments to gpu
+            for arg, val in self.__dict__.items():
+                if isinstance(val, cp.ndarray):
+                    setattr(cpu_agent, arg, cp.asnumpy(val))
+                elif isinstance(val, POMDP):
+                    setattr(cpu_agent, arg, val.on_cpu)
+                elif isinstance(val, ValueFunction):
+                    setattr(cpu_agent, arg, val.on_cpu)
+                elif isinstance(val, BeliefSet) or isinstance(val, Belief):
+                    setattr(cpu_agent, arg, val.on_cpu)
+                else:
+                    setattr(cpu_agent, arg, val)
+
+            # Self reference instances
+            self._alternate_version = cpu_agent
+            cpu_agent._alternate_version = self
+            cpu_agent.is_on_gpu = False
+
+        return self._alternate_version
 
 
     def initialize_state(self,
@@ -206,10 +233,10 @@ class Infotaxis_Agent(Agent):
         else:
             assert len(belief) == n, f"The amount of beliefs provided ({len(belief)}) to initialize the state need to match the amount of stimulations to initialize (n={n})."
 
-            if self.on_gpu and not belief.is_on_gpu:
-                self.belief = belief.to_gpu()
-            elif not self.on_gpu and belief.is_on_gpu:
-                self.belief = belief.to_cpu()
+            if self.is_on_gpu and not belief.is_on_gpu:
+                self.belief = belief.on_gpu
+            elif not self.is_on_gpu and belief.is_on_gpu:
+                self.belief = belief.on_cpu
             else:
                 self.belief = belief
 
@@ -226,40 +253,50 @@ class Infotaxis_Agent(Agent):
         '''
         xp = np if not self.on_gpu else cp
 
-        n = len(self.belief)
-
-        best_entropy = xp.ones(n) * -1
-        best_action = xp.ones(n, dtype=int) * -1
-
+        # Computing the entropies of the current beliefs
         current_entropy = self.belief.entropies
 
-        for a in self.model.actions:
-            total_entropy = xp.zeros(n)
+        # Compute the possible successors for each belief
+        b_ao, provenance = self.belief.generate_all_successors(use_reachability=self.use_reachability,
+                                                               raise_on_impossible_belief=False,
+                                                               return_provenance=True)
 
-            for o in self.model.observations:
-                b_ao = self.belief.update(actions=xp.ones(n, dtype=int)*a,
-                                           observations=xp.ones(n, dtype=int)*o,
-                                           throw_error=False)
+        # Splitting the provenance
+        provenance_b = provenance[:,0]
+        provenance_a = provenance[:,1]
+        provenance_o = provenance[:,2]
 
-                # Computing entropy
-                with warnings.catch_warnings():
-                    warnings.simplefilter('ignore')
-                    b_ao_entropy = b_ao.entropies
+        # Computing entropies and P(o|b,a) to compute H
+        b_ao_entropies = b_ao.entropies
+        if self.use_reachability:
+            b_ao_probs = xp.einsum('ns,nsr->n', self.belief.belief_array[provenance_b,:], self.model.reachable_transition_observation_table[:, provenance_a, :, provenance_o])
+        else:
+            b_ao_probs = xp.einsum('ns,nsp->n', self.belief.belief_array[provenance_b,:], self.model.transition_observation_table[:, provenance_a, :, provenance_o])
 
-                b_prob = xp.dot(self.belief.belief_array, xp.sum(self.model.reachable_transitional_observation_table[:,a,o,:], axis=1))
+        b_ao_H = b_ao_probs * b_ao_entropies
 
-                total_entropy += (b_prob * (current_entropy - b_ao_entropy))
+        # Computing best_actions for each belief
+        best_a = xp.zeros(len(self.belief), dtype=int)
+        for b in xp.unique(provenance_b):
+            b_entropy = current_entropy[b]
 
-            # Checking if action is superior to previous best
-            superiority_mask = best_entropy < total_entropy
-            best_action[superiority_mask] = a
-            best_entropy[superiority_mask] = total_entropy[superiority_mask]
+            current_best_delta_H = -xp.inf
+            current_best_a = -1
+            for a in self.model.actions:
+                H_a = xp.sum(b_ao_H[(provenance_b == b) & (provenance_a == a)])
+                delta_H = b_entropy - H_a
+
+                if current_best_delta_H < delta_H:
+                    current_best_delta_H = delta_H
+                    current_best_a = a
+
+            best_a[b] = current_best_a
 
         # Recording the action played
-        self.action_played = best_action
+        self.action_played = best_a
 
         # Converting action indexes to movement vectors
-        movemement_vector = self.action_set[best_action,:]
+        movemement_vector = self.action_set[best_a,:]
 
         return movemement_vector
 
@@ -288,16 +325,22 @@ class Infotaxis_Agent(Agent):
             Else, a boolean np.ndarray of size n can be returned confirming for each agent whether the update has been successful or not.
         '''
         assert self.belief is not None, "Agent was not initialized yet, run the initialize_state function first"
-
+        # GPU support
+        xp = np if not self.is_on_gpu else cp
 
         # Discretizing observations
         observation_ids = self.discretize_observations(observation=observation, action=action, source_reached=source_reached)
 
-        # Update the set of belief
-        self.belief = self.belief.update(actions=self.action_played, observations=observation_ids)
+        # Update the set of beliefs
+        self.belief, provenance = self.belief.update(actions = self.action_played,
+                                                     observations = observation_ids,
+                                                     raise_on_impossible_belief = False,
+                                                     use_reachability = self.use_reachability,
+                                                     return_provenance = True)
 
         # Check for failed updates
-        update_successful = (self.belief.belief_array.sum(axis=1) != 0.0)
+        update_successful = xp.isin(xp.arange(len(self.belief)), provenance[:,0])
+        self.succeeded_update = update_successful
 
         return update_successful
 
@@ -316,4 +359,5 @@ class Infotaxis_Agent(Agent):
         if all(simulations_to_kill):
             self.belief = None
         else:
-            self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~simulations_to_kill])
+            filtered_simulations_to_kill = simulations_to_kill[self.succeeded_update]
+            self.belief = BeliefSet(self.belief.model, self.belief.belief_array[~filtered_simulations_to_kill])

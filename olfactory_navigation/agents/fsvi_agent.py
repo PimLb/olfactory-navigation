@@ -1,16 +1,8 @@
-from olfactory_navigation.agents.pbvi_agent import PBVI_Agent, TrainingHistory
-from olfactory_navigation.agents.model_based_util.mdp import log
-from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
-from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
-from olfactory_navigation.agents.model_based_util import vi_solver
+from datetime import datetime
 
-import numpy as np
-gpu_support = False
-try:
-    import cupy as cp
-    gpu_support = True
-except:
-    print('[Warning] Cupy could not be loaded: GPU support is not available.')
+from olfactory_navigation.agents.pbvi_agent import PBVI_Agent, TrainingHistory
+from pomdp_toolkit import ValueFunction, Belief, BeliefSet
+from pomdp_toolkit.solvers import FSVI
 
 
 class FSVI_Agent(PBVI_Agent):
@@ -59,8 +51,8 @@ class FSVI_Agent(PBVI_Agent):
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
-    seed : int, default = 12131415
-        For reproducible randomness.
+    rng : int or np.random.Generator, default = np.random.default_rng()
+        A seed for random generation or directly a numpy random generator.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -94,14 +86,12 @@ class FSVI_Agent(PBVI_Agent):
         Whether the agent has been sent to the gpu or not.
     class_name : str
         The name of the class of the agent.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
-    cpu_version : Agent
+    rng : np.random.Generator
+        A random number generator.
+    on_cpu : PBVI_Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
-    gpu_version : Agent
-        An instance of the agent on the CPU. If it already is, it returns itself.
+    on_gpu : PBVI_Agent
+        An instance of the agent on the GPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -118,79 +108,7 @@ class FSVI_Agent(PBVI_Agent):
         The solution to the fully version of the problem.
     '''
     # FSVI special attribute
-    mdp_policy = None
-
-    def expand(self,
-               belief_set: BeliefSet,
-               value_function: ValueFunction,
-               max_generation: int,
-               mdp_policy: ValueFunction
-               ) -> BeliefSet:
-        '''
-        Function implementing the exploration process using the MDP policy in order to generate a sequence of Beliefs following the the Forward Search Value Iteration principles.
-        It is a loop is started by a initial state 's' and using the MDP policy, chooses the best action to take.
-        Following this, a random next state 's_p' is being sampled from the transition probabilities and a random observation 'o' based on the observation probabilities.
-        Then the given belief is updated using the chosen action and the observation received and the updated belief is added to the sequence.
-        Once the state is a goal state, the loop is done and the belief sequence is returned.
-
-        Parameters
-        ----------
-        belief_set : BeliefSet
-            A belief set containing a single belief to start the sequence with.
-            A random state will be chosen based on the probability distribution of the belief.
-        value_function : ValueFunction
-            The current value function. (NOT USED)
-        max_generation : int
-            How many beliefs to be generated at most.
-        mdp_policy : ValueFunction
-            The mdp policy used to choose the action from with the given state 's'.
-
-        Returns
-        -------
-        belief_set : BeliefSet
-            A new sequence of beliefs.
-        '''
-        # GPU support
-        xp = np if not self.on_gpu else cp
-        model = self.model
-
-        # Getting initial belief
-        b0 = belief_set.belief_list[0]
-        belief_list = [b0]
-
-        # Choose a random starting state
-        s = b0.random_state()
-
-        # Setting the working belief
-        b = b0
-
-        for _ in range(max_generation - 1): #-1 due to a one belief already being present in the set
-            # Choose action based on mdp value function
-            a_star = xp.argmax(mdp_policy.alpha_vector_array[:,s])
-
-            # Pick a random next state (weighted by transition probabilities)
-            s_p = model.transition(s, a_star)
-
-            # Pick a random observation weighted by observation probabilities in state s_p and after having done action a_star
-            o = model.observe(s_p, a_star)
-
-            # Generate a new belief based on a_star and o
-            b_p = b.update(a_star, o)
-
-            # Record new belief
-            belief_list.append(b_p)
-
-            # Updating s and b
-            s = s_p
-            b = b_p
-
-            # Reset and belief if end state is reached
-            if s in model.end_states:
-                s = b0.random_state()
-                b = b0
-
-        return BeliefSet(model, belief_list)
-
+    mdp_policy: ValueFunction = None
 
     def train(self,
               expansions: int,
@@ -198,12 +116,14 @@ class FSVI_Agent(PBVI_Agent):
               max_belief_growth: int = 10,
               initial_belief: BeliefSet | Belief = None,
               initial_value_function: ValueFunction = None,
-              mdp_policy: ValueFunction = None,
+              mdp_policy: ValueFunction = None, # FSVI param
+              vi_horizon: int = 1000, # FSVI param
               prune_level: int = 1,
               prune_interval: int = 10,
               limit_value_function_size: int = -1,
               gamma: float = 0.99,
               eps: float = 1e-6,
+              convergence_stop: bool = False,
               use_gpu: bool = False,
               history_tracking_level: int = 1,
               overwrite_training: bool = False,
@@ -233,7 +153,9 @@ class FSVI_Agent(PBVI_Agent):
             An initial value function to start the solving process with.
         mdp_policy : ValueFunction, optional
             The MDP solution to guide the expand process.
-            If it is not provided, the Value Iteration for the MDP version of the problem will be run. (using the same gamma and eps as set here; horizon=1000)
+            If it is not provided, the Value Iteration for the MDP version of the problem will be run. (using the same gamma and eps as set here; the horizon can be set with vi_horizon)
+        vi_horizon : int, default = 1000
+            How many iterations of the Value Iteration algorithm to run to generate a mdp_policy (if mdp_policy not provided).
         prune_level : int, default = 1
             Parameter to prune the value function further before the expand function.
         prune_interval : int, default = 10
@@ -249,6 +171,9 @@ class FSVI_Agent(PBVI_Agent):
         eps : float, default = 1e-6
             The smallest allowed changed for the value function.
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+            convergence_stop : bool, default = False
+        convergence_stop : bool, default = False
+            Whether to compute to compute the change in the value function and stop early if this change is smaller than eps.
         history_tracking_level : int, default = 1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
         overwrite_training : bool, default = False
@@ -263,36 +188,56 @@ class FSVI_Agent(PBVI_Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        if mdp_policy is not None:
-            self.mdp_policy = mdp_policy
-        elif (self.mdp_policy is None) or overwrite_training:
-            log('MDP_policy, not provided. Solving MDP with Value Iteration...')
-            self.mdp_policy, hist = vi_solver.solve(model = self.model,
-                                                    horizon = 1000,
-                                                    initial_value_function = initial_value_function,
-                                                    gamma = gamma,
-                                                    eps = eps,
-                                                    use_gpu = use_gpu,
-                                                    history_tracking_level = 1,
-                                                    print_progress = print_progress)
+        # Handeling the case where the agent is already trained
+        if (self.value_function is not None):
+            if overwrite_training:
+                self.trained_at = None
+                self.name = '-'.join(self.name.split('-')[:-1])
+                self.value_function = None
+            else:
+                initial_value_function = self.value_function
 
-            if print_stats:
-                print(hist.summary)
+        # Run the solving algorithm
+        value_function, hist, mdp_policy = FSVI.solve(
+            model = self.model,
+            expansions = expansions,
+            update_passes = update_passes,
+            max_belief_growth = max_belief_growth,
+            initial_belief = initial_belief,
+            initial_value_function = initial_value_function,
+            prune_level = prune_level,
+            prune_interval = prune_interval,
+            limit_value_function_size = limit_value_function_size,
+            gamma = gamma,
+            eps = eps,
+            convergence_stop = convergence_stop,
+            use_gpu = use_gpu,
+            use_reachability = self.use_reachability,
+            rng = self.rng,
+            history_tracking_level = history_tracking_level,
+            print_progress = print_progress,
+            print_stats = print_stats,
+            # FSVI params
+            mdp_policy = mdp_policy,
+            vi_horizon = vi_horizon,
+            return_mdp_policy = True
+        )
 
-        return super().train(expansions = expansions,
-                             full_backup = False,
-                             update_passes = update_passes,
-                             max_belief_growth = max_belief_growth,
-                             initial_belief = initial_belief,
-                             initial_value_function = initial_value_function,
-                             prune_level = prune_level,
-                             prune_interval = prune_interval,
-                             limit_value_function_size = limit_value_function_size,
-                             gamma = gamma,
-                             eps = eps,
-                             use_gpu = use_gpu,
-                             history_tracking_level = history_tracking_level,
-                             overwrite_training = overwrite_training,
-                             print_progress = print_progress,
-                             print_stats = print_stats,
-                             mdp_policy = self.mdp_policy)
+        # Record the mdp_policy
+        self.mdp_policy = mdp_policy
+
+        # Record when it was trained
+        self.trained_at = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.name += f'-trained_{self.trained_at}'
+
+        self.value_function = value_function.on_cpu if not self.is_on_gpu else value_function.on_gpu
+
+        # Print stats if requested
+        if print_stats:
+            print(hist.summary)
+
+        # Validate training
+        self.trained = True
+
+        return hist
+

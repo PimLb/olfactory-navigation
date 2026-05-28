@@ -1,7 +1,10 @@
+from __future__ import annotations
+
+from olfactory_navigation.util import get_rng, random_choice
+
 import h5py
 import json
 import os
-import scipy
 import shutil
 
 from matplotlib import pyplot as plt
@@ -123,8 +126,6 @@ class Environment:
         A custom name to be given to the agent.
         If it is not provided, by default it will have the format:
         <shape>-marg_<margins>-edge_<boundary_condition>-start_<start_zone>-source_<source_point>_radius<source_radius>
-    seed : int, default = 12131415
-        For reproducible randomness.
 
     Attributes
     ----------
@@ -173,15 +174,11 @@ class Environment:
         The name set to the agent as defined in the parameters.
     saved_at : str
         If the environment is saved, the path at which it is saved will be recorded here.
-    on_gpu : bool
+    is_on_gpu : bool
         Whether the environment's arrays are on the gpu's memory or not.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
-    cpu_version : Environment
+    on_cpu : Environment
         An instance of the environment on the CPU. If it already is, it returns itself.
-    gpu_version : Environment
+    on_gpu : Environment
         An instance of the environment on the CPU. If it already is, it returns itself.
     '''
     def __init__(self,
@@ -197,8 +194,7 @@ class Environment:
                  boundary_condition: Literal['stop', 'wrap', 'wrap_vertical', 'wrap_horizontal', 'clip', 'no'] = 'stop',
                  start_zone: Literal['odor_present', 'data_zone'] | np.ndarray = 'data_zone',
                  odor_present_threshold: float = None,
-                 name: str = None,
-                 seed: int = 12131415,
+                 name: str = None
                  ) -> None:
         self.saved_at: str = None
 
@@ -437,11 +433,7 @@ class Environment:
 
         # gpu support
         self._alternate_version = None
-        self.on_gpu = False
-
-        # random state
-        self.seed = seed
-        self.rnd_state = np.random.RandomState(seed = seed)
+        self.is_on_gpu = False
 
 
     @property
@@ -450,7 +442,7 @@ class Environment:
         The whole dataset with the right shape. If not preprocessed to modify its shape the data will be processed when querrying this object.
         '''
         if not self._data_is_numpy or not self.data_processed:
-            xp = cp if self.on_gpu else np
+            xp = cp if self.is_on_gpu else np
             print('[Warning] The whole dataset is being querried, it will be reshaped at this time. To avoid this, avoid querrying environment.data directly.')
 
             # Reshaping
@@ -479,7 +471,7 @@ class Environment:
         '''
         Wheter the data is a numpy array or not.
         '''
-        xp = cp if self.on_gpu else np
+        xp = cp if self.is_on_gpu else np
         return isinstance(self._data, xp.ndarray)
 
 
@@ -503,7 +495,7 @@ class Environment:
             An ax on which the environment can be plot.
         '''
         # If on GPU use the CPU version to plot
-        if self.on_gpu:
+        if self.is_on_gpu:
             self._alternate_version.plot(
                 frame=frame,
                 ax=ax
@@ -585,7 +577,7 @@ class Environment:
         observation : float or np.ndarray
             A single observation or list of observations.
         '''
-        xp = cp if self.on_gpu else np
+        xp = cp if self.is_on_gpu else np
 
         # Handling the case of a single point
         is_single_point = (len(pos.shape) == 1)
@@ -676,7 +668,7 @@ class Environment:
         is_at_source : bool
             Whether or not the position is within the radius of the source.
         '''
-        xp = cp if self.on_gpu else np
+        xp = cp if self.is_on_gpu else np
 
         # Handling the case of a single point
         is_single_point = (len(pos.shape) == 1)
@@ -689,7 +681,8 @@ class Environment:
 
 
     def random_start_points(self,
-                            n: int = 1
+                            n: int = 1,
+                            rng: int | np.random.Generator = None
                             ) -> np.ndarray:
         '''
         Function to generate n starting positions following the starting probabilities.
@@ -704,11 +697,13 @@ class Environment:
         random_states_2d : np.ndarray
             The n random 2d points in a n x 2 array.
         '''
-        xp = cp if self.on_gpu else np
+        xp = cp if self.is_on_gpu else np
 
         assert (n > 0), "n has to be a strictly positive number (>0)"
 
-        random_states = self.rnd_state.choice(xp.arange(int(np.prod(self.shape))), size=n, replace=True, p=self.start_probabilities.ravel())
+        rng = get_rng(rng)
+
+        random_states = random_choice(rng, xp.arange(int(np.prod(self.shape))), size=n, replace=True, p=self.start_probabilities.ravel())
         random_states_2d = xp.array(xp.unravel_index(random_states, self.shape)).T
         return random_states_2d
 
@@ -732,7 +727,7 @@ class Environment:
         new_pos : np.ndarray
             The new position after applying the movement.
         '''
-        xp = cp if self.on_gpu else np
+        xp = cp if self.is_on_gpu else np
 
         # Applying the movement vector
         new_pos = pos + movement
@@ -793,7 +788,7 @@ class Environment:
         dist : float or np.ndarray
             A single distance or a list of distance in a 1D distance array.
         '''
-        xp = cp if self.on_gpu else np
+        xp = cp if self.is_on_gpu else np
 
         # Handling the case we have a single point
         is_single_point = (len(point.shape) == 1)
@@ -837,7 +832,7 @@ class Environment:
             In case an environment of the same name is already saved, it will be overwritten.
         '''
         # If on gpu, use the cpu version to save
-        if self.on_gpu:
+        if self.is_on_gpu:
             self._alternate_version.save(
                 folder=folder,
                 save_arrays=save_arrays,
@@ -862,7 +857,7 @@ class Environment:
                 shutil.rmtree(folder)
                 os.mkdir(folder)
             else:
-                raise Exception(f'{folder} is not empty. If you want to overwrite the saved model, enable "force".')
+                raise Exception(f'{folder} is not empty. If you want to overwrite the saved environment, enable "force".')
 
         # Generating the metadata arguments dictionary
         arguments = {}
@@ -887,7 +882,6 @@ class Environment:
         arguments['data_processed']                = self.data_processed
         arguments['boundary_condition']            = self.boundary_condition
         arguments['start_type']                    = self.start_type
-        arguments['seed']                          = self.seed
 
         # Check how the start probabilities were built
         if self.start_type.startswith('custom') and len(self.start_type.split('_')) == 1 and not save_arrays:
@@ -916,7 +910,7 @@ class Environment:
     @classmethod
     def load(cls,
              folder: str
-             ) -> 'Environment':
+             ) -> Environment:
         '''
         Function to load an environment from a given folder.
 
@@ -938,7 +932,7 @@ class Environment:
         with open(folder + '/METADATA.json', 'r') as json_file:
             arguments = json.load(json_file)
 
-        # Check if numpy arrays are provided, if not, recreate a new environment model
+        # Check if numpy arrays are provided, if not, recreate a new environment
         if os.path.exists(folder + '/data.npy') and os.path.exists(folder + '/start_probabilities.npy'):
             data = np.load(folder + '/data.npy')
             start_probabilities = np.load(folder + '/start_probabilities.npy')
@@ -964,9 +958,7 @@ class Environment:
             loaded_env._preprocess_data              = arguments['preprocess_data']
             loaded_env.data_processed                = arguments['data_processed']
             loaded_env.boundary_condition            = arguments['boundary_condition']
-            loaded_env.on_gpu                        = False
-            loaded_env.seed                          = arguments['seed']
-            loaded_env.rnd_state                     = np.random.RandomState(arguments['seed'])
+            loaded_env.is_on_gpu                     = False
 
             # Optional arguments
             loaded_env.data_file_path                = arguments.get('data_file_path')
@@ -996,7 +988,6 @@ class Environment:
                 start_zone             = (start_zone_boundaries if start_zone_boundaries is not None else start_zone),
                 odor_present_threshold = arguments.get('odor_present_threshold'),
                 name                   = arguments['name'],
-                seed                   = arguments['seed']
             )
 
         # Folder where the environment was pulled from
@@ -1005,115 +996,66 @@ class Environment:
         return loaded_env
 
 
-    def to_gpu(self) -> 'Environment':
-        '''
-        Function to send the numpy arrays of the environment to the gpu memory.
-        It returns a new instance of the Environment with the arrays as cupy arrays.
-
-        Returns
-        -------
-        gpu_environment : Environment
-            A new environment instance where the arrays are on the gpu memory.
-        '''
-        # Check whether the environment is already on the gpu or not
-        if self.on_gpu:
-            return self
-
-        # Warn and overwrite alternate_version in case it already exists
-        if self._alternate_version is not None:
-            print('[warning] A GPU instance already existed and is being recreated.')
-            self._alternate_version = None
-
-        assert gpu_support, "GPU support is not enabled..."
-
-        # Generating a new instance
-        cls = self.__class__
-        gpu_environment = cls.__new__(cls)
-
-        # Copying arguments to gpu
-        for arg, val in self.__dict__.items():
-            if isinstance(val, np.ndarray):
-                setattr(gpu_environment, arg, cp.array(val))
-            elif arg == 'rnd_state':
-                setattr(gpu_environment, arg, cp.random.RandomState(self.seed))
-            else:
-                setattr(gpu_environment, arg, val)
-
-        # Self reference instances
-        self._alternate_version = gpu_environment
-        gpu_environment._alternate_version = self
-
-        gpu_environment.on_gpu = True
-        return gpu_environment
-
-
-    def to_cpu(self) -> 'Environment':
-        '''
-        Function to send the numpy arrays of the environment to the cpu memory.
-        It returns a new instance of the Environment with the arrays as numpy arrays.
-
-        Returns
-        -------
-        cpu_environment : Environment
-            A new environment instance where the arrays are on the cpu memory.
-        '''
-        # Check whether the agent is already on the cpu or not
-        if not self.on_gpu:
-            return self
-
-        if self._alternate_version is not None:
-            print('[warning] A CPU instance already existed and is being recreated.')
-            self._alternate_version = None
-
-        # Generating a new instance
-        cls = self.__class__
-        cpu_environment = cls.__new__(cls)
-
-        # Copying arguments to gpu
-        for arg, val in self.__dict__.items():
-            if isinstance(val, cp.ndarray):
-                setattr(cpu_environment, arg, cp.asnumpy(val))
-            elif arg == 'rnd_state':
-                setattr(cpu_environment, arg, np.random.RandomState(self.seed))
-            else:
-                setattr(cpu_environment, arg, val)
-
-        # Self reference instances
-        self._alternate_version = cpu_environment
-        cpu_environment._alternate_version = self
-
-        cpu_environment.on_gpu = True
-        return cpu_environment
-
-
     @property
-    def gpu_version(self) -> 'Environment':
+    def on_gpu(self) -> Environment:
         '''
         A version of the Environment on the GPU.
-        If the environment is already on the GPU it returns itself, otherwise the to_gpu function is called to generate a new one.
+        If the environment is already on the GPU it returns itself, otherwise a new one is generated.
         '''
-        if self.on_gpu:
+        if self.is_on_gpu:
             return self
-        else:
-            if self._alternate_version is not None: # Check if an alternate version already exists
-                return self._alternate_version
-            else: # Generate an alternate version on the gpu
-                return self.to_gpu()
+
+        assert gpu_support, "GPU support is not enabled, unable to execute this function"
+
+        # Check if an alternate version doesnt exists create a new one
+        if self._alternate_version is None:
+            # Generating a new instance
+            cls = self.__class__
+            gpu_environment = cls.__new__(cls)
+
+            # Copying arguments to gpu
+            for arg, val in self.__dict__.items():
+                if isinstance(val, np.ndarray):
+                    setattr(gpu_environment, arg, cp.array(val))
+                else:
+                    setattr(gpu_environment, arg, val)
+
+            # Self reference instances
+            self._alternate_version = gpu_environment
+            gpu_environment._alternate_version = self
+            gpu_environment.is_on_gpu = True
+
+        return self._alternate_version
 
 
     @property
-    def cpu_version(self) -> 'Environment':
+    def on_cpu(self) -> Environment:
         '''
         A version of the Environment on the CPU.
-        If the environment is already on the CPU it returns itself, otherwise the to_cpu function is called to generate a new one.
+        If the environment is already on the CPU it returns itself, otherwise a new one is generated.
         '''
-        if not self.on_gpu:
+        if not self.is_on_gpu:
             return self
-        else:
-            if self._alternate_version is not None: # Check if an alternate version already exists
-                return self._alternate_version
-            else: # Generate an alternate version on the cpu
-                return self.to_cpu()
+
+        # Check if an alternate version doesnt exists create a new one
+        if self._alternate_version is None:
+            # Generating a new instance
+            cls = self.__class__
+            cpu_environment = cls.__new__(cls)
+
+            # Copying arguments to gpu
+            for arg, val in self.__dict__.items():
+                if isinstance(val, cp.ndarray):
+                    setattr(cpu_environment, arg, cp.asnumpy(val))
+                else:
+                    setattr(cpu_environment, arg, val)
+
+            # Self reference instances
+            self._alternate_version = cpu_environment
+            cpu_environment._alternate_version = self
+            cpu_environment.is_on_gpu = False
+
+        return self._alternate_version
 
 
     def modify(self,
@@ -1124,7 +1066,7 @@ class Environment:
                multiplier: list | np.ndarray = None,
                interpolation_method: str = None,
                boundary_condition: str = None
-               ) -> 'Environment':
+               ) -> Environment:
         '''
         Returns a copy of the environment with one or more parameters modified.
 
@@ -1150,8 +1092,8 @@ class Environment:
         modified_environment
             A copy of the environment where the modified parameters have been applied.
         '''
-        if self.on_gpu:
-            cpu_environment = self.cpu_version
+        if self.is_on_gpu:
+            cpu_environment = self.on_cpu
             new_cpu_environment = cpu_environment.modify(
                 data_source_position = data_source_position,
                 source_radius        = source_radius,
@@ -1161,7 +1103,7 @@ class Environment:
                 interpolation_method = interpolation_method,
                 boundary_condition   = boundary_condition
             )
-            return new_cpu_environment.to_gpu()
+            return new_cpu_environment.on_gpu
 
         modified_environment = Environment(
             data_file              = (self.data_file_path if (self.data_file_path is not None) else self._data),
@@ -1177,14 +1119,13 @@ class Environment:
             start_zone             = self.start_type,
             odor_present_threshold = self.odor_present_threshold,
             name                   = self.name,
-            seed                   = self.seed
         )
         return modified_environment
 
 
     def modify_scale(self,
                      scale_factor: float
-                     ) -> 'Environment':
+                     ) -> Environment:
         '''
         Function to modify the size of the environment by a scale factor.
         Everything will be scaled this factor. This includes: shape, margins, source radius, and data shape.
@@ -1217,6 +1158,5 @@ class Environment:
             start_zone             = self.start_type,
             odor_present_threshold = self.odor_present_threshold,
             name                   = self.name,
-            seed                   = self.seed
         )
         return modified_environment

@@ -1,16 +1,8 @@
+from datetime import datetime
+
 from olfactory_navigation.agents.pbvi_agent import PBVI_Agent, TrainingHistory
-from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
-from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
-
-from random import random
-
-import numpy as np
-gpu_support = False
-try:
-    import cupy as cp
-    gpu_support = True
-except:
-    print('[Warning] Cupy could not be loaded: GPU support is not available.')
+from pomdp_toolkit import ValueFunction, Belief, BeliefSet
+from pomdp_toolkit.solvers import PBVI_SSRA
 
 
 class PBVI_SSRA_Agent(PBVI_Agent):
@@ -40,8 +32,8 @@ class PBVI_SSRA_Agent(PBVI_Agent):
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
-    seed : int, default = 12131415
-        For reproducible randomness.
+    rng : int or np.random.Generator, default = np.random.default_rng()
+        A seed for random generation or directly a numpy random generator.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -75,14 +67,12 @@ class PBVI_SSRA_Agent(PBVI_Agent):
         Whether the agent has been sent to the gpu or not.
     class_name : str
         The name of the class of the agent.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
-    cpu_version : Agent
+    rng : np.random.Generator
+        A random number generator.
+    on_cpu : PBVI_Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
-    gpu_version : Agent
-        An instance of the agent on the CPU. If it already is, it returns itself.
+    on_gpu : PBVI_Agent
+        An instance of the agent on the GPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -96,56 +86,6 @@ class PBVI_SSRA_Agent(PBVI_Agent):
         Part of the Agent's status. Records what action was last played by the agent.
         A list of n actions played based on how many simulations are running at once.
     '''
-    def expand(self,
-               belief_set: BeliefSet,
-               value_function: ValueFunction,
-               max_generation: int
-               ) -> BeliefSet:
-        '''
-        Stochastic Simulation with Random Action.
-        Simulates running a single-step forward from the beliefs in the "belief_set".
-        The step forward is taking assuming we are in a random state (weighted by the belief) and taking a random action leading to a state s_p and a observation o.
-        From this action a and observation o we can update our belief.
-
-        Parameters
-        ----------
-        belief_set : BeliefSet
-            List of beliefs to expand on.
-        value_function : ValueFunction
-            The current value function. (NOT USED)
-        max_generation : int, default = 10
-            The max amount of beliefs that can be added to the belief set at once.
-
-        Returns
-        -------
-        belief_set_new : BeliefSet
-            Union of the belief_set and the expansions of the beliefs in the belief_set.
-        '''
-        # GPU support
-        xp = np if not self.on_gpu else cp
-        model = self.model
-
-        old_shape = belief_set.belief_array.shape
-        to_generate = min(max_generation, old_shape[0])
-
-        new_belief_array = xp.empty((to_generate, old_shape[1]))
-
-        # Random previous beliefs
-        rand_ind = self.rnd_state.choice(np.arange(old_shape[0]), to_generate, replace=False)
-
-        for i, belief_vector in enumerate(belief_set.belief_array[rand_ind]):
-            b = Belief(model, belief_vector)
-            s = b.random_state()
-            a = self.rnd_state.choice(model.actions)
-            s_p = model.transition(s, a)
-            o = model.observe(s_p, a)
-            b_new = b.update(a, o)
-
-            new_belief_array[i] = b_new.values
-
-        return BeliefSet(model, new_belief_array)
-
-
     def train(self,
               expansions: int,
               update_passes: int = 1,
@@ -157,6 +97,7 @@ class PBVI_SSRA_Agent(PBVI_Agent):
               limit_value_function_size: int = -1,
               gamma: float = 0.99,
               eps: float = 1e-6,
+              convergence_stop: bool = False,
               use_gpu: bool = False,
               history_tracking_level: int = 1,
               overwrite_training: bool = False,
@@ -199,6 +140,9 @@ class PBVI_SSRA_Agent(PBVI_Agent):
         eps : float, default = 1e-6
             The smallest allowed changed for the value function.
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+            convergence_stop : bool, default = False
+        convergence_stop : bool, default = False
+            Whether to compute to compute the change in the value function and stop early if this change is smaller than eps.
         history_tracking_level : int, default = 1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
         overwrite_training : bool, default = False
@@ -213,19 +157,48 @@ class PBVI_SSRA_Agent(PBVI_Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        return super().train(expansions = expansions,
-                             full_backup = True,
-                             update_passes = update_passes,
-                             max_belief_growth = max_belief_growth,
-                             initial_belief = initial_belief,
-                             initial_value_function = initial_value_function,
-                             prune_level = prune_level,
-                             prune_interval = prune_interval,
-                             limit_value_function_size = limit_value_function_size,
-                             gamma = gamma,
-                             eps = eps,
-                             use_gpu = use_gpu,
-                             history_tracking_level = history_tracking_level,
-                             overwrite_training = overwrite_training,
-                             print_progress = print_progress,
-                             print_stats = print_stats)
+        # Handeling the case where the agent is already trained
+        if (self.value_function is not None):
+            if overwrite_training:
+                self.trained_at = None
+                self.name = '-'.join(self.name.split('-')[:-1])
+                self.value_function = None
+            else:
+                initial_value_function = self.value_function
+
+        # Run the solving algorithm
+        value_function, hist = PBVI_SSRA.solve(
+            model = self.model,
+            expansions = expansions,
+            update_passes = update_passes,
+            max_belief_growth = max_belief_growth,
+            initial_belief = initial_belief,
+            initial_value_function = initial_value_function,
+            prune_level = prune_level,
+            prune_interval = prune_interval,
+            limit_value_function_size = limit_value_function_size,
+            gamma = gamma,
+            eps = eps,
+            convergence_stop = convergence_stop,
+            use_gpu = use_gpu,
+            use_reachability = self.use_reachability,
+            rng = self.rng,
+            history_tracking_level = history_tracking_level,
+            print_progress = print_progress,
+            print_stats = print_stats
+            )
+
+        # Record when it was trained
+        self.trained_at = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.name += f'-trained_{self.trained_at}'
+
+        self.value_function = value_function.on_cpu if not self.is_on_gpu else value_function.on_gpu
+
+        # Print stats if requested
+        if print_stats:
+            print(hist.summary)
+
+        # Validate training
+        self.trained = True
+
+        return hist

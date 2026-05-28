@@ -1,17 +1,8 @@
+from datetime import datetime
+
 from olfactory_navigation.agents.pbvi_agent import PBVI_Agent, TrainingHistory
-from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
-from olfactory_navigation.agents.model_based_util.belief import Belief, BeliefSet
-from olfactory_navigation.agents.model_based_util.belief_value_mapping import BeliefValueMapping
-
-from typing import Union
-
-import numpy as np
-gpu_support = False
-try:
-    import cupy as cp
-    gpu_support = True
-except:
-    print('[Warning] Cupy could not be loaded: GPU support is not available.')
+from pomdp_toolkit import ValueFunction, Belief, BeliefSet
+from pomdp_toolkit.solvers import HSVI
 
 
 class HSVI_Agent(PBVI_Agent):
@@ -44,8 +35,8 @@ class HSVI_Agent(PBVI_Agent):
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
-    seed : int, default = 12131415
-        For reproducible randomness.
+    rng : int or np.random.Generator, default = np.random.default_rng()
+        A seed for random generation or directly a numpy random generator.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -79,14 +70,12 @@ class HSVI_Agent(PBVI_Agent):
         Whether the agent has been sent to the gpu or not.
     class_name : str
         The name of the class of the agent.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
-    cpu_version : Agent
+    rng : np.random.Generator
+        A random number generator.
+    on_cpu : PBVI_Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
-    gpu_version : Agent
-        An instance of the agent on the CPU. If it already is, it returns itself.
+    on_gpu : PBVI_Agent
+        An instance of the agent on the GPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -100,101 +89,8 @@ class HSVI_Agent(PBVI_Agent):
         Part of the Agent's status. Records what action was last played by the agent.
         A list of n actions played based on how many simulations are running at once.
     '''
-    def expand(self,
-               belief_set: BeliefSet,
-               value_function: ValueFunction,
-               max_generation: int
-               ) -> BeliefSet:
-        '''
-        The expand function of the  Heuristic Search Value Iteration (HSVI) technique.
-        It is a redursive function attempting to minimize the bound between the upper and lower estimations of the value function.
-
-        It is developped by Smith T. and Simmons R. and described in the paper "Heuristic Search Value Iteration for POMDPs".
-
-        Parameters
-        ----------
-        belief_set : BeliefSet
-            List of beliefs to expand on.
-        value_function : ValueFunction
-            The current value function. Used to compute the value at belief points.
-        max_generation : int, default = 10
-            The max amount of beliefs that can be added to the belief set at once.
-
-        Returns
-        -------
-        belief_set : BeliefSet
-            A new sequence of beliefs.
-        '''
-        # GPU support
-        xp = np if not self.on_gpu else cp
-        model = self.model
-
-        if conv_term is None:
-            conv_term = self.eps
-
-        # Update convergence term
-        conv_term /= self.gamma
-
-        # Find best a based on upper bound v
-        max_qv = -xp.inf
-        best_a = -1
-        for a in model.actions:
-            b_probs = xp.einsum('sor,s->o', model.reachable_transitional_observation_table[:,a,:,:], b.values)
-
-            b_prob_val = 0
-            for o in model.observations:
-                b_prob_val += (b_probs[o] * upper_bound_belief_value_map.evaluate(b.update(a,o)))
-
-            qva = float(xp.dot(model.expected_rewards_table[:,a], b.values) + (self.gamma * b_prob_val))
-
-            # qva = upper_bound_belief_value_map.qva(b, a, gamma=self.gamma)
-            if qva > max_qv:
-                max_qv = qva
-                best_a = a
-
-        # Choose o that max gap between bounds
-        b_probs = xp.einsum('sor,s->o', model.reachable_transitional_observation_table[:,best_a,:,:], b.values)
-
-        max_o_val = -xp.inf
-        best_v_diff = -xp.inf
-        next_b = b
-
-        for o in model.observations:
-            bao = b.update(best_a, o)
-
-            upper_v_bao = upper_bound_belief_value_map.evaluate(bao)
-            lower_v_bao = xp.max(xp.dot(value_function.alpha_vector_array, bao.values))
-
-            v_diff = (upper_v_bao - lower_v_bao)
-
-            o_val = b_probs[o] * v_diff
-
-            if o_val > max_o_val:
-                max_o_val = o_val
-                best_v_diff = v_diff
-                next_b = bao
-
-        # if bounds_split < conv_term or max_generation <= 0:
-        if best_v_diff < conv_term or max_generation <= 1:
-            return BeliefSet(model, [next_b])
-
-        # Add the belief point and associated value to the belief-value mapping
-        upper_bound_belief_value_map.add(b, max_qv)
-
-        # Go one step deeper in the recursion
-        b_set = self.expand_hsvi(model=model,
-                                 b=next_b,
-                                 value_function=value_function,
-                                 upper_bound_belief_value_map=upper_bound_belief_value_map,
-                                 conv_term=conv_term,
-                                 max_generation=max_generation-1)
-
-        # Append the nex belief of this iteration to the deeper beliefs
-        new_belief_list = b_set.belief_list
-        new_belief_list.append(next_b)
-
-        return BeliefSet(model, new_belief_list)
-
+    # HSVI special attribute
+    mdp_policy: ValueFunction = None
 
     def train(self,
               expansions: int,
@@ -202,11 +98,15 @@ class HSVI_Agent(PBVI_Agent):
               max_belief_growth: int = 10,
               initial_belief: BeliefSet | Belief = None,
               initial_value_function: ValueFunction = None,
+              mdp_policy: ValueFunction = None, # HSVI param
+              vi_horizon: int = 1000, # HSVI param
+              epsilon: float = 0.99, # HSVI param
               prune_level: int = 1,
               prune_interval: int = 10,
               limit_value_function_size: int = -1,
               gamma: float = 0.99,
               eps: float = 1e-6,
+              convergence_stop: bool = False,
               use_gpu: bool = False,
               history_tracking_level: int = 1,
               overwrite_training: bool = False,
@@ -234,6 +134,12 @@ class HSVI_Agent(PBVI_Agent):
             An initial list of beliefs to start with.
         initial_value_function : ValueFunction, optional
             An initial value function to start the solving process with.
+        mdp_policy : ValueFunction, optional
+            A mdp_policy to use to guide the expand function of the PBVI algorithm.
+        vi_horizon : int, default = 1000
+            How many iterations of the Value Iteration algorithm to run to generate a mdp_policy (if mdp_policy not provided).
+        epsilon : float, default = 0.99
+            The epsilon that will be used to compute the max allowed gap between the upper and lower bounds.
         prune_level : int, default = 1
             Parameter to prune the value function further before the expand function.
         prune_interval : int, default = 10
@@ -249,6 +155,9 @@ class HSVI_Agent(PBVI_Agent):
         eps : float, default = 1e-6
             The smallest allowed changed for the value function.
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+            convergence_stop : bool, default = False
+        convergence_stop : bool, default = False
+            Whether to compute to compute the change in the value function and stop early if this change is smaller than eps.
         history_tracking_level : int, default = 1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
         overwrite_training : bool, default = False
@@ -263,19 +172,56 @@ class HSVI_Agent(PBVI_Agent):
         solver_history : SolverHistory
             The history of the solving process with some plotting options.
         '''
-        return super().train(expansions = expansions,
-                             full_backup = False,
-                             update_passes = update_passes,
-                             max_belief_growth = max_belief_growth,
-                             initial_belief = initial_belief,
-                             initial_value_function = initial_value_function,
-                             prune_level = prune_level,
-                             prune_interval = prune_interval,
-                             limit_value_function_size = limit_value_function_size,
-                             gamma = gamma,
-                             eps = eps,
-                             use_gpu = use_gpu,
-                             history_tracking_level = history_tracking_level,
-                             overwrite_training = overwrite_training,
-                             print_progress = print_progress,
-                             print_stats = print_stats)
+        # Handeling the case where the agent is already trained
+        if (self.value_function is not None):
+            if overwrite_training:
+                self.trained_at = None
+                self.name = '-'.join(self.name.split('-')[:-1])
+                self.value_function = None
+            else:
+                initial_value_function = self.value_function
+
+        # Run the solving algorithm
+        value_function, hist, mdp_policy = HSVI.solve(
+            model = self.model,
+            expansions = expansions,
+            update_passes = update_passes,
+            max_belief_growth = max_belief_growth,
+            initial_belief = initial_belief,
+            initial_value_function = initial_value_function,
+            prune_level = prune_level,
+            prune_interval = prune_interval,
+            limit_value_function_size = limit_value_function_size,
+            gamma = gamma,
+            eps = eps,
+            convergence_stop = convergence_stop,
+            use_gpu = use_gpu,
+            use_reachability = self.use_reachability,
+            rng = self.rng,
+            history_tracking_level = history_tracking_level,
+            print_progress = print_progress,
+            print_stats = print_stats,
+            # HSVI params
+            mdp_policy = mdp_policy,
+            vi_horizon = vi_horizon,
+            epsilon = epsilon,
+            return_mdp_policy = True
+            )
+
+        # Record the mdp_policy
+        self.mdp_policy = mdp_policy
+
+        # Record when it was trained
+        self.trained_at = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.name += f'-trained_{self.trained_at}'
+
+        self.value_function = value_function.on_cpu if not self.is_on_gpu else value_function.on_gpu
+
+        # Print stats if requested
+        if print_stats:
+            print(hist.summary)
+
+        # Validate training
+        self.trained = True
+
+        return hist

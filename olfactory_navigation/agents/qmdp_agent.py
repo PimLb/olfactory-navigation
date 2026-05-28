@@ -1,7 +1,8 @@
 from datetime import datetime
+
 from olfactory_navigation.agents.pbvi_agent import PBVI_Agent, TrainingHistory
-from olfactory_navigation.agents.model_based_util.value_function import ValueFunction
-from olfactory_navigation.agents.model_based_util import vi_solver
+from pomdp_toolkit import ValueFunction
+from pomdp_toolkit.solvers import VI
 
 
 class QMDP_Agent(PBVI_Agent):
@@ -35,8 +36,8 @@ class QMDP_Agent(PBVI_Agent):
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name to give the agent. If not provided is will be a combination of the class-name and the threshold.
-    seed : int, default = 12131415
-        For reproducible randomness.
+    rng : int or np.random.Generator, default = np.random.default_rng()
+        A seed for random generation or directly a numpy random generator.
     model : Model, optional
         A POMDP model to use to represent the olfactory environment.
         If not provided, the environment_converter parameter will be used.
@@ -70,14 +71,12 @@ class QMDP_Agent(PBVI_Agent):
         Whether the agent has been sent to the gpu or not.
     class_name : str
         The name of the class of the agent.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
-    cpu_version : Agent
+    rng : np.random.Generator
+        A random number generator.
+    on_cpu : PBVI_Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
-    gpu_version : Agent
-        An instance of the agent on the CPU. If it already is, it returns itself.
+    on_gpu : PBVI_Agent
+        An instance of the agent on the GPU. If it already is, it returns itself.
     trained_at : str
         A string timestamp of when the agent has been trained (None if not trained yet).
     value_function : ValueFunction
@@ -111,14 +110,14 @@ class QMDP_Agent(PBVI_Agent):
             How many iterations to run the Value Iteration process for.
         initial_value_function : ValueFunction, optional
             An initial value function to start the solving process with.
-        use_gpu : bool, default = False
-            Whether to use the GPU with cupy array to accelerate solving.
         gamma : float, default = 0.99
             The discount factor to value immediate rewards more than long term rewards.
             The learning rate is 1/gamma.
         eps : float, default = 1e-6
             The smallest allowed changed for the value function.
             Bellow the amound of change, the value function is considered converged and the value iteration process will end early.
+        use_gpu : bool, default = False
+            Whether to use the GPU with cupy array to accelerate solving.
         history_tracking_level : int, default = 1
             How thorough the tracking of the solving process should be. (0: Nothing; 1: Times and sizes of belief sets and value function; 2: The actual value functions and beliefs sets)
         overwrite_training : bool, default = False
@@ -142,23 +141,22 @@ class QMDP_Agent(PBVI_Agent):
             else:
                 initial_value_function = self.value_function
 
-        model = self.model if not use_gpu else self.model.gpu_model
-
         # Value Iteration solving
-        value_function, hist = vi_solver.solve(model = model,
-                                               horizon = expansions,
-                                               initial_value_function = initial_value_function,
-                                               gamma = gamma,
-                                               eps = eps,
-                                               use_gpu = use_gpu,
-                                               history_tracking_level = history_tracking_level,
-                                               print_progress = print_progress)
+        value_function, hist = VI.solve(model = self.model,
+                                        horizon = expansions,
+                                        initial_value_function = initial_value_function,
+                                        gamma = gamma,
+                                        eps = eps,
+                                        use_gpu = use_gpu,
+                                        use_reachability = self.use_reachability,
+                                        history_tracking_level = history_tracking_level,
+                                        print_progress = print_progress)
 
         # Record when it was trained
         self.trained_at = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.name += f'-trained_{self.trained_at}'
 
-        self.value_function = value_function.to_cpu() if not self.on_gpu else value_function.to_gpu()
+        self.value_function = value_function.on_cpu if not self.is_on_gpu else value_function.on_gpu
 
         # Print stats if requested
         if print_stats:

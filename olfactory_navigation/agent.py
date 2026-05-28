@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import numpy as np
 import os
@@ -6,6 +8,7 @@ import shutil
 import sys
 
 from olfactory_navigation.environment import Environment
+from olfactory_navigation.util import get_rng
 
 import numpy as np
 
@@ -75,8 +78,10 @@ class Agent:
     - save(): To save the agent to long term storage.
     - load(): To load the agent from long term storage.
     - modify_environment(): To provide an equivalent agent with a different environment linked to it. If the agent has previously been trained, the trained components needs to be adapted to this new environment.
-    - to_gpu(): To create an alternative version of the agent whether the array instances are stored on the GPU memory instead of the CPU memory.
-    - to_cpu(): To create an alternative version of the agent whether the array instances are stored on the CPU memory instead of the GPU memory.
+
+    Then the agent has two attributes that can be used to move from and to GPU the arrays that need to be:
+    - on_gpu: To create an alternative version of the agent whether the array instances are stored on the GPU memory instead of the CPU memory.
+    - on_cpu: To create an alternative version of the agent whether the array instances are stored on the CPU memory instead of the GPU memory.
 
     For a user to implement an agent, the main methods to define are the Simulation methods! The training method is, as stated, optional, as some agent definitions do not require it.
     And the General methods all have some default behavior and are therefore only needed to be overwritten in specific cases.
@@ -86,7 +91,6 @@ class Agent:
     ----------
     environment : Environment
         The olfactory environment the agent is meant to evolve in.
-
     thresholds : float or list[float] or dict[str, float] or dict[str, list[float]], default = 3e-6
         The olfactory thresholds. If an odor cue above this threshold is detected, the agent detects it, else it does not.
         If a list of thresholds is provided, the agent should be able to detect |thresholds|+1 levels of odor.
@@ -106,8 +110,8 @@ class Agent:
         If none is provided, by default, all unit steps in all cardinal directions are included and such for all layers (if the environment has layers.)
     name : str, optional
         A custom name for the agent. If it is not provided it will be named like "<class_name>-thresh_<threshold>".
-    seed : int, default = 12131415
-        For reproducible randomness.
+    rng : int or np.random.Generator, default = np.random.default_rng()
+        A seed for random generation or directly a numpy random generator.
 
     Attributes
     ----------
@@ -126,18 +130,16 @@ class Agent:
         The labels associated to the action vectors present in the action set.
     saved_at : str
         If the agent has been saved, the path at which it is saved is recorded in this variable.
-    on_gpu : bool
-        Whether the arrays are on the GPU memory or not. For this, the support for Cupy needs to be enabled and the agent needs to have been moved to the GPU using the to_gpu() function.
+    is_on_gpu : bool
+        Whether the arrays are on the GPU memory or not. For this, the support for Cupy needs to be enabled and the agent needs to have been moved to the GPU using the on_gpu attribute.
     class_name : str
         The name of the class of the agent.
-    seed : int
-        The seed used for the random operations (to allow for reproducability).
-    rnd_state : np.random.RandomState
-        The random state variable used to generate random values.
-    cpu_version : Agent
+    rng : np.random.Generator
+        A random number generator.
+    on_cpu : Agent
         An instance of the agent on the CPU. If it already is, it returns itself.
-    gpu_version : Agent
-        An instance of the agent on the CPU. If it already is, it returns itself.
+    on_gpu : Agent
+        An instance of the agent on the GPU. If it already is, it returns itself.
     '''
     def __init__(self,
                  environment: Environment,
@@ -146,7 +148,7 @@ class Agent:
                  spacial_subdivisions: np.ndarray = None,
                  actions: dict[str, np.ndarray] | np.ndarray = None,
                  name: str = None,
-                 seed: int = 12131415
+                 rng: int | np.random.Generator = None
                  ) -> None:
         self.environment = environment
         self.space_aware = space_aware
@@ -309,12 +311,11 @@ class Agent:
         # Other variables
         self.saved_at = None
 
-        self.on_gpu = False
+        self.is_on_gpu = False
         self._alternate_version = None
 
-        # random state
-        self.seed = seed
-        self.rnd_state = np.random.RandomState(seed = seed)
+        # RNG
+        self.rng = get_rng(rng)
 
 
     @property
@@ -398,7 +399,7 @@ class Agent:
             An integer array of discrete observations
         '''
         # GPU support
-        xp = np if not self.on_gpu else cp
+        xp = np if not self.is_on_gpu else cp
 
         n = len(observation)
         discrete_observations = xp.ones(n, dtype=int) * -1
@@ -506,8 +507,8 @@ class Agent:
         save_environment : bool, default = False
             Whether to save the agent's linked environment alongside the agent itself.
         '''
-        if self.on_gpu:
-            cpu_agent = self.to_cpu()
+        if self.is_on_gpu:
+            cpu_agent = self.on_cpu
             cpu_agent.save(folder=folder, force=force, save_environment=save_environment)
             return
 
@@ -539,7 +540,7 @@ class Agent:
     @classmethod
     def load(cls,
              folder: str
-             ) -> 'Agent':
+             ) -> Agent:
         '''
         Function to load a trained agent from long term storage.
         By default, as for the save function, it will load the agent from the folder assuming it is a pickle file.
@@ -567,7 +568,7 @@ class Agent:
 
     def modify_environment(self,
                            new_environment: Environment
-                           ) -> 'Agent':
+                           ) -> Agent:
         '''
         Function to modify the environment of the agent.
 
@@ -591,115 +592,65 @@ class Agent:
         return modified_agent
 
 
-    def to_gpu(self) -> 'Agent':
+    @property
+    def on_gpu(self) -> Agent:
         '''
-        Function to send the numpy arrays of the agent to the gpu.
-        It returns a new instance of the Agent class with the arrays on the gpu.
-
-        Returns
-        -------
-        gpu_agent : Agent
-            A new environment instance where the arrays are on the gpu memory.
+        A version of the Agent on the GPU.
+        If the agent is already on the GPU it returns itself, otherwise a new one is generated.
         '''
-        # Check whether the agent is already on the gpu or not
-        if self.on_gpu:
+        if self.is_on_gpu:
             return self
-
-        # Warn and overwrite alternate_version in case it already exists
-        if self._alternate_version is not None:
-            print('[warning] A GPU instance already existed and is being recreated.')
-            self._alternate_version = None
 
         assert gpu_support, "GPU support is not enabled, Cupy might need to be installed..."
 
-        # Generating a new instance
-        cls = self.__class__
-        gpu_agent = cls.__new__(cls)
-
-        # Copying arguments to gpu
-        for arg, val in self.__dict__.items():
-            if isinstance(val, np.ndarray):
-                setattr(gpu_agent, arg, cp.array(val))
-            elif arg == 'rnd_state':
-                setattr(gpu_agent, arg, cp.random.RandomState(self.seed))
-            else:
-                setattr(gpu_agent, arg, val)
-
-        # Self reference instances
-        self._alternate_version = gpu_agent
-        gpu_agent._alternate_version = self
-
-        gpu_agent.on_gpu = True
-        return gpu_agent
-
-
-    def to_cpu(self) -> 'Agent':
-        '''
-        Function to send the numpy arrays of the agent to the cpu.
-        It returns a new instance of the Agent class with the arrays on the cpu.
-
-        Returns
-        -------
-        cpu_agent : Agent
-            A new environment instance where the arrays are on the cpu memory.
-        '''
-        # Check whether the agent is already on the cpu or not
-        if not self.on_gpu:
-            return self
-
+        # Check if an alternate version doesnt exists create a new one
         if self._alternate_version is not None:
-            print('[warning] A CPU instance already existed and is being recreated.')
-            self._alternate_version = None
+            # Generating a new instance
+            cls = self.__class__
+            gpu_agent = cls.__new__(cls)
 
-        # Generating a new instance
-        cls = self.__class__
-        cpu_agent = cls.__new__(cls)
+            # Copying arguments to gpu
+            for arg, val in self.__dict__.items():
+                if isinstance(val, np.ndarray):
+                    setattr(gpu_agent, arg, cp.array(val))
+                else:
+                    setattr(gpu_agent, arg, val)
 
-        # Copying arguments to gpu
-        for arg, val in self.__dict__.items():
-            if isinstance(val, cp.ndarray):
-                setattr(cpu_agent, arg, cp.asnumpy(val))
-            elif arg == 'rnd_state':
-                setattr(cpu_agent, arg, np.random.RandomState(self.seed))
-            else:
-                setattr(cpu_agent, arg, val)
+            # Self reference instances
+            self._alternate_version = gpu_agent
+            gpu_agent._alternate_version = self
+            gpu_agent.is_on_gpu = True
 
-        # Self reference instances
-        self._alternate_version = cpu_agent
-        cpu_agent._alternate_version = self
-
-        cpu_agent.on_gpu = True
-        return cpu_agent
-
+        return self._alternate_version
 
     @property
-    def gpu_version(self):
-        '''
-        A version of the Agent on the GPU.
-        If the agent is already on the GPU it returns itself, otherwise the to_gpu function is called to generate a new one.
-        '''
-        if self.on_gpu:
-            return self
-        else:
-            if self._alternate_version is not None: # Check if an alternate version already exists
-                return self._alternate_version
-            else: # Generate an alternate version on the gpu
-                return self.to_gpu()
-
-
-    @property
-    def cpu_version(self):
+    def on_cpu(self) -> Agent:
         '''
         A version of the Agent on the CPU.
-        If the agent is already on the CPU it returns itself, otherwise the to_cpu function is called to generate a new one.
+        If the agent is already on the CPU it returns itself, otherwise a new one is generated.
         '''
-        if not self.on_gpu:
+        if not self.is_on_gpu:
             return self
-        else:
-            if self._alternate_version is not None: # Check if an alternate version already exists
-                return self._alternate_version
-            else: # Generate an alternate version on the cpu
-                return self.to_cpu()
+
+        # Check if an alternate version doesnt exists create a new one
+        if self._alternate_version is None:
+            # Generating a new instance
+            cls = self.__class__
+            cpu_agent = cls.__new__(cls)
+
+            # Copying arguments to gpu
+            for arg, val in self.__dict__.items():
+                if isinstance(val, cp.ndarray):
+                    setattr(cpu_agent, arg, cp.asnumpy(val))
+                else:
+                    setattr(cpu_agent, arg, val)
+
+            # Self reference instances
+            self._alternate_version = cpu_agent
+            cpu_agent._alternate_version = self
+            cpu_agent.is_on_gpu = False
+
+        return self._alternate_version
 
 
     def size_on_memory(self) -> int:
