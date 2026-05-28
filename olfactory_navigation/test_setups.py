@@ -12,6 +12,14 @@ from olfactory_navigation.agent import Agent
 from olfactory_navigation.environment import Environment
 from olfactory_navigation.simulation import run_test, SimulationHistory
 
+import numpy as np
+gpu_support = False
+try:
+    import cupy as cp
+    gpu_support = True
+except:
+    print('[Warning] Cupy could not be loaded: GPU support is not available.')
+
 
 def run_all_starts_test(agent: Agent,
                         environment: Environment = None,
@@ -1286,7 +1294,10 @@ def complete_test(*agent_classes: type[Agent],
 
     for i_agent, (agent_class, agent_additional_params, training_params, agent_initialization_values) in enumerate(zip(agent_classes, agent_additional_parameters, training_parameters, initialization_values)):
         print(f'Agent {i_agent} ({agent_class.__name__}):')
+        print('------------------------------------------')
 
+        # Step 0: Initialization
+        print('\n0 - Agent Initialization')
         # Get the 1st provided environment if the training environment was not provided
         if training_environment is None:
             print('Using environment 0 as the training_environment was not provided')
@@ -1302,21 +1313,24 @@ def complete_test(*agent_classes: type[Agent],
             **agent_additional_params
         )
 
+        if use_gpu:
+            agent = agent.on_gpu
+
         # Step 1: Train agent
-        process = psutil.Process(os.getpid())
-        memory_before = process.memory_info().rss
+        print('\n1 - Agent training')
         start_time = time.perf_counter()
 
         if not agent.trained:
             agent.train(**training_params)
 
-        training_memory_used = process.memory_info().rss - memory_before
         training_time_taken = time.perf_counter() - start_time
 
         # Step 2: Get trained agent size
+        print('\n2 - Get size on memory of the agent')
         agent_size_bytes = agent.size_on_memory()
 
         # Step 3: Test in void
+        print('\n3 - Testing agent in void')
         void_hist = test_agent_in_void(
             agent=agent,
             horizon=horizon,
@@ -1324,7 +1338,7 @@ def complete_test(*agent_classes: type[Agent],
             reward_discount=reward_discount,
             distance_metric=distance_metric,
             print_progress=print_progress,
-            print_stats=print_stats,
+            print_stats=False,
             print_warning=print_warning,
             use_gpu=use_gpu,
             parallel_agent_simulation=parallel_agent_simulation,
@@ -1333,6 +1347,7 @@ def complete_test(*agent_classes: type[Agent],
         void_summary = _history_summary(void_hist, prefix='void_')
 
         # Step 4: Test memory scaling
+        print('\n4 - Testing agent memory scaling')
         memory_scaling_df = test_agent_memory_scaling(
             agent=agent,
             initialization_values=agent_initialization_values,
@@ -1341,6 +1356,7 @@ def complete_test(*agent_classes: type[Agent],
         memory_scaling_last = memory_scaling_df.iloc[-1].to_dict()
 
         # Step 5: Test in all the other environments
+        print('\n5 - Testing agent in provided environments')
         for i_environment, environment in enumerate(environments):
             print(f'- Environment {i_environment}')
 
@@ -1368,7 +1384,6 @@ def complete_test(*agent_classes: type[Agent],
                 'environment_name': environment.name,
                 'training_environment_name': training_environment.name if training_environment is not None else None,
                 'agent_size_bytes': agent_size_bytes,
-                'training_memory_used': training_memory_used,
                 'training_time_taken': training_time_taken,
                 'memory_scaling_n_exp': memory_scaling_last['n_exp'],
                 'memory_scaling_time_s': memory_scaling_last['time_s'],
@@ -1378,9 +1393,13 @@ def complete_test(*agent_classes: type[Agent],
             row.update(void_summary)
             rows.append(row)
 
+            if use_gpu:
+                # Refresh memory
+                cp._default_memory_pool.free_all_blocks()
+
             print('')
 
-        print('--------------------------------------')
+        print('------------------------------------------')
 
     result_df = pd.DataFrame(rows)
     return result_df
