@@ -1213,7 +1213,7 @@ def test_agent_memory_scaling(agent: Agent,
             n_exp += 1
 
             # Saving results of the trial
-            elapsed_time_s = (start_time - datetime.now()).total_seconds()
+            elapsed_time_s = (datetime.now() - start_time).total_seconds()
             trials.append({
                 'n_exp': n_exp,
                 'time_s': elapsed_time_s,
