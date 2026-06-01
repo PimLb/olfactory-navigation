@@ -75,6 +75,7 @@ def getManyTraj(starts, unbounded):
         # curFrame += 1
         t += 1
         done = isEndVect(curStates, done)
+    Gs[~done] = -1
     return minDist / stepsDone, Gs, done, stepsDone
 
 

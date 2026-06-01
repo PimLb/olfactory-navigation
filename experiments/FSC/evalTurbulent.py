@@ -14,6 +14,7 @@ ActionDict = np.asarray([
             [ 1,  0], # Upwind
             [ 0, -1]  # Crosswind
         ])
+# TODO: change as it doesn't make sense anymore
 # I leave these here as Global vars so when I change the values in the main, the change is reflected in the various functions
 # Ugly, but better (IMO) than having to init a list of the same parameter when using map or to define the functions inside getTraj
 rSource = 0
@@ -49,6 +50,7 @@ def getManyTraj(starts, unbounded):
         curFrame += 1
         t += 1
         done = utils.isEnd(curStates, src, done)
+    Gs[~done] = -1
     return minDist / stepsDone, Gs, done, stepsDone
 
 if __name__ == "__main__":
