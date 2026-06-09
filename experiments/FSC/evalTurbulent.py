@@ -14,23 +14,25 @@ ActionDict = np.asarray([
             [ 1,  0], # Upwind
             [ 0, -1]  # Crosswind
         ])
-# TODO: change as it doesn't make sense anymore
-# I leave these here as Global vars so when I change the values in the main, the change is reflected in the various functions
-# Ugly, but better (IMO) than having to init a list of the same parameter when using map or to define the functions inside getTraj
-rSource = 0
-cSource = 0
-rows = 0
-cMax = 0
-odor = None
-threshold = 1e-4
-maxFrames = 0
-pi = None
-cumProbs = None
-M = 0
-maxSteps = 0
 
-def getManyTraj(starts, unbounded):
-    src = np.array([rSource, cSource])
+#TODO:  Maybe change that this function samples from rho inside the h5 file odor, maybe providing also different starting distributions
+#       Thus changing start to simply the number of trajectories instead of all the straing states
+def getManyTraj(pi, odor, starts, maxSteps, unbounded=False, gamma = 0.99975, reward = None,threshold = 1e-4, src=None, shape =None, maxFrames = None):
+    if src is None:
+        src = np.array(odor['source'])
+    else:
+        src = np.array(src)
+    if shape is None:
+        rows, cols = odor['odor/0'].shape
+    else:
+        rows, cols = shape
+    if maxFrames is None:
+        maxFrames = odor['frames'][()]
+    if reward is None:
+        reward = -(1-gamma)
+    M = pi.shape[1]
+    assert pi.shape == (2, M, 4*M)
+    cumProbs = np.cumsum(pi.reshape(-1, 4*M), axis = 1)
     ends = utils.getEndingStates(rows, cols, src)
     minDist = utils.getMinDist(starts, ends)
     curStates = starts
@@ -72,14 +74,7 @@ if __name__ == "__main__":
     odor = h5py.File(dataPath)
     rows, cols = odor['odor/0'].shape
     cMax = cols
-    SC = rows * cols
-    rSource, cSource = odor['source']
-    find_range = 1.1 # Source radius
-    maxFrames = odor['frames'][()] # Syntax to get a scalar value from h5py
     maxSteps = 10000
-
-    gamma = 0.99975
-    reward = -(1 -gamma)
 
     rho = np.zeros(cols) # For now I assume to start always from the most downwind row
     if "rho" in odor:
@@ -87,7 +82,6 @@ if __name__ == "__main__":
     else:
         rho = odor['odor/0'][0] / np.sum(odor['odor/0'][0])
 
-    procNumber = 50
     traj = 10000
     if sb is None:
         saveDir = f"eval/turbulent/{thetaName}{"_unbounded" if unbounded else ""}"
@@ -101,7 +95,6 @@ if __name__ == "__main__":
     M = theta.shape[1]
     assert theta.shape == (2, M, 4 * M)
     pi = softmax(theta, axis = 2)
-    cumProbs = np.cumsum(pi.reshape(-1, 4*M), axis = 1)
     print("PI to be evaluated: ", pi, flush= True)
     steps = np.zeros(traj)
     timeToReach = np.zeros(traj)
@@ -111,7 +104,9 @@ if __name__ == "__main__":
     startsCols = np.random.choice(range(cols), size=traj, replace=True, p = rho)
     starts = np.array([(0, cols) for cols in startsCols])
     s = time.perf_counter()
-    timeToReach, empiricalG, successes, steps = getManyTraj(starts, unbounded)
+
+
+    timeToReach, empiricalG, successes, steps = getManyTraj(pi, odor, starts, maxSteps)
     e = time.perf_counter()
     print(f"{traj} trajectories done in {e-s}s")
     np.save(f"{saveDir}/res.npy", np.stack((timeToReach, empiricalG, successes, steps)))
