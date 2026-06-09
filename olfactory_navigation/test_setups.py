@@ -1235,6 +1235,21 @@ def test_agent_memory_scaling(agent: Agent,
             # Returning the df
             return pd.DataFrame(trials)
 
+        except Exception as e:
+            print(f'Exception reached with {2**n_exp} agents')
+            print(f'{e}')
+
+            # Saving results of the trial
+            elapsed_time_s = (datetime.now() - start_time).total_seconds()
+            trials.append({
+                'n_exp': n_exp,
+                'time_s': elapsed_time_s,
+                'time_s_per_agent': elapsed_time_s / (2**n_exp)
+            })
+
+            # Returning the df
+            return pd.DataFrame(trials)
+
 
 def complete_test(*agent_classes: type[Agent],
                   environments: list[Environment],
