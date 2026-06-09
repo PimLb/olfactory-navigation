@@ -135,3 +135,4 @@ if __name__ == "__main__":
     plt.savefig(f"{saveDir}/hist.svg")
     print("Mean Reached: ", np.mean(finished )," STD Reached: ", np.std(finished ), " Finished", np.count_nonzero(steps != maxStep) / traj * 100, "%")
     print("Mean Overall: ", np.mean(steps )," STD Overall: ", np.std(steps) , "Not finished", np.count_nonzero(steps == maxStep) / traj * 100, "%")
+    print( "Mean G: ", np.mean(empiricalG), "Median G: ", np.median(empiricalG))

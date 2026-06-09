@@ -23,3 +23,8 @@ experiments/FSC/gridPlots.sh
 experiments/FSC/celaniData/mdpV.py
 experiments/FSC/storage
 experiments/FSC/runReinforce.sh
+experiments/FSC/celaniData
+experiments/FSC/eval
+experiments/FSC/figures
+experiments/FSC/objOut
+experiments/FSC/plots
