@@ -1,14 +1,15 @@
 import numpy as np
-from matplotlib import pyplot as plt
-import cupy as cp
+# from matplotlib import pyplot as plt
+# import cupy as cp
 from scipy.special import softmax as softmax
-import multiprocessing as mp
+# import multiprocessing as mp
 import time
 import os
 import sys
 import argparse as ap
 import signal
-
+import glob
+import re
 # Setting Parameters
 SC = 92 * 131 # Number of States
 cSource = 45.5 # Source coordinates
@@ -60,9 +61,9 @@ def takeAction(sm, am):
     action = ActionDict[a]
     rNew = r + action[0]
     cNew = c + action[1]
-    r = rNew if rNew >= 0 and rNew < 131 else r
-    c = cNew if cNew >= 0 and cNew < 92 else c
-    return r * 92 + c + newM * SC
+    r = np.clip(rNew, 0, rows-1)
+    c = np.clip(cNew, 0, cols-1)
+    return r * cols + c + newM * SC
 
 def totalTime(end, start, file = None):
     tot = end - start
@@ -93,6 +94,7 @@ parser.add_argument("memories", type=int, help="The memories of the FSC")
 parser.add_argument("lambda_actor", type=float, help="the trace decay parameter for the actor")
 parser.add_argument("lambda_critic", type=float, help="the trace decay parameter for the critic")
 parser.add_argument("episodes", type=int, help="The final episode number. If --iterationStart is specified, the number of episode ran will be episodes - iterationStart")
+parser.add_argument("-o", "--obs", help="The path to the directory in which the observation likelihood is stored, in a .npy file, and a param.txt file in which is written the coordinate of the source: first row then col")
 parser.add_argument("-c", "--clip", type=float, help="TODO")
 parser.add_argument("--normalize", action="store_true", help="TODO")
 parser.add_argument("-n", "--name", help="subfolder name in which to save the results")
@@ -107,6 +109,24 @@ actor_lr = args.actor_lr
 critic_lr = args.critic_lr
 M = args.memories
 assert M >= 1
+obsPath = args.obs
+if obsPath is not None:
+    try:
+        with open(f"{obsPath}/src.txt") as f:
+            l = f.readline()
+            m = re.findall(r"[0-9]+(?:\.[0-9]*)", l)
+            rSource, cSource = [float(el) for el in m]
+    except Exception as e:
+        raise Exception(f"Couldn't open or read the src file") from e
+    path = glob.glob(f"{obsPath}/*.npy")
+    assert len(path) == 1, "Either no data file in the folder provided or ambiguity"
+    tmpData = np.load(path[0])
+    rows, cols = tmpData.shape[1:]
+    SC = rows * cols
+    dataC = tmpData.reshape(2,-1)
+    rho = np.zeros(SC)
+    rho[:cols] = (1-dataC[0,:cols])/np.sum((1-dataC[0,:cols]))
+
 lambda_actor = args.lambda_actor
 lambda_critic = args.lambda_critic
 numberEpisodes = args.episodes
@@ -159,7 +179,6 @@ os.makedirs(critDir)
 os.makedirs(actDir)
 output = open(os.path.join(saveDir, "_results.out"), "w")
 signal.signal(signal.SIGTERM, handleTERM)
-s = time.perf_counter()
 print(f" Startinng {numberEpisodes} episodes at {time.ctime()}",file=output, flush=True)
 np.save(os.path.join(actDir, "thetaSTART.npy"), theta)
 thPrev = theta.copy()
@@ -168,6 +187,7 @@ errors = []
 i = itStart
 gradF = vanillaGrad if vanilla else natGrad
 
+s = time.perf_counter()
 try:
     while i < numberEpisodes:
         start = np.random.choice(range(SC), p = rho) # Parto sempre dalla memoria 0
